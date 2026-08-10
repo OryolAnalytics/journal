@@ -316,6 +316,11 @@ tbody tr:hover{background:var(--panel2)}
   <!-- DATEN / EINSTELLUNGEN -->
   <section id="v-settings" class="hide">
     <div class="panel">
+      <h2>Synchronisation Handy ↔ PC</h2>
+      <div id="syncStatus" style="font-size:13px;margin-bottom:12px"></div>
+      <div id="syncBox"></div>
+    </div>
+    <div class="panel">
       <h2>Notizen sichern &amp; übertragen</h2>
       <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
         Trades kommen live aus der Blockchain und müssen nie gesichert werden. Deine <b>Notizen, Tags und Ratings</b>
@@ -402,7 +407,8 @@ tbody tr:hover{background:var(--panel2)}
 
 const API = 'https://api.hyperliquid.xyz/info';
 const LS = {
-  addr:'hlj_addr', tags:'hlj_tags', balOpts:'hlj_balopts_v2',
+  addr:'hlj_addr', tags:'hlj_tags', tagsT:'hlj_tags_t', sync:'hlj_sync',
+  balOpts:'hlj_balopts_v2',
   notes: a => 'hlj_notes_' + a,
   cache: a => 'hlj_cache_' + a,
   wallets:'hlj_wallets'
@@ -734,15 +740,154 @@ function ddFromHistory(hist){
 function loadNotes(a){
   try{ return JSON.parse(localStorage.getItem(LS.notes(a)) || '{}'); }catch(e){ return {}; }
 }
-function saveNotes(){
+function saveNotes(fromSync){
   try{ localStorage.setItem(LS.notes(S.addr), JSON.stringify(S.notes)); }
   catch(e){ showErr('Notiz konnte nicht gespeichert werden: ' + e.message); }
+  if(!fromSync) syncSoon();
 }
 function loadTags(){
   try{
     const t = JSON.parse(localStorage.getItem(LS.tags) || 'null');
     return Array.isArray(t) && t.length ? t : DEFAULT_TAGS.slice();
   }catch(e){ return DEFAULT_TAGS.slice(); }
+}
+
+/* ---------- Notiz-Zugriff (gelöschte gelten als nicht vorhanden) ---------- */
+function noteOf(id){
+  const n = S.notes[id];
+  return (n && !n.deleted) ? n : null;
+}
+function liveNotes(){
+  const out = {};
+  for(const k in S.notes){ if(!S.notes[k].deleted) out[k] = S.notes[k]; }
+  return out;
+}
+function setTags(list){
+  S.tags = list;
+  localStorage.setItem(LS.tags, JSON.stringify(list));
+  localStorage.setItem(LS.tagsT, String(Date.now()));
+}
+function tagsStamp(){ return num(localStorage.getItem(LS.tagsT)) || 0; }
+
+/* ---------- Synchronisation über Supabase ---------- */
+const SYNC = {
+  cfg(){
+    try{ return JSON.parse(localStorage.getItem(LS.sync) || 'null'); }catch(e){ return null; }
+  },
+  store(c){ localStorage.setItem(LS.sync, JSON.stringify(c)); },
+  clear(){ localStorage.removeItem(LS.sync); },
+  active(){ const c = this.cfg(); return !!(c && c.url && c.key && c.jid); },
+  hdr(c, extra){
+    return Object.assign({apikey:c.key, Authorization:'Bearer ' + c.key,
+      'Content-Type':'application/json'}, extra || {});
+  },
+  url(c){ return String(c.url).replace(/\/+$/, '') + '/rest/v1/journal_notes'; },
+
+  async pull(c){
+    const u = this.url(c) + '?journal_id=eq.' + encodeURIComponent(c.jid) + '&select=*';
+    const r = await fetch(u, {headers:this.hdr(c)});
+    if(!r.ok) throw new Error('Abruf fehlgeschlagen (HTTP ' + r.status + '): ' +
+      (await r.text()).slice(0, 180));
+    return r.json();
+  },
+  async push(c, rows){
+    if(!rows.length) return 0;
+    const r = await fetch(this.url(c) + '?on_conflict=journal_id,trade_id', {
+      method:'POST',
+      headers:this.hdr(c, {Prefer:'resolution=merge-duplicates,return=minimal'}),
+      body:JSON.stringify(rows)
+    });
+    if(!r.ok) throw new Error('Speichern fehlgeschlagen (HTTP ' + r.status + '): ' +
+      (await r.text()).slice(0, 180));
+    return rows.length;
+  },
+  row(c, id, n){
+    return {journal_id:c.jid, trade_id:id, tag:n.tag || null, rating:n.rating || null,
+      note:n.note || null, deleted:!!n.deleted, updated_at:num(n.updatedAt) || Date.now()};
+  },
+
+  /* Zwei-Wege-Abgleich: neuerer Zeitstempel gewinnt */
+  async run(opts){
+    opts = opts || {};
+    if(!this.active()){ return; }
+    const c = this.cfg();
+    if(this.busy) return;
+    this.busy = true;
+    setSyncStatus('<span class="spin"></span> Synchronisiere…');
+    try{
+      const remote = await this.pull(c);
+      const rmap = {};
+      let changed = false;
+
+      for(const r of remote){
+        rmap[r.trade_id] = r;
+        const rt = num(r.updated_at);
+        if(r.trade_id === '__tags__'){
+          if(rt > tagsStamp()){
+            try{
+              const t = JSON.parse(r.note || '[]');
+              if(Array.isArray(t) && t.length){
+                S.tags = t;
+                localStorage.setItem(LS.tags, JSON.stringify(t));
+                localStorage.setItem(LS.tagsT, String(rt));
+                changed = true;
+              }
+            }catch(e){}
+          }
+          continue;
+        }
+        const local = S.notes[r.trade_id];
+        const lt = local ? num(local.updatedAt) : -1;
+        if(rt > lt){
+          S.notes[r.trade_id] = {tag:r.tag || '', note:r.note || '', rating:r.rating || 0,
+            updatedAt:rt, deleted:!!r.deleted};
+          changed = true;
+        }
+      }
+
+      const out = [];
+      for(const id in S.notes){
+        const n = S.notes[id], r = rmap[id];
+        if(!r || num(n.updatedAt) > num(r.updated_at)) out.push(this.row(c, id, n));
+      }
+      const rt = rmap['__tags__'] ? num(rmap['__tags__'].updated_at) : -1;
+      if(tagsStamp() > rt){
+        out.push({journal_id:c.jid, trade_id:'__tags__', tag:null, rating:null,
+          note:JSON.stringify(S.tags), deleted:false, updated_at:tagsStamp()});
+      }
+
+      const sent = await this.push(c, out);
+      if(changed) saveNotes(true);
+
+      S.lastSync = Date.now();
+      setSyncStatus('<span class="up">✓ Synchron</span> · ' +
+        new Date().toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}) +
+        ' · ' + sent + ' gesendet, ' + remote.length + ' empfangen');
+      if(changed) renderAll();
+      return {sent, received:remote.length};
+    }catch(e){
+      setSyncStatus('<span class="down">Sync-Fehler:</span> ' + esc(e.message));
+      if(opts.loud) throw e;
+    }finally{
+      this.busy = false;
+    }
+  }
+};
+
+let syncTimer = null;
+function syncSoon(){
+  if(!SYNC.active()) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => SYNC.run({}), 1200);
+}
+function setSyncStatus(html){
+  const el = document.getElementById('syncStatus');
+  if(el) el.innerHTML = html || '';
+}
+function randomKey(){
+  const a = new Uint8Array(16);
+  (window.crypto || window.msCrypto).getRandomValues(a);
+  return Array.from(a).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
 /* ---------- Cache ---------- */
@@ -821,6 +966,7 @@ async function load(incremental){
 
     fillCoinFilter();
     renderAll();
+    if(SYNC.active()) SYNC.run({});
     setStatus(S.fills.length + ' Fills · ' + S.trades.length + ' abgeschlossene Trades · Stand ' +
       new Date().toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}));
   }catch(e){
@@ -850,7 +996,7 @@ function fillCoinFilter(){
   sel.value = cur;
 }
 function fillTagFilter(){
-  const used = Array.from(new Set(Object.values(S.notes).map(n => n && n.tag).filter(Boolean))).sort();
+  const used = Array.from(new Set(Object.values(liveNotes()).map(n => n && n.tag).filter(Boolean))).sort();
   const sel = $('#fTag'), cur = sel.value;
   sel.innerHTML = '<option value="">Alle Setups</option>' +
     '<option value="__none">Ohne Tag</option>' +
@@ -870,7 +1016,7 @@ function filtered(){
     if(mkt === 'perp' && t.spot) return false;
     if(mkt === 'spot' && !t.spot) return false;
     if(tag){
-      const n = S.notes[t.id];
+      const n = noteOf(t.id);
       if(tag === '__none'){ if(n && n.tag) return false; }
       else if(!n || n.tag !== tag) return false;
     }
@@ -1027,14 +1173,14 @@ function renderTrades(tr){
   let list = tr.filter(t => {
     if(res === 'win') return t.net > 0;
     if(res === 'loss') return t.net < 0;
-    if(res === 'nonote'){ const n = S.notes[t.id]; return !n || (!n.note && !n.tag); }
+    if(res === 'nonote'){ const n = noteOf(t.id); return !n || (!n.note && !n.tag); }
     return true;
   });
   list = sortTrades(list);
   $('#tradeCount').textContent = '(' + list.length + ')';
   const tb = $('#tblTrades tbody');
   tb.innerHTML = list.map(t => {
-    const n = S.notes[t.id] || {};
+    const n = noteOf(t.id) || {};
     const size = t.maxNotional || t.entryNotional;
     return '<tr data-id="' + esc(t.id) + '">' +
       '<td class="mut">' + dt(t.closeTime) + '</td>' +
@@ -1061,13 +1207,13 @@ function renderTrades(tr){
 function renderSetups(tr){
   const groups = {};
   for(const t of tr){
-    const n = S.notes[t.id];
+    const n = noteOf(t.id);
     const tag = (n && n.tag) ? n.tag : '— ohne Tag —';
     (groups[tag] = groups[tag] || []).push(t);
   }
   const rows = Object.keys(groups).map(tag => {
     const g = groups[tag], m = metrics(g);
-    const ratings = g.map(t => (S.notes[t.id] || {}).rating).filter(Boolean).map(Number);
+    const ratings = g.map(t => (noteOf(t.id) || {}).rating).filter(Boolean).map(Number);
     const avgR = ratings.length ? (ratings.reduce((a,b) => a + b, 0) / ratings.length) : null;
     return {tag, m, avgR};
   }).sort((a,b) => b.m.net - a.m.net);
@@ -1090,7 +1236,7 @@ function renderSetups(tr){
 
   const byR = {};
   for(const t of tr){
-    const r = (S.notes[t.id] || {}).rating;
+    const r = (noteOf(t.id) || {}).rating;
     if(!r) continue;
     (byR[r] = byR[r] || []).push(t);
   }
@@ -1423,10 +1569,97 @@ function renderPositions(){
   $('#posEmpty').classList.toggle('hide', aps.length > 0);
 }
 
+/* ---------- Render: Sync-Einstellungen ---------- */
+function renderSync(){
+  const c = SYNC.cfg();
+  const box = $('#syncBox');
+  if(!box) return;
+
+  if(SYNC.active()){
+    box.innerHTML =
+      '<div class="dl"><span>Projekt</span><span class="mono" style="font-size:11.5px;' +
+        'word-break:break-all;text-align:right">' + esc(c.url) + '</span></div>' +
+      '<div class="dl"><span>Journal-Schlüssel</span><span class="mono" style="font-size:11.5px">' +
+        esc(c.jid) + '</span></div>' +
+      '<p class="mut" style="font-size:12.5px;line-height:1.6">' +
+        'Notizen gleichen sich beim Öffnen und nach jeder Änderung automatisch ab. ' +
+        'Damit das zweite Gerät dieselben Daten sieht, trag dort exakt dieselben drei Werte ein.</p>' +
+      '<div class="filters">' +
+        '<button class="primary" id="syncNow">Jetzt synchronisieren</button>' +
+        '<button id="syncShow">Zugangsdaten zum Übertragen anzeigen</button>' +
+        '<button id="syncOff">Trennen</button>' +
+      '</div>' +
+      '<div id="syncCreds" class="hide" style="margin-top:12px">' +
+        '<div class="f"><label>Diese drei Werte auf dem anderen Gerät eintragen</label>' +
+        '<textarea readonly style="min-height:130px" class="mono" id="syncCredsText">' +
+        'Projekt-URL:\n' + esc(c.url) + '\n\nAnon-Key:\n' + esc(c.key) +
+        '\n\nJournal-Schlüssel:\n' + esc(c.jid) + '</textarea></div>' +
+        '<div class="err">Diese Werte sind dein Zugang zu den Notizen. Nicht ins GitHub-Repo ' +
+        'schreiben und nicht weitergeben.</div></div>';
+
+    $('#syncNow').addEventListener('click', async () => {
+      try{ await SYNC.run({loud:true}); }catch(e){}
+    });
+    $('#syncShow').addEventListener('click', () => {
+      $('#syncCreds').classList.toggle('hide');
+      const t = $('#syncCredsText');
+      if(t && !$('#syncCreds').classList.contains('hide')){ t.focus(); t.select(); }
+    });
+    $('#syncOff').addEventListener('click', () => {
+      if(!confirm('Synchronisation trennen? Deine Notizen bleiben auf diesem Gerät erhalten.')) return;
+      SYNC.clear(); setSyncStatus(''); renderSettings();
+    });
+    return;
+  }
+
+  box.innerHTML =
+    '<p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">' +
+      'Noch nicht eingerichtet. Folge der Anleitung <b>SYNC-ANLEITUNG</b>, leg dir ein kostenloses ' +
+      'Supabase-Projekt an und trag hier die drei Werte ein. Danach laufen Notizen, Tags und ' +
+      'Bewertungen automatisch zwischen allen deinen Geräten.</p>' +
+    '<div class="f"><label>Projekt-URL (Supabase → Settings → API)</label>' +
+      '<input type="text" id="syUrl" class="mono" placeholder="https://abcdefgh.supabase.co" spellcheck="false"></div>' +
+    '<div class="f"><label>Anon public key</label>' +
+      '<textarea id="syKey" class="mono" style="min-height:80px" placeholder="eyJhbGciOi…" spellcheck="false"></textarea></div>' +
+    '<div class="f"><label>Journal-Schlüssel (auf beiden Geräten identisch)</label>' +
+      '<input type="text" id="syJid" class="mono" spellcheck="false"></div>' +
+    '<div class="filters">' +
+      '<button id="syGen">Neuen Schlüssel erzeugen</button>' +
+      '<button class="primary" id="syConnect">Verbinden &amp; synchronisieren</button>' +
+    '</div>';
+
+  $('#syGen').addEventListener('click', () => { $('#syJid').value = randomKey(); });
+  $('#syConnect').addEventListener('click', async () => {
+    const url = $('#syUrl').value.trim();
+    const key = $('#syKey').value.trim();
+    const jid = $('#syJid').value.trim() || randomKey();
+    if(!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(url)){
+      showErr('Die Projekt-URL sieht nicht richtig aus. Erwartet wird etwas wie ' +
+        'https://abcdefgh.supabase.co (ohne Pfad dahinter).');
+      return;
+    }
+    if(key.length < 40){ showErr('Der Anon-Key wirkt unvollständig – bitte komplett kopieren.'); return; }
+    showErr('');
+    SYNC.store({url:url.replace(/\/+$/,''), key, jid});
+    try{
+      await SYNC.run({loud:true});
+      renderSettings();
+      alert('Verbunden. Trag dieselben drei Werte auf deinem anderen Gerät ein, dann sind beide synchron.');
+    }catch(e){
+      SYNC.clear();
+      renderSettings();
+      showErr('Verbindung fehlgeschlagen: ' + esc(e.message) +
+        '<br>Prüfe, ob du die Tabelle per SQL angelegt hast und ob URL und Key stimmen.');
+    }
+  });
+}
+
 /* ---------- Render: Daten ---------- */
 function renderSettings(){
-  const n = Object.keys(S.notes).length;
-  const withTag = Object.values(S.notes).filter(x => x && x.tag).length;
+  renderSync();
+  const ln = liveNotes();
+  const n = Object.keys(ln).length;
+  const withTag = Object.values(ln).filter(x => x && x.tag).length;
   $('#notesInfo').innerHTML = n
     ? '<b>' + n + '</b> Trades mit Eintrag · <b>' + withTag + '</b> mit Setup-Tag'
     : 'Noch keine Notizen erfasst.';
@@ -1451,7 +1684,7 @@ function openTrade(id){
   const t = S.trades.find(x => x.id === id);
   if(!t) return;
   mCurrent = t;
-  const n = S.notes[id] || {};
+  const n = noteOf(id) || {};
   $('#mTitle').innerHTML = coinName(t.coin) + ' <span class="pill ' + t.side + '">' +
     (t.side === 'long' ? 'LONG' : 'SHORT') + '</span>' + (t.liquidated ? ' <span class="pill liq">LIQUIDIERT</span>' : '');
   $('#mSub').textContent = dt(t.openTime) + '  →  ' + dt(t.closeTime) + '  ·  ' + dur(t.durationMs);
@@ -1543,7 +1776,7 @@ function exportCsv(tr){
   const head = ['Geschlossen','Eroeffnet','Coin','Seite','AvgEntry','AvgExit','GroesseUSD',
     'PnLBrutto','Gebuehren','PnLNetto','RenditeProzent','DauerMin','Setup','Rating','Notiz'];
   const rows = sortTrades(tr).map(t => {
-    const n = S.notes[t.id] || {};
+    const n = noteOf(t.id) || {};
     return [
       new Date(t.closeTime).toISOString(), new Date(t.openTime).toISOString(),
       t.coin, t.side, t.avgEntry.toFixed(8), t.avgExit.toFixed(8),
@@ -1615,13 +1848,17 @@ $('#modal').addEventListener('click', e => { if(e.target.id === 'modal') closeMo
 $('#mSave').addEventListener('click', () => {
   if(!mCurrent) return;
   const tag = $('#mTag').value, note = $('#mNote').value.trim(), rating = currentRating();
-  if(!tag && !note && !rating) delete S.notes[mCurrent.id];
-  else S.notes[mCurrent.id] = {tag, note, rating, updatedAt:Date.now()};
+  if(!tag && !note && !rating){
+    S.notes[mCurrent.id] = {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()};
+  }else{
+    S.notes[mCurrent.id] = {tag, note, rating, deleted:false, updatedAt:Date.now()};
+  }
   saveNotes(); closeModal(); renderAll();
 });
 $('#mDel').addEventListener('click', () => {
   if(!mCurrent) return;
-  delete S.notes[mCurrent.id];
+  // Als gelöscht markieren statt entfernen – sonst käme sie beim nächsten Sync zurück
+  S.notes[mCurrent.id] = {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()};
   saveNotes(); closeModal(); renderAll();
 });
 $('#btnExport').addEventListener('click', exportNotes);
@@ -1630,9 +1867,9 @@ $('#fileImport').addEventListener('change', e => { if(e.target.files[0]) importN
 $('#btnCsv').addEventListener('click', () => exportCsv(filtered()));
 $('#btnSaveTags').addEventListener('click', () => {
   const t = $('#tagEditor').value.split('\n').map(x => x.trim()).filter(Boolean);
-  S.tags = t.length ? t : DEFAULT_TAGS.slice();
-  localStorage.setItem(LS.tags, JSON.stringify(S.tags));
+  setTags(t.length ? t : DEFAULT_TAGS.slice());
   renderSettings();
+  syncSoon();
   alert('Tags gespeichert.');
 });
 $('#btnClearCache').addEventListener('click', () => {
@@ -1657,6 +1894,10 @@ if(saved){
   setStatus('Wallet-Adresse eingeben und auf „Laden“ tippen.');
   renderSettings();
 }
+// Beim Zurückkehren auf den Tab abgleichen – so ist das Handy sofort aktuell
+document.addEventListener('visibilitychange', () => {
+  if(!document.hidden && SYNC.active() && Date.now() - (S.lastSync || 0) > 20000) SYNC.run({});
+});
 </script>
 </body>
 </html>
