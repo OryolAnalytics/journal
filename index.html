@@ -1,0 +1,1662 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f14">
+<title>Hyperliquid Journal</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📓</text></svg>">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0b0f14; --panel:#121821; --panel2:#182029; --line:#243040;
+  --txt:#e6edf5; --muted:#8b9bb0; --acc:#50d2c2; --acc2:#3b82f6;
+  --up:#26c281; --down:#ef5350; --warn:#f0b429;
+  --r:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-text-size-adjust:100%}
+body{padding-bottom:60px}
+a{color:var(--acc)}
+.wrap{max-width:1240px;margin:0 auto;padding:14px}
+header{position:sticky;top:0;z-index:50;background:rgba(11,15,20,.93);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line)}
+.hd{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 14px;max-width:1240px;margin:0 auto}
+.logo{font-weight:700;font-size:15px;letter-spacing:.3px;white-space:nowrap}
+.logo span{color:var(--acc)}
+input,select,button,textarea{font-family:inherit;font-size:14px}
+input[type=text],input[type=search],select,textarea{background:var(--panel2);border:1px solid var(--line);
+  color:var(--txt);border-radius:10px;padding:9px 11px;outline:none}
+input[type=text]:focus,select:focus,textarea:focus{border-color:var(--acc)}
+#addr{flex:1;min-width:200px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+button{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:10px;
+  padding:9px 14px;cursor:pointer;transition:.15s}
+button:hover{border-color:var(--acc);color:var(--acc)}
+button.primary{background:var(--acc);border-color:var(--acc);color:#04211d;font-weight:600}
+button.primary:hover{filter:brightness(1.1);color:#04211d}
+button:disabled{opacity:.5;cursor:not-allowed}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:0 14px 10px;max-width:1240px;margin:0 auto;
+  scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:7px 14px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);
+  cursor:pointer;white-space:nowrap;font-size:13px;color:var(--muted)}
+.tab.on{background:var(--acc);border-color:var(--acc);color:#04211d;font-weight:600}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.panel h2{margin:0 0 12px;font-size:14px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 13px}
+.kpi .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.kpi .v{font-size:20px;font-weight:650;letter-spacing:-.3px}
+.kpi .s{font-size:11px;color:var(--muted);margin-top:3px}
+.up{color:var(--up)} .down{color:var(--down)} .mut{color:var(--muted)} .warn{color:var(--warn)}
+.chartbox{position:relative;height:280px}
+.chartbox.sm{height:230px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;
+  letter-spacing:.5px;padding:8px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px;border-bottom:1px solid rgba(36,48,64,.55);white-space:nowrap}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--panel2)}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid}
+.pill.long{color:var(--up);border-color:rgba(38,194,129,.4);background:rgba(38,194,129,.1)}
+.pill.short{color:var(--down);border-color:rgba(239,83,80,.4);background:rgba(239,83,80,.1)}
+.pill.tag{color:var(--acc);border-color:rgba(80,210,194,.4);background:rgba(80,210,194,.1)}
+.pill.liq{color:var(--warn);border-color:rgba(240,180,41,.4);background:rgba(240,180,41,.1)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal .dow{text-align:center;font-size:10px;color:var(--muted);padding:3px 0;text-transform:uppercase}
+.cell{aspect-ratio:1;border-radius:8px;background:var(--panel2);border:1px solid var(--line);
+  padding:4px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
+.cell .d{font-size:10px;color:var(--muted)}
+.cell .p{font-size:10px;font-weight:700;line-height:1.1;word-break:break-all}
+.cell.empty{background:transparent;border-color:transparent}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.66);z-index:200;display:none;
+  align-items:flex-end;justify-content:center;padding:0}
+.modal.on{display:flex}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 0 0;
+  width:100%;max-width:640px;max-height:92vh;overflow-y:auto;padding:18px;
+  padding-bottom:calc(18px + env(safe-area-inset-bottom))}
+.sheet h3{margin:0 0 4px;font-size:17px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.f{margin:12px 0}
+.f label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.f input,.f select,.f textarea{width:100%}
+.f textarea{min-height:92px;resize:vertical;line-height:1.5}
+.dl{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(36,48,64,.5);font-size:13px}
+.dl span:first-child{color:var(--muted)}
+.stars{display:flex;gap:6px}
+.star{flex:1;padding:8px;text-align:center;border:1px solid var(--line);border-radius:9px;
+  background:var(--panel2);cursor:pointer;font-size:14px}
+.star.on{background:var(--acc);color:#04211d;border-color:var(--acc);font-weight:700}
+.bar{height:7px;background:var(--panel2);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:4px}
+#status{font-size:12px;color:var(--muted);padding:0 14px 8px;max-width:1240px;margin:0 auto}
+.empty-state{text-align:center;padding:40px 16px;color:var(--muted);font-size:14px;line-height:1.6}
+.err{background:rgba(239,83,80,.12);border:1px solid rgba(239,83,80,.4);color:#ffb4b2;
+  padding:12px 14px;border-radius:11px;font-size:13px;line-height:1.5;margin-bottom:12px}
+.hide{display:none!important}
+.spin{display:inline-block;width:11px;height:11px;border:2px solid var(--line);
+  border-top-color:var(--acc);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-1px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.foot{color:var(--muted);font-size:11.5px;text-align:center;padding:6px 14px 24px;line-height:1.6}
+@media(max-width:640px){
+  .wrap{padding:10px}
+  .panel{padding:13px;border-radius:12px}
+  .kpis{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+  .kpi .v{font-size:17px}
+  .hd{padding:9px 10px;gap:7px}
+  .logo{font-size:13px;width:100%}
+  .chartbox{height:220px}
+  td,th{padding:8px 7px;font-size:12px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd">
+    <div class="logo">📓 Hyperliquid <span>Journal</span></div>
+    <input id="addr" type="text" placeholder="0x… Wallet-Adresse" spellcheck="false" autocomplete="off">
+    <button class="primary" id="btnLoad">Laden</button>
+    <button id="btnRefresh" title="Nur neue Trades nachladen">↻</button>
+  </div>
+  <div class="tabs" id="tabs">
+    <div class="tab on" data-t="overview">Übersicht</div>
+    <div class="tab" data-t="trades">Trades</div>
+    <div class="tab" data-t="setups">Setups</div>
+    <div class="tab" data-t="calendar">Kalender</div>
+    <div class="tab" data-t="costs">Kosten</div>
+    <div class="tab" data-t="positions">Offen</div>
+    <div class="tab" data-t="settings">Daten</div>
+  </div>
+  <div id="status"></div>
+</header>
+
+<div class="wrap">
+  <div id="errbox"></div>
+
+  <div class="filters" id="globalFilters">
+    <select id="fRange">
+      <option value="0">Gesamter Zeitraum</option>
+      <option value="7">Letzte 7 Tage</option>
+      <option value="30">Letzte 30 Tage</option>
+      <option value="90">Letzte 90 Tage</option>
+      <option value="365">Letzte 12 Monate</option>
+    </select>
+    <select id="fCoin"><option value="">Alle Coins</option></select>
+    <select id="fTag"><option value="">Alle Setups</option></select>
+    <select id="fMarket">
+      <option value="perp">Nur Perps</option>
+      <option value="all">Perps + Spot</option>
+      <option value="spot">Nur Spot</option>
+    </select>
+  </div>
+
+  <!-- ÜBERSICHT -->
+  <section id="v-overview">
+    <div class="kpis" id="kpis"></div>
+    <div class="panel" style="margin-top:14px">
+      <h2>Verlauf</h2>
+      <div class="filters" style="margin-bottom:10px">
+        <button class="tab on" data-curve="equity">Account Value</button>
+        <button class="tab" data-curve="cum">Kumulierter PnL (Trades)</button>
+      </div>
+      <div class="chartbox"><canvas id="chEquity"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2>PnL pro Coin</h2>
+      <div class="chartbox sm"><canvas id="chCoin"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2>PnL nach Wochentag &amp; Tageszeit</h2>
+      <div class="chartbox sm"><canvas id="chDow"></canvas></div>
+      <div class="chartbox sm" style="margin-top:14px"><canvas id="chHour"></canvas></div>
+    </div>
+  </section>
+
+  <!-- TRADES -->
+  <section id="v-trades" class="hide">
+    <div class="panel">
+      <h2>Abgeschlossene Trades <span class="mut" id="tradeCount"></span></h2>
+      <div class="filters">
+        <select id="fSort">
+          <option value="time">Neueste zuerst</option>
+          <option value="timeAsc">Älteste zuerst</option>
+          <option value="pnl">Bester PnL</option>
+          <option value="pnlAsc">Schlechtester PnL</option>
+          <option value="size">Größte Position</option>
+          <option value="dur">Längste Haltedauer</option>
+        </select>
+        <select id="fResult">
+          <option value="">Gewinner &amp; Verlierer</option>
+          <option value="win">Nur Gewinner</option>
+          <option value="loss">Nur Verlierer</option>
+          <option value="nonote">Ohne Notiz</option>
+        </select>
+        <button id="btnCsv">CSV export</button>
+      </div>
+      <div class="scroll">
+        <table id="tblTrades">
+          <thead><tr>
+            <th>Geschlossen</th><th>Coin</th><th>Seite</th><th>Entry</th><th>Exit</th>
+            <th>Größe (USD)</th><th>PnL netto</th><th>%</th><th>Gebühr</th><th>Dauer</th><th>Setup</th><th>📝</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="tradesEmpty" class="empty-state hide">Keine Trades im gewählten Filter.</div>
+    </div>
+  </section>
+
+  <!-- SETUPS -->
+  <section id="v-setups" class="hide">
+    <div class="panel">
+      <h2>Auswertung nach Setup-Tag</h2>
+      <div class="scroll">
+        <table id="tblSetups">
+          <thead><tr>
+            <th>Setup</th><th>Trades</th><th>Winrate</th><th>PnL netto</th><th>Ø PnL</th>
+            <th>Profit Factor</th><th>Ø Gewinn</th><th>Ø Verlust</th><th>Erwartungswert</th><th>Ø Rating</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="setupsEmpty" class="empty-state hide">
+        Noch keine Setups vergriffen.<br>Öffne im Tab „Trades“ einen Trade und vergib einen Setup-Tag.
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Netto-PnL pro Setup</h2>
+      <div class="chartbox sm"><canvas id="chSetup"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2>Rating vs. Ergebnis</h2>
+      <div class="scroll">
+        <table id="tblRating">
+          <thead><tr><th>Rating</th><th>Trades</th><th>Winrate</th><th>PnL netto</th><th>Ø PnL</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- KALENDER -->
+  <section id="v-calendar" class="hide">
+    <div class="panel">
+      <div class="filters" style="justify-content:space-between">
+        <button id="calPrev">‹</button>
+        <h2 id="calTitle" style="margin:0"></h2>
+        <button id="calNext">›</button>
+      </div>
+      <div class="cal" id="calDow"></div>
+      <div class="cal" id="calGrid" style="margin-top:5px"></div>
+      <div class="filters" style="margin:14px 0 0">
+        <div class="kpi" style="flex:1"><div class="k">Monats-PnL</div><div class="v" id="calSum">–</div></div>
+        <div class="kpi" style="flex:1"><div class="k">Grüne / rote Tage</div><div class="v" id="calDays">–</div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Bester &amp; schlechtester Tag (gesamt)</h2>
+      <div id="bestWorst"></div>
+    </div>
+  </section>
+
+  <!-- KOSTEN -->
+  <section id="v-costs" class="hide">
+    <div class="kpis" id="costKpis"></div>
+    <div class="panel" style="margin-top:14px">
+      <h2>Funding pro Coin</h2>
+      <div class="scroll"><table id="tblFunding">
+        <thead><tr><th>Coin</th><th>Funding gesamt</th><th>Zahlungen</th></tr></thead><tbody></tbody>
+      </table></div>
+    </div>
+    <div class="panel">
+      <h2>Ein- &amp; Auszahlungen</h2>
+      <div class="scroll"><table id="tblLedger">
+        <thead><tr><th>Zeit</th><th>Typ</th><th>Betrag</th></tr></thead><tbody></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- OFFENE POSITIONEN -->
+  <section id="v-positions" class="hide">
+    <div class="kpis" id="accKpis"></div>
+    <div class="panel" style="margin-top:14px" id="subPanel">
+      <h2>Diagnose: was die API zu dieser Adresse sagt</h2>
+      <div id="diag"></div>
+    </div>
+    <div class="panel">
+      <h2>Guthaben nach Bereich</h2>
+      <div id="balBreak"></div>
+    </div>
+    <div class="panel">
+      <h2>Spot-Guthaben</h2>
+      <div class="scroll"><table id="tblSpot">
+        <thead><tr><th>Token</th><th>Menge</th><th>Kurs</th><th>Wert (USD)</th><th>davon gesperrt</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div id="spotEmpty" class="empty-state hide">Kein Spot-Guthaben.</div>
+    </div>
+    <div class="panel">
+      <h2>Offene Positionen</h2>
+      <div class="scroll"><table id="tblPos">
+        <thead><tr>
+          <th>Coin</th><th>Seite</th><th>Größe</th><th>Wert (USD)</th><th>Entry</th>
+          <th>Liq.-Preis</th><th>Hebel</th><th>Unreal. PnL</th><th>ROE</th><th>Funding</th>
+        </tr></thead><tbody></tbody>
+      </table></div>
+      <div id="posEmpty" class="empty-state hide">Keine offenen Positionen.</div>
+    </div>
+  </section>
+
+  <!-- DATEN / EINSTELLUNGEN -->
+  <section id="v-settings" class="hide">
+    <div class="panel">
+      <h2>Notizen sichern &amp; übertragen</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Trades kommen live aus der Blockchain und müssen nie gesichert werden. Deine <b>Notizen, Tags und Ratings</b>
+        liegen nur in diesem Browser. Exportiere sie regelmäßig – und importiere die Datei auf dem anderen Gerät,
+        damit Handy und PC denselben Stand haben.
+      </p>
+      <div class="filters">
+        <button class="primary" id="btnExport">Notizen exportieren (.json)</button>
+        <button id="btnImport">Notizen importieren</button>
+        <input type="file" id="fileImport" accept=".json" class="hide">
+      </div>
+      <div id="notesInfo" class="mut" style="font-size:13px;margin-top:10px"></div>
+    </div>
+    <div class="panel">
+      <h2>Setup-Tags verwalten</h2>
+      <div class="f">
+        <label>Ein Tag pro Zeile</label>
+        <textarea id="tagEditor" style="min-height:170px"></textarea>
+      </div>
+      <button class="primary" id="btnSaveTags">Tags speichern</button>
+    </div>
+    <div class="panel">
+      <h2>Wallets</h2>
+      <div id="walletList" class="mut" style="font-size:13px"></div>
+    </div>
+    <div class="panel">
+      <h2>Cache</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Die Fills werden lokal zwischengespeichert, damit das Laden schnell geht und die API geschont wird.
+        Bei Problemen kannst du den Cache leeren und alles neu abrufen.
+      </p>
+      <button id="btnClearCache">Cache leeren &amp; neu laden</button>
+    </div>
+  </section>
+
+  <div class="foot">
+    Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
+    Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
+  </div>
+</div>
+
+<!-- TRADE DETAIL SHEET -->
+<div class="modal" id="modal">
+  <div class="sheet">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+      <div>
+        <h3 id="mTitle">–</h3>
+        <div class="mut" style="font-size:12.5px" id="mSub">–</div>
+      </div>
+      <button id="mClose">✕</button>
+    </div>
+    <div id="mStats" style="margin:14px 0"></div>
+    <div class="f">
+      <label>Setup-Tag</label>
+      <select id="mTag"></select>
+    </div>
+    <div class="f">
+      <label>Bewertung der Ausführung</label>
+      <div class="stars" id="mStars"></div>
+    </div>
+    <div class="f">
+      <label>Notiz – was war der Plan, was lief gut, was nicht?</label>
+      <textarea id="mNote" placeholder="z.B. Breakout über Tageshoch, Einstieg zu früh, SL zu eng gesetzt…"></textarea>
+    </div>
+    <div class="filters">
+      <button class="primary" id="mSave" style="flex:1">Speichern</button>
+      <button id="mDel">Notiz löschen</button>
+    </div>
+    <details style="margin-top:14px">
+      <summary class="mut" style="cursor:pointer;font-size:13px">Einzelne Fills anzeigen</summary>
+      <div class="scroll" style="margin-top:10px"><table id="mFills">
+        <thead><tr><th>Zeit</th><th>Richtung</th><th>Preis</th><th>Größe</th><th>Gebühr</th><th>PnL</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </details>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Hyperliquid Trading Journal – 100% clientseitig
+   Datenquelle: https://api.hyperliquid.xyz/info (öffentlich, kostenlos)
+   ============================================================ */
+
+const API = 'https://api.hyperliquid.xyz/info';
+const LS = {
+  addr:'hlj_addr', tags:'hlj_tags', balOpts:'hlj_balopts_v2',
+  notes: a => 'hlj_notes_' + a,
+  cache: a => 'hlj_cache_' + a,
+  wallets:'hlj_wallets'
+};
+const DEFAULT_TAGS = ['Breakout','Reversal','Trend-Continuation','Range / Mean Reversion',
+  'Support / Resistance','News / Katalysator','Scalp','Swing','FOMO-Einstieg','Revenge Trade',
+  'Plan befolgt','Plan gebrochen','Sonstiges'];
+
+let S = {
+  addr:'', fills:[], trades:[], openTrades:[], positions:null, portfolio:null,
+  funding:[], ledger:[], notes:{}, tags:[], curve:'equity',
+  spot:null, spotPrices:{USDC:1}, vaults:[], staking:null, totals:null,
+  balOpts:{perp:false, spot:true, vault:true, stake:true}, subAccounts:[],
+  calDate:new Date(), charts:{}, loading:false
+};
+
+/* ---------- Helpers ---------- */
+const $  = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function usd(v, dec){
+  if(v === null || v === undefined || !isFinite(v)) return '–';
+  const d = dec !== undefined ? dec : (Math.abs(v) >= 1000 ? 0 : 2);
+  return (v < 0 ? '-' : '') + '$' + Math.abs(v).toLocaleString('de-DE',
+    {minimumFractionDigits:d, maximumFractionDigits:d});
+}
+function sgn(v, dec){
+  if(!isFinite(v)) return '–';
+  return (v > 0 ? '+' : '') + usd(v, dec).replace('-','−');
+}
+function pct(v, dec){
+  if(!isFinite(v)) return '–';
+  return (v > 0 ? '+' : '') + v.toFixed(dec === undefined ? 1 : dec) + '%';
+}
+function price(v){
+  if(!isFinite(v)) return '–';
+  const d = Math.abs(v) >= 1000 ? 2 : Math.abs(v) >= 1 ? 4 : 6;
+  return v.toLocaleString('de-DE', {minimumFractionDigits:d, maximumFractionDigits:d});
+}
+function dt(ms){
+  return new Date(ms).toLocaleString('de-DE',
+    {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+function dur(ms){
+  if(!isFinite(ms) || ms < 0) return '–';
+  const s = ms/1000;
+  if(s < 60) return Math.round(s) + 's';
+  if(s < 3600) return Math.round(s/60) + 'm';
+  if(s < 86400) return (s/3600).toFixed(1) + 'h';
+  return (s/86400).toFixed(1) + 'd';
+}
+const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : 'mut';
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function coinName(c){
+  if(!c) return '?';
+  if(c.startsWith('@')) return 'SPOT ' + c;
+  return c;
+}
+const isSpot = c => !!c && (c.includes('/') || c.startsWith('@'));
+
+function setStatus(html){ $('#status').innerHTML = html || ''; }
+function showErr(msg){
+  $('#errbox').innerHTML = msg ? '<div class="err">' + msg + '</div>' : '';
+}
+
+/* ---------- API ---------- */
+async function info(body){
+  const res = await fetch(API, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  if(!res.ok) throw new Error('API antwortet mit Status ' + res.status);
+  return res.json();
+}
+
+async function fetchFills(user, startTime, onProgress){
+  const out = [], seen = new Set();
+  let cursor = startTime || 0;
+  for(let page = 0; page < 60; page++){
+    let batch;
+    try{
+      batch = await info({type:'userFillsByTime', user, startTime:cursor, aggregateByTime:false});
+    }catch(e){
+      if(page === 0) throw e;
+      break; // Teilergebnis behalten
+    }
+    if(!Array.isArray(batch) || batch.length === 0) break;
+    let added = 0;
+    for(const f of batch){
+      const k = (f.tid != null ? f.tid : (f.hash + '|' + f.oid + '|' + f.time + '|' + f.px + '|' + f.sz));
+      if(!seen.has(k)){ seen.add(k); out.push(f); added++; }
+    }
+    if(onProgress) onProgress(out.length);
+    if(batch.length < 2000) break;
+    const last = batch[batch.length - 1].time;
+    if(last <= cursor && added === 0) break;
+    cursor = last;
+    await sleep(150);
+  }
+  out.sort((a,b) => a.time - b.time);
+  return out;
+}
+
+/* ---------- Guthaben über alle Bereiche (Perps + Spot + Vaults + Staking) ---------- */
+function buildSpotPrices(sm){
+  const map = {USDC:1, USDT:1};
+  if(!Array.isArray(sm) || sm.length < 2) return map;
+  const meta = sm[0] || {}, ctxs = sm[1] || [];
+  const tokens = meta.tokens || [], uni = meta.universe || [];
+  // Token-Index -> Name (das index-Feld ist maßgeblich, nicht die Array-Position)
+  const byIndex = {};
+  tokens.forEach((t, i) => {
+    if(!t) return;
+    const idx = (t.index != null) ? t.index : i;
+    byIndex[idx] = t.name;
+  });
+  uni.forEach((pair, i) => {
+    const ctx = ctxs[i] || {};
+    const px = num(ctx.midPx != null ? ctx.midPx : ctx.markPx);
+    const tk = pair.tokens || [];
+    if(tk.length === 2 && tk[1] === 0 && px > 0){   // gegen USDC gequotet
+      const name = byIndex[tk[0]];
+      if(name && map[name] == null) map[name] = px;
+    }
+  });
+  return map;
+}
+
+function computeTotals(){
+  const ms = (S.positions && S.positions.marginSummary) || {};
+  const perp = num(ms.accountValue);
+
+  const balances = (S.spot && S.spot.balances) || [];
+  let spotUsd = 0;
+  const spotRows = balances.map(b => {
+    const amt = num(b.total);
+    const px = S.spotPrices[b.coin];
+    const usdVal = px != null ? amt * px : null;
+    if(usdVal != null) spotUsd += usdVal;
+    return {coin:b.coin, amount:amt, hold:num(b.hold), px:px != null ? px : null,
+      usd:usdVal, entryNtl:num(b.entryNtl)};
+  }).filter(r => Math.abs(r.amount) > 1e-9)
+    .sort((a,b) => (b.usd || 0) - (a.usd || 0));
+
+  const vaultUsd = (S.vaults || []).reduce((s,v) => s + num(v.equity), 0);
+
+  const st = S.staking || {};
+  const hypeStaked = num(st.delegated) + num(st.undelegated) + num(st.totalPendingWithdrawal);
+  const hypePx = S.spotPrices.HYPE || 0;
+  const stakeUsd = hypeStaked * hypePx;
+
+  const o = S.balOpts || {perp:true, spot:true, vault:true, stake:true};
+  const total = (o.perp ? perp : 0) + (o.spot ? spotUsd : 0) +
+                (o.vault ? vaultUsd : 0) + (o.stake ? stakeUsd : 0);
+
+  // Spot-USDC separat ausweisen – das ist die Zahl, die am ehesten mit dem
+  // Perps-Guthaben verwechselt wird
+  const spotUsdc = spotRows.filter(r => r.coin === 'USDC')
+    .reduce((s,r) => s + (r.usd || 0), 0);
+
+  return {perp, spotUsd, spotUsdc, spotRows, vaultUsd, hypeStaked, stakeUsd, total};
+}
+
+/* ---------- Round-Trip-Engine ---------- */
+function newTrade(coin, side, t){
+  return {coin, side, openTime:t, closeTime:t, pos:0,
+    entrySize:0, entryNotional:0, exitSize:0, exitNotional:0,
+    closedPnl:0, fees:0, maxSize:0, maxNotional:0,
+    fills:[], liquidated:false, partial:false, spot:isSpot(coin)};
+}
+function finishTrade(t){
+  t.avgEntry = t.entrySize > 0 ? t.entryNotional / t.entrySize : 0;
+  t.avgExit  = t.exitSize  > 0 ? t.exitNotional  / t.exitSize  : 0;
+  t.net = t.closedPnl - t.fees;
+  t.durationMs = t.closeTime - t.openTime;
+  const base = t.maxNotional || t.entryNotional;
+  t.retPct = base > 0 ? (t.net / base) * 100 : 0;
+  t.id = t.coin + '|' + t.openTime + '|' + t.closeTime;
+  return t;
+}
+
+function buildTrades(fills){
+  const open = {};
+  const trades = [];
+  for(const f of fills){
+    const coin = f.coin;
+    const sz = Math.abs(num(f.sz));
+    const px = num(f.px);
+    const fee = num(f.fee);
+    const cp = num(f.closedPnl);
+    if(sz <= 0 || !coin) continue;
+    const isBuy = f.side === 'B';
+    const liq = /liquidat/i.test(f.dir || '');
+
+    let startPos = parseFloat(f.startPosition);
+    if(!isFinite(startPos)) startPos = open[coin] ? open[coin].pos : 0;
+
+    let t = open[coin];
+    // Position mit dem resynchronisieren, was die Chain sagt
+    if(t){
+      t.pos = startPos;
+      if(Math.abs(t.pos) < 1e-12){
+        // Chain sagt: Position ist bereits zu (wir haben einen Fill verpasst)
+        if(t.exitSize > 0) trades.push(finishTrade(t));
+        delete open[coin]; t = null;
+      }
+    }
+    if(!t && Math.abs(startPos) > 1e-12){
+      // Trade war schon offen, bevor unser Datenfenster beginnt
+      t = newTrade(coin, startPos > 0 ? 'long' : 'short', f.time);
+      t.pos = startPos; t.partial = true;
+      t.entrySize = Math.abs(startPos); t.entryNotional = Math.abs(startPos) * px;
+      t.maxSize = Math.abs(startPos); t.maxNotional = Math.abs(startPos) * px;
+      open[coin] = t;
+    }
+
+    let remaining = sz, feeUsed = false;
+
+    if(t){
+      const closing = (t.pos > 0 && !isBuy) || (t.pos < 0 && isBuy);
+      if(closing){
+        const closeSz = Math.min(sz, Math.abs(t.pos));
+        t.exitSize += closeSz;
+        t.exitNotional += closeSz * px;
+        t.pos += isBuy ? closeSz : -closeSz;
+        t.closedPnl += cp;
+        t.fees += fee; feeUsed = true;
+        t.closeTime = f.time;
+        t.fills.push(f);
+        if(liq) t.liquidated = true;
+        remaining = sz - closeSz;
+        if(Math.abs(t.pos) < 1e-9){
+          trades.push(finishTrade(t));
+          delete open[coin];
+          t = null;
+        }
+      }else{
+        // Position vergrößern
+        t.entrySize += sz;
+        t.entryNotional += sz * px;
+        t.pos += isBuy ? sz : -sz;
+        t.closedPnl += cp;
+        t.fees += fee; feeUsed = true;
+        t.closeTime = f.time;
+        t.fills.push(f);
+        t.maxSize = Math.max(t.maxSize, Math.abs(t.pos));
+        t.maxNotional = Math.max(t.maxNotional, Math.abs(t.pos) * px);
+        remaining = 0;
+      }
+    }
+
+    if(remaining > 1e-12){
+      // Neueröffnung oder Flip (z.B. "Long > Short")
+      const nt = newTrade(coin, isBuy ? 'long' : 'short', f.time);
+      nt.entrySize = remaining;
+      nt.entryNotional = remaining * px;
+      nt.pos = isBuy ? remaining : -remaining;
+      nt.maxSize = remaining;
+      nt.maxNotional = remaining * px;
+      nt.fills.push(f);
+      if(!feeUsed) nt.fees += fee;
+      if(liq) nt.liquidated = true;
+      open[coin] = nt;
+    }
+  }
+  const openTrades = Object.values(open).map(t => {
+    const c = Object.assign({}, t);
+    c.avgEntry = c.entrySize > 0 ? c.entryNotional / c.entrySize : 0;
+    return c;
+  });
+  return {trades, openTrades};
+}
+
+/* ---------- Kennzahlen ---------- */
+function metrics(trades){
+  const m = {n:trades.length, wins:0, losses:0, be:0, gross:0, grossWin:0, grossLoss:0,
+    fees:0, best:0, worst:0, avgWin:0, avgLoss:0, winrate:0, pf:0, expectancy:0,
+    maxDD:0, maxDDpct:0, streakW:0, streakL:0, avgDur:0, net:0};
+  if(!trades.length) return m;
+  let sw = 0, sl = 0, durSum = 0;
+  for(const t of trades){
+    m.net += t.net; m.gross += t.closedPnl; m.fees += t.fees;
+    durSum += t.durationMs || 0;
+    if(t.net > 0){ m.wins++; m.grossWin += t.net; sw++; sl = 0; m.streakW = Math.max(m.streakW, sw); }
+    else if(t.net < 0){ m.losses++; m.grossLoss += -t.net; sl++; sw = 0; m.streakL = Math.max(m.streakL, sl); }
+    else { m.be++; }
+    if(t.net > m.best) m.best = t.net;
+    if(t.net < m.worst) m.worst = t.net;
+  }
+  m.winrate = m.n ? m.wins / (m.wins + m.losses || 1) * 100 : 0;
+  m.avgWin = m.wins ? m.grossWin / m.wins : 0;
+  m.avgLoss = m.losses ? m.grossLoss / m.losses : 0;
+  m.pf = m.grossLoss > 0 ? m.grossWin / m.grossLoss : (m.grossWin > 0 ? Infinity : 0);
+  const wr = m.winrate / 100;
+  m.expectancy = wr * m.avgWin - (1 - wr) * m.avgLoss;
+  m.avgDur = durSum / m.n;
+  // Max Drawdown auf der kumulierten Trade-PnL-Kurve
+  let cum = 0, peak = 0;
+  const sorted = trades.slice().sort((a,b) => a.closeTime - b.closeTime);
+  for(const t of sorted){
+    cum += t.net;
+    if(cum > peak) peak = cum;
+    const dd = peak - cum;
+    if(dd > m.maxDD) m.maxDD = dd;
+  }
+  m.maxDDpct = peak > 0 ? m.maxDD / peak * 100 : 0;
+  return m;
+}
+
+function ddFromHistory(hist){
+  if(!hist || !hist.length) return {dd:0, pct:0};
+  let peak = -Infinity, dd = 0, pct = 0;
+  for(const [, v] of hist){
+    const x = num(v);
+    if(x > peak) peak = x;
+    const d = peak - x;
+    if(d > dd){ dd = d; pct = peak > 0 ? d / peak * 100 : 0; }
+  }
+  return {dd, pct};
+}
+
+/* ---------- Notizen ---------- */
+function loadNotes(a){
+  try{ return JSON.parse(localStorage.getItem(LS.notes(a)) || '{}'); }catch(e){ return {}; }
+}
+function saveNotes(){
+  try{ localStorage.setItem(LS.notes(S.addr), JSON.stringify(S.notes)); }
+  catch(e){ showErr('Notiz konnte nicht gespeichert werden: ' + e.message); }
+}
+function loadTags(){
+  try{
+    const t = JSON.parse(localStorage.getItem(LS.tags) || 'null');
+    return Array.isArray(t) && t.length ? t : DEFAULT_TAGS.slice();
+  }catch(e){ return DEFAULT_TAGS.slice(); }
+}
+
+/* ---------- Cache ---------- */
+function readCache(a){
+  try{
+    const c = JSON.parse(localStorage.getItem(LS.cache(a)) || 'null');
+    if(c && Array.isArray(c.fills)) return c;
+  }catch(e){}
+  return null;
+}
+function writeCache(a, fills){
+  try{
+    const trimmed = fills.slice(-25000);
+    localStorage.setItem(LS.cache(a), JSON.stringify({t:Date.now(), fills:trimmed}));
+  }catch(e){ /* Quota – nicht schlimm, dann eben immer frisch laden */ }
+}
+
+/* ---------- Laden ---------- */
+async function load(incremental){
+  const a = $('#addr').value.trim();
+  if(!/^0x[a-fA-F0-9]{40}$/.test(a)){
+    showErr('Das sieht nicht nach einer gültigen Wallet-Adresse aus. Erwartet wird 0x + 40 Zeichen.');
+    return;
+  }
+  if(S.loading) return;
+  S.loading = true; showErr(''); $('#btnLoad').disabled = true;
+  S.addr = a.toLowerCase();
+  localStorage.setItem(LS.addr, S.addr);
+  rememberWallet(S.addr);
+  S.notes = loadNotes(S.addr);
+
+  try{
+    const cache = incremental ? readCache(S.addr) : null;
+    let base = cache ? cache.fills : [];
+    let from = 0;
+    if(base.length){
+      from = base[base.length - 1].time - 60000; // 1 Min Überlappung, Duplikate werden gefiltert
+      if(from < 0) from = 0;
+    }
+    setStatus('<span class="spin"></span> Lade Fills…');
+    const fresh = await fetchFills(S.addr, from, n => setStatus('<span class="spin"></span> ' + n + ' Fills geladen…'));
+
+    const seen = new Set(), merged = [];
+    for(const f of base.concat(fresh)){
+      const k = (f.tid != null ? f.tid : (f.hash + '|' + f.oid + '|' + f.time + '|' + f.px + '|' + f.sz));
+      if(!seen.has(k)){ seen.add(k); merged.push(f); }
+    }
+    merged.sort((x,y) => x.time - y.time);
+    S.fills = merged;
+    writeCache(S.addr, merged);
+
+    setStatus('<span class="spin"></span> Lade Konto &amp; Historie…');
+    const [pos, port, fund, led, spot, sMeta, vaults, stake, subs] = await Promise.all([
+      info({type:'clearinghouseState', user:S.addr}).catch(() => null),
+      info({type:'portfolio', user:S.addr}).catch(() => null),
+      info({type:'userFunding', user:S.addr, startTime:0}).catch(() => []),
+      info({type:'userNonFundingLedgerUpdates', user:S.addr, startTime:0}).catch(() => []),
+      info({type:'spotClearinghouseState', user:S.addr}).catch(() => null),
+      info({type:'spotMetaAndAssetCtxs'}).catch(() => null),
+      info({type:'userVaultEquities', user:S.addr}).catch(() => []),
+      info({type:'delegatorSummary', user:S.addr}).catch(() => null),
+      info({type:'subAccounts', user:S.addr}).catch(() => null)
+    ]);
+    S.positions = pos; S.portfolio = port;
+    S.funding = Array.isArray(fund) ? fund : [];
+    S.ledger  = Array.isArray(led)  ? led  : [];
+    S.spot = spot;
+    S.spotPrices = buildSpotPrices(sMeta);
+    S.vaults = Array.isArray(vaults) ? vaults : [];
+    S.staking = stake;
+    S.subAccounts = Array.isArray(subs) ? subs : [];
+    S.totals = computeTotals();
+
+    const r = buildTrades(S.fills);
+    S.trades = r.trades; S.openTrades = r.openTrades;
+
+    fillCoinFilter();
+    renderAll();
+    setStatus(S.fills.length + ' Fills · ' + S.trades.length + ' abgeschlossene Trades · Stand ' +
+      new Date().toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}));
+  }catch(e){
+    setStatus('');
+    showErr('<b>Daten konnten nicht geladen werden.</b><br>' + esc(e.message) +
+      '<br><br>Häufigste Ursachen: keine Internetverbindung, oder der Browser blockiert die Anfrage. ' +
+      'Falls du die Datei per Doppelklick geöffnet hast und es hier scheitert, lege sie auf GitHub Pages ' +
+      '(Anleitung in der beiliegenden Textdatei) – dann läuft es zuverlässig.');
+  }finally{
+    S.loading = false; $('#btnLoad').disabled = false;
+  }
+}
+
+function rememberWallet(a){
+  let w = [];
+  try{ w = JSON.parse(localStorage.getItem(LS.wallets) || '[]'); }catch(e){}
+  if(!w.includes(a)) w.push(a);
+  localStorage.setItem(LS.wallets, JSON.stringify(w));
+}
+
+/* ---------- Filter ---------- */
+function fillCoinFilter(){
+  const coins = Array.from(new Set(S.trades.map(t => t.coin))).sort();
+  const sel = $('#fCoin'), cur = sel.value;
+  sel.innerHTML = '<option value="">Alle Coins</option>' +
+    coins.map(c => '<option value="' + esc(c) + '">' + esc(coinName(c)) + '</option>').join('');
+  sel.value = cur;
+}
+function fillTagFilter(){
+  const used = Array.from(new Set(Object.values(S.notes).map(n => n && n.tag).filter(Boolean))).sort();
+  const sel = $('#fTag'), cur = sel.value;
+  sel.innerHTML = '<option value="">Alle Setups</option>' +
+    '<option value="__none">Ohne Tag</option>' +
+    used.map(t => '<option value="' + esc(t) + '">' + esc(t) + '</option>').join('');
+  sel.value = cur;
+}
+
+function filtered(){
+  const days = parseInt($('#fRange').value, 10);
+  const coin = $('#fCoin').value;
+  const tag = $('#fTag').value;
+  const mkt = $('#fMarket').value;
+  const cutoff = days ? Date.now() - days * 86400000 : 0;
+  return S.trades.filter(t => {
+    if(cutoff && t.closeTime < cutoff) return false;
+    if(coin && t.coin !== coin) return false;
+    if(mkt === 'perp' && t.spot) return false;
+    if(mkt === 'spot' && !t.spot) return false;
+    if(tag){
+      const n = S.notes[t.id];
+      if(tag === '__none'){ if(n && n.tag) return false; }
+      else if(!n || n.tag !== tag) return false;
+    }
+    return true;
+  });
+}
+
+/* ---------- Render: Übersicht ---------- */
+function renderKpis(tr){
+  const m = metrics(tr);
+  const T = S.totals;
+  const hist = portfolioHistory();
+  const hdd = ddFromHistory(hist.acct);
+  const srcs = T ? balanceSources(T) : [];
+  const sub = srcs.length
+    ? (srcs.length === 1 ? 'Quelle: ' + srcs[0].label
+        : srcs.map(x => x.label + ' ' + usd(x.v, 0)).join(' · '))
+    : 'kein Bereich aktiviert';
+  const items = [
+    ['Account Value', T ? usd(T.total, 2) : '–', sub, ''],
+    ['Realisierter PnL', sgn(m.net), 'netto nach Gebühren', cls(m.net)],
+    ['Trades', m.n, m.wins + ' W / ' + m.losses + ' L', ''],
+    ['Winrate', m.n ? m.winrate.toFixed(1) + '%' : '–', 'Gewinner-Anteil', m.winrate >= 50 ? 'up' : 'down'],
+    ['Profit Factor', m.pf === Infinity ? '∞' : m.pf.toFixed(2), 'Gewinn ÷ Verlust', m.pf >= 1 ? 'up' : 'down'],
+    ['Erwartungswert', sgn(m.expectancy, 2), 'pro Trade', cls(m.expectancy)],
+    ['Ø Gewinn', sgn(m.avgWin, 2), '', 'up'],
+    ['Ø Verlust', sgn(-m.avgLoss, 2), '', 'down'],
+    ['Bester Trade', sgn(m.best), '', 'up'],
+    ['Schlechtester', sgn(m.worst), '', 'down'],
+    ['Max Drawdown', usd(m.maxDD), m.maxDDpct ? '−' + m.maxDDpct.toFixed(1) + '% auf PnL-Kurve' : 'auf PnL-Kurve', 'down'],
+    ['Max DD (Konto)', hdd.dd ? usd(hdd.dd) : '–', hdd.pct ? '−' + hdd.pct.toFixed(1) + '% vom Hoch' : 'Kontoverlauf', 'down'],
+    ['Gebühren', usd(m.fees, 2), 'in diesen Trades', 'down'],
+    ['Ø Haltedauer', dur(m.avgDur), '', ''],
+    ['Beste Serie', m.streakW + ' Gewinne', '', 'up'],
+    ['Schlechteste Serie', m.streakL + ' Verluste', '', 'down']
+  ];
+  $('#kpis').innerHTML = items.map(([k, v, s, c]) =>
+    '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
+    (s ? '<div class="s">' + s + '</div>' : '') + '</div>').join('');
+}
+
+function portfolioHistory(){
+  const out = {acct:[], pnl:[]};
+  if(!Array.isArray(S.portfolio)) return out;
+  const map = {};
+  for(const e of S.portfolio){ if(Array.isArray(e) && e.length >= 2) map[e[0]] = e[1]; }
+  const src = map.allTime || map.perpAllTime || map.month || map.week || map.day;
+  if(src){
+    out.acct = src.accountValueHistory || [];
+    out.pnl  = src.pnlHistory || [];
+  }
+  return out;
+}
+
+function mkChart(id, cfg){
+  if(S.charts[id]) S.charts[id].destroy();
+  const el = document.getElementById(id);
+  if(!el) return;
+  S.charts[id] = new Chart(el.getContext('2d'), cfg);
+}
+const AXIS = {
+  grid:{color:'rgba(36,48,64,.6)'},
+  ticks:{color:'#8b9bb0', font:{size:10}}
+};
+const NOLEG = {legend:{display:false}};
+
+function renderEquity(tr){
+  let labels = [], data = [], label = '';
+  if(S.curve === 'equity'){
+    const h = portfolioHistory().acct;
+    labels = h.map(p => new Date(num(p[0])).toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'}));
+    data = h.map(p => num(p[1]));
+    label = 'Account Value ($)';
+  }else{
+    let cum = 0;
+    const s = tr.slice().sort((a,b) => a.closeTime - b.closeTime);
+    labels = s.map(t => new Date(t.closeTime).toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'}));
+    data = s.map(t => (cum += t.net));
+    label = 'Kumulierter Netto-PnL ($)';
+  }
+  const pos = data.length ? data[data.length - 1] >= (data[0] || 0) : true;
+  mkChart('chEquity', {
+    type:'line',
+    data:{labels, datasets:[{
+      label, data, borderColor: pos ? '#26c281' : '#ef5350',
+      backgroundColor: pos ? 'rgba(38,194,129,.13)' : 'rgba(239,83,80,.13)',
+      fill:true, borderWidth:2, pointRadius:0, tension:.25
+    }]},
+    options:{responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:NOLEG,
+      scales:{x:Object.assign({}, AXIS, {ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:8})}), y:AXIS}}
+  });
+}
+
+function groupSum(tr, keyFn){
+  const g = {};
+  for(const t of tr){
+    const k = keyFn(t);
+    if(k === null || k === undefined) continue;
+    g[k] = (g[k] || 0) + t.net;
+  }
+  return g;
+}
+function barChart(id, labels, values, horizontal){
+  mkChart(id, {
+    type:'bar',
+    data:{labels, datasets:[{
+      data:values,
+      backgroundColor: values.map(v => v >= 0 ? 'rgba(38,194,129,.75)' : 'rgba(239,83,80,.75)'),
+      borderRadius:5
+    }]},
+    options:{responsive:true, maintainAspectRatio:false,
+      indexAxis: horizontal ? 'y' : 'x',
+      plugins:NOLEG, scales:{x:AXIS, y:AXIS}}
+  });
+}
+
+function renderCharts(tr){
+  renderEquity(tr);
+  const byCoin = groupSum(tr, t => t.coin);
+  const coins = Object.keys(byCoin).sort((a,b) => Math.abs(byCoin[b]) - Math.abs(byCoin[a])).slice(0,14);
+  barChart('chCoin', coins.map(coinName), coins.map(c => +byCoin[c].toFixed(2)), false);
+
+  const DOW = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+  const dow = new Array(7).fill(0);
+  const hrs = new Array(24).fill(0);
+  for(const t of tr){
+    const d = new Date(t.closeTime);
+    dow[d.getDay()] += t.net;
+    hrs[d.getHours()] += t.net;
+  }
+  const order = [1,2,3,4,5,6,0];
+  barChart('chDow', order.map(i => DOW[i]), order.map(i => +dow[i].toFixed(2)), false);
+  barChart('chHour', hrs.map((_, i) => i + 'h'), hrs.map(v => +v.toFixed(2)), false);
+}
+
+/* ---------- Render: Trades ---------- */
+function sortTrades(tr){
+  const s = $('#fSort').value, a = tr.slice();
+  const by = {
+    time: (x,y) => y.closeTime - x.closeTime,
+    timeAsc: (x,y) => x.closeTime - y.closeTime,
+    pnl: (x,y) => y.net - x.net,
+    pnlAsc: (x,y) => x.net - y.net,
+    size: (x,y) => (y.maxNotional || y.entryNotional) - (x.maxNotional || x.entryNotional),
+    dur: (x,y) => y.durationMs - x.durationMs
+  };
+  return a.sort(by[s] || by.time);
+}
+
+function renderTrades(tr){
+  const res = $('#fResult').value;
+  let list = tr.filter(t => {
+    if(res === 'win') return t.net > 0;
+    if(res === 'loss') return t.net < 0;
+    if(res === 'nonote'){ const n = S.notes[t.id]; return !n || (!n.note && !n.tag); }
+    return true;
+  });
+  list = sortTrades(list);
+  $('#tradeCount').textContent = '(' + list.length + ')';
+  const tb = $('#tblTrades tbody');
+  tb.innerHTML = list.map(t => {
+    const n = S.notes[t.id] || {};
+    const size = t.maxNotional || t.entryNotional;
+    return '<tr data-id="' + esc(t.id) + '">' +
+      '<td class="mut">' + dt(t.closeTime) + '</td>' +
+      '<td><b>' + esc(coinName(t.coin)) + '</b>' + (t.liquidated ? ' <span class="pill liq">LIQ</span>' : '') +
+        (t.partial ? ' <span class="pill" style="color:var(--muted);border-color:var(--line)" title="Eröffnung liegt vor dem geladenen Zeitraum">≈</span>' : '') + '</td>' +
+      '<td><span class="pill ' + t.side + '">' + (t.side === 'long' ? 'LONG' : 'SHORT') + '</span></td>' +
+      '<td class="mono">' + price(t.avgEntry) + '</td>' +
+      '<td class="mono">' + price(t.avgExit) + '</td>' +
+      '<td>' + usd(size) + '</td>' +
+      '<td class="' + cls(t.net) + '"><b>' + sgn(t.net, 2) + '</b></td>' +
+      '<td class="' + cls(t.retPct) + '">' + pct(t.retPct, 2) + '</td>' +
+      '<td class="mut">' + usd(t.fees, 2) + '</td>' +
+      '<td class="mut">' + dur(t.durationMs) + '</td>' +
+      '<td>' + (n.tag ? '<span class="pill tag">' + esc(n.tag) + '</span>' : '<span class="mut">–</span>') + '</td>' +
+      '<td>' + (n.note ? '📝' : '') + (n.rating ? ' <span class="mut">' + n.rating + '★</span>' : '') + '</td>' +
+      '</tr>';
+  }).join('');
+  $('#tradesEmpty').classList.toggle('hide', list.length > 0);
+  tb.querySelectorAll('tr').forEach(row =>
+    row.addEventListener('click', () => openTrade(row.dataset.id)));
+}
+
+/* ---------- Render: Setups ---------- */
+function renderSetups(tr){
+  const groups = {};
+  for(const t of tr){
+    const n = S.notes[t.id];
+    const tag = (n && n.tag) ? n.tag : '— ohne Tag —';
+    (groups[tag] = groups[tag] || []).push(t);
+  }
+  const rows = Object.keys(groups).map(tag => {
+    const g = groups[tag], m = metrics(g);
+    const ratings = g.map(t => (S.notes[t.id] || {}).rating).filter(Boolean).map(Number);
+    const avgR = ratings.length ? (ratings.reduce((a,b) => a + b, 0) / ratings.length) : null;
+    return {tag, m, avgR};
+  }).sort((a,b) => b.m.net - a.m.net);
+
+  $('#tblSetups tbody').innerHTML = rows.map(r =>
+    '<tr><td><b>' + esc(r.tag) + '</b></td>' +
+    '<td>' + r.m.n + '</td>' +
+    '<td class="' + (r.m.winrate >= 50 ? 'up' : 'down') + '">' + r.m.winrate.toFixed(0) + '%</td>' +
+    '<td class="' + cls(r.m.net) + '"><b>' + sgn(r.m.net, 2) + '</b></td>' +
+    '<td class="' + cls(r.m.net / (r.m.n || 1)) + '">' + sgn(r.m.net / (r.m.n || 1), 2) + '</td>' +
+    '<td class="' + (r.m.pf >= 1 ? 'up' : 'down') + '">' + (r.m.pf === Infinity ? '∞' : r.m.pf.toFixed(2)) + '</td>' +
+    '<td class="up">' + sgn(r.m.avgWin, 2) + '</td>' +
+    '<td class="down">' + sgn(-r.m.avgLoss, 2) + '</td>' +
+    '<td class="' + cls(r.m.expectancy) + '">' + sgn(r.m.expectancy, 2) + '</td>' +
+    '<td>' + (r.avgR ? r.avgR.toFixed(1) + '★' : '–') + '</td></tr>').join('');
+  $('#setupsEmpty').classList.toggle('hide', rows.length > 0);
+
+  const tagged = rows.filter(r => r.tag !== '— ohne Tag —');
+  barChart('chSetup', tagged.map(r => r.tag), tagged.map(r => +r.m.net.toFixed(2)), true);
+
+  const byR = {};
+  for(const t of tr){
+    const r = (S.notes[t.id] || {}).rating;
+    if(!r) continue;
+    (byR[r] = byR[r] || []).push(t);
+  }
+  $('#tblRating tbody').innerHTML = [1,2,3,4,5].filter(r => byR[r]).map(r => {
+    const m = metrics(byR[r]);
+    return '<tr><td>' + '★'.repeat(r) + '</td><td>' + m.n + '</td>' +
+      '<td class="' + (m.winrate >= 50 ? 'up' : 'down') + '">' + m.winrate.toFixed(0) + '%</td>' +
+      '<td class="' + cls(m.net) + '">' + sgn(m.net, 2) + '</td>' +
+      '<td class="' + cls(m.net / m.n) + '">' + sgn(m.net / m.n, 2) + '</td></tr>';
+  }).join('') || '<tr><td colspan="5" class="mut">Noch keine Bewertungen vergeben.</td></tr>';
+}
+
+/* ---------- Render: Kalender ---------- */
+function dayKey(ms){
+  const d = new Date(ms);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function renderCalendar(tr){
+  const byDay = {};
+  for(const t of tr){
+    const k = dayKey(t.closeTime);
+    if(!byDay[k]) byDay[k] = {pnl:0, n:0};
+    byDay[k].pnl += t.net; byDay[k].n++;
+  }
+  const cur = S.calDate;
+  const y = cur.getFullYear(), mo = cur.getMonth();
+  $('#calTitle').textContent = cur.toLocaleDateString('de-DE', {month:'long', year:'numeric'});
+  $('#calDow').innerHTML = ['Mo','Di','Mi','Do','Fr','Sa','So']
+    .map(d => '<div class="dow">' + d + '</div>').join('');
+
+  const first = new Date(y, mo, 1);
+  const offset = (first.getDay() + 6) % 7;
+  const days = new Date(y, mo + 1, 0).getDate();
+  const vals = [];
+  for(let d = 1; d <= days; d++){
+    const k = y + '-' + String(mo + 1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    if(byDay[k]) vals.push(Math.abs(byDay[k].pnl));
+  }
+  const max = vals.length ? Math.max.apply(null, vals) : 1;
+
+  let html = '';
+  for(let i = 0; i < offset; i++) html += '<div class="cell empty"></div>';
+  let sum = 0, green = 0, red = 0;
+  for(let d = 1; d <= days; d++){
+    const k = y + '-' + String(mo + 1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const e = byDay[k];
+    let style = '';
+    if(e){
+      sum += e.pnl;
+      if(e.pnl > 0) green++; else if(e.pnl < 0) red++;
+      const a = Math.min(.85, .14 + Math.abs(e.pnl) / max * .7);
+      style = 'background:rgba(' + (e.pnl >= 0 ? '38,194,129,' : '239,83,80,') + a.toFixed(2) + ')';
+    }
+    html += '<div class="cell" style="' + style + '"><div class="d">' + d + '</div>' +
+      (e ? '<div class="p">' + sgn(e.pnl, 0) + '<br><span style="opacity:.65;font-weight:400">' + e.n + 'x</span></div>' : '') +
+      '</div>';
+  }
+  $('#calGrid').innerHTML = html;
+  $('#calSum').innerHTML = '<span class="' + cls(sum) + '">' + sgn(sum, 2) + '</span>';
+  $('#calDays').innerHTML = '<span class="up">' + green + '</span> / <span class="down">' + red + '</span>';
+
+  const all = Object.keys(byDay).map(k => ({k, v:byDay[k].pnl})).sort((a,b) => b.v - a.v);
+  if(all.length){
+    const b = all[0], w = all[all.length - 1];
+    $('#bestWorst').innerHTML =
+      '<div class="dl"><span>Bester Tag</span><span class="up">' + b.k + ' · ' + sgn(b.v, 2) + '</span></div>' +
+      '<div class="dl"><span>Schlechtester Tag</span><span class="down">' + w.k + ' · ' + sgn(w.v, 2) + '</span></div>' +
+      '<div class="dl"><span>Handelstage gesamt</span><span>' + all.length + '</span></div>' +
+      '<div class="dl"><span>Grüne Tage</span><span class="up">' +
+        all.filter(x => x.v > 0).length + ' (' +
+        (all.filter(x => x.v > 0).length / all.length * 100).toFixed(0) + '%)</span></div>';
+  }else{
+    $('#bestWorst').innerHTML = '<div class="mut">Keine Daten.</div>';
+  }
+}
+
+/* ---------- Render: Kosten ---------- */
+function renderCosts(tr){
+  const fees = tr.reduce((s,t) => s + t.fees, 0);
+  const days = parseInt($('#fRange').value, 10);
+  const cutoff = days ? Date.now() - days * 86400000 : 0;
+  const fund = S.funding.filter(f => !cutoff || num(f.time) >= cutoff);
+  const fundSum = fund.reduce((s,f) => s + num(f.delta && f.delta.usdc), 0);
+  const led = S.ledger.filter(l => !cutoff || num(l.time) >= cutoff);
+  let dep = 0, wd = 0;
+  for(const l of led){
+    const d = l.delta || {}; const t = (d.type || '').toLowerCase();
+    const v = num(d.usdc != null ? d.usdc : d.amount);
+    if(t.indexOf('deposit') >= 0) dep += v;
+    else if(t.indexOf('withdraw') >= 0) wd += Math.abs(v);
+  }
+  const gross = tr.reduce((s,t) => s + t.closedPnl, 0);
+  const items = [
+    ['Handelsgebühren', usd(fees, 2), tr.length + ' Trades', 'down'],
+    ['Funding gesamt', sgn(fundSum, 2), fundSum >= 0 ? 'erhalten' : 'gezahlt', cls(fundSum)],
+    ['Kosten gesamt', usd(fees + Math.max(0, -fundSum), 2), 'Gebühren + gezahltes Funding', 'down'],
+    ['Brutto-PnL', sgn(gross, 2), 'vor Gebühren', cls(gross)],
+    ['Netto-PnL', sgn(gross - fees, 2), 'nach Gebühren', cls(gross - fees)],
+    ['Gebührenquote', gross !== 0 ? (fees / Math.abs(gross) * 100).toFixed(1) + '%' : '–', 'Gebühren ÷ |Brutto-PnL|', 'warn'],
+    ['Einzahlungen', usd(dep, 2), '', ''],
+    ['Auszahlungen', usd(wd, 2), '', '']
+  ];
+  $('#costKpis').innerHTML = items.map(([k, v, s, c]) =>
+    '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
+    (s ? '<div class="s">' + s + '</div>' : '') + '</div>').join('');
+
+  const byCoin = {};
+  for(const f of fund){
+    const d = f.delta || {}; const c = d.coin || '?';
+    if(!byCoin[c]) byCoin[c] = {v:0, n:0};
+    byCoin[c].v += num(d.usdc); byCoin[c].n++;
+  }
+  const keys = Object.keys(byCoin).sort((a,b) => Math.abs(byCoin[b].v) - Math.abs(byCoin[a].v));
+  $('#tblFunding tbody').innerHTML = keys.map(c =>
+    '<tr><td><b>' + esc(c) + '</b></td><td class="' + cls(byCoin[c].v) + '">' + sgn(byCoin[c].v, 4) +
+    '</td><td class="mut">' + byCoin[c].n + '</td></tr>').join('') ||
+    '<tr><td colspan="3" class="mut">Keine Funding-Zahlungen im Zeitraum.</td></tr>';
+
+  $('#tblLedger tbody').innerHTML = led.slice().reverse().slice(0, 100).map(l => {
+    const d = l.delta || {};
+    const v = num(d.usdc != null ? d.usdc : d.amount);
+    return '<tr><td class="mut">' + dt(num(l.time)) + '</td><td>' + esc(d.type || '–') +
+      '</td><td class="' + cls(v) + '">' + sgn(v, 2) + '</td></tr>';
+  }).join('') || '<tr><td colspan="3" class="mut">Keine Ein-/Auszahlungen im Zeitraum.</td></tr>';
+}
+
+/* ---------- Woher kommt der Account Value? ---------- */
+const SRC = {
+  perp:  {label:'Perps-Konto',  src:'clearinghouseState → marginSummary.accountValue'},
+  spot:  {label:'Spot-Guthaben', src:'spotClearinghouseState → balances[].total × Spot-Kurs'},
+  vault: {label:'Vaults',        src:'userVaultEquities → equity'},
+  stake: {label:'Staking',       src:'delegatorSummary → delegated + undelegated + pending'}
+};
+function balanceSources(T){
+  const o = S.balOpts, out = [];
+  const v = {perp:T.perp, spot:T.spotUsd, vault:T.vaultUsd, stake:T.stakeUsd};
+  ['perp','spot','vault','stake'].forEach(k => {
+    if(o[k] && Math.abs(v[k]) > 0.004) out.push({key:k, v:v[k], label:SRC[k].label, src:SRC[k].src});
+  });
+  return out;
+}
+
+/* ---------- Diagnose ---------- */
+function renderDiagnostics(T, ms, aps){
+  const spotUsdc = T.spotUsdc || 0;
+  const marginUsed = num(ms.totalMarginUsed);
+  const uPnl = aps.reduce((s,a) => s + num(a.position && a.position.unrealizedPnl), 0);
+
+  let hint = '';
+  if(T.perp > 0 && spotUsdc > T.perp * 3){
+    hint = '<div class="err" style="margin:10px 0 0">Auffällig: Auf <b>Spot</b> liegt deutlich mehr USDC ' +
+      'als im Perps-Konto. Wenn du eigentlich nur Perps handelst und dein ganzes Guthaben dort sein ' +
+      'sollte, gehört diese Adresse vermutlich zu einem anderen Konto als gedacht — schau in die ' +
+      'Sub-Account-Liste unten.</div>';
+  }else if(T.perp === 0 && spotUsdc === 0 && !S.fills.length){
+    hint = '<div class="err" style="margin:10px 0 0">Zu dieser Adresse liefert die API gar nichts. ' +
+      'Häufigster Grund: Es ist die Adresse einer <b>Agent-/API-Wallet</b> statt der echten Konto-Adresse.</div>';
+  }
+
+  const dl = (k, v, s) => '<div class="dl"><span>' + k +
+    (s ? '<br><span class="mut" style="font-size:11px">' + s + '</span>' : '') +
+    '</span><span class="mono">' + v + '</span></div>';
+
+  const srcs = balanceSources(T);
+  const srcHtml =
+    '<div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;' +
+    'padding:12px;margin-bottom:14px">' +
+    '<div class="k" style="font-size:11px;color:var(--muted);text-transform:uppercase;' +
+    'letter-spacing:.5px;margin-bottom:8px">Woher der Account Value kommt</div>' +
+    (srcs.length ? srcs.map(x =>
+      '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;gap:10px">' +
+      '<b>' + x.label + '</b><b>' + usd(x.v, 2) + '</b></div>' +
+      '<div class="mut mono" style="font-size:11px;word-break:break-all">' + esc(x.src) + '</div></div>'
+    ).join('') : '<div class="mut">Kein Bereich aktiviert.</div>') +
+    '<div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);' +
+    'padding-top:8px;margin-top:4px"><b>Account Value</b><b>' + usd(T.total, 2) + '</b></div>' +
+    '<div class="mut" style="font-size:11px;margin-top:6px">Alle Werte per POST an ' +
+    'api.hyperliquid.xyz/info mit deiner Adresse als <span class="mono">user</span>.</div></div>';
+
+  $('#diag').innerHTML = srcHtml +
+    '<details><summary class="mut" style="cursor:pointer;font-size:13px">' +
+    'Alle Rohwerte der Adresse anzeigen (nur zur Fehlersuche)</summary>' +
+    '<div style="margin-top:10px">' +
+    '<div class="mut mono" style="font-size:11.5px;word-break:break-all;margin-bottom:10px">' +
+      esc(S.addr) + '</div>' +
+    dl('accountValue (Perps)', usd(T.perp, 2), 'clearinghouseState.marginSummary') +
+    dl('USDC auf Spot', usd(spotUsdc, 2), 'spotClearinghouseState.balances') +
+    dl('Gebundene Margin', usd(marginUsed, 2), 'in offenen Positionen gesperrt') +
+    dl('Unrealisierter PnL', sgn(uPnl, 2), aps.length + ' offene Position(en)') +
+    dl('Vault-Equity', usd(T.vaultUsd, 2), 'userVaultEquities') +
+    dl('Gestaktes HYPE', T.hypeStaked.toFixed(4) + ' HYPE', 'delegatorSummary') +
+    hint +
+    renderSubAccounts() +
+    '</div></details>';
+}
+
+function renderSubAccounts(){
+  const subs = S.subAccounts || [];
+  if(!subs.length){
+    return '<div class="mut" style="font-size:12.5px;margin-top:12px">' +
+      'Keine Sub-Accounts zu dieser Adresse gefunden.</div>';
+  }
+  let html = '<div style="margin-top:14px"><div class="mut" style="font-size:11px;' +
+    'text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Sub-Accounts</div>';
+  for(const s of subs){
+    const cs = s.clearinghouseState || {};
+    const av = num(cs.marginSummary && cs.marginSummary.accountValue);
+    const sb = ((s.spotState || {}).balances || [])
+      .filter(b => b.coin === 'USDC').reduce((x,b) => x + num(b.total), 0);
+    html += '<div class="dl"><span><b>' + esc(s.name || 'Sub-Account') + '</b>' +
+      '<br><span class="mut mono" style="font-size:10.5px;word-break:break-all">' +
+      esc(s.subAccountUser || '') + '</span></span>' +
+      '<span style="text-align:right">Perps ' + usd(av, 2) +
+      '<br><span class="mut">Spot USDC ' + usd(sb, 2) + '</span><br>' +
+      '<a href="#" class="picksub" data-w="' + esc(s.subAccountUser || '') + '">dieses Konto laden</a>' +
+      '</span></div>';
+  }
+  return html + '</div>';
+}
+
+/* ---------- Render: Positionen ---------- */
+function rawBlock(title, obj){
+  let s;
+  try{ s = JSON.stringify(obj, null, 1); }catch(e){ s = String(obj); }
+  if(s == null) s = 'null';
+  if(s.length > 4000) s = s.slice(0, 4000) + '\n… gekürzt';
+  return '<div style="margin-bottom:10px"><div class="mut" style="margin-bottom:4px">' + esc(title) + '</div>' +
+    '<pre class="mono" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;' +
+    'padding:9px;overflow-x:auto;margin:0;white-space:pre-wrap;word-break:break-all">' + esc(s) + '</pre></div>';
+}
+
+function renderPositions(){
+  const p = S.positions;
+  const ms = (p && p.marginSummary) || {};
+  const cs = (p && p.crossMarginSummary) || {};
+  const aps = (p && p.assetPositions) || [];
+  const uPnl = aps.reduce((s,a) => s + num(a.position && a.position.unrealizedPnl), 0);
+  const T = S.totals || computeTotals();
+  const items = [
+    ['Account Value', usd(T.total, 2), 'aktueller Kontostand', ''],
+    ['Positionswert', usd(num(ms.totalNtlPos), 2), 'Nominalwert offener Positionen', ''],
+    ['Gebundene Margin', usd(num(ms.totalMarginUsed), 2), 'in Positionen gesperrt', ''],
+    ['Unreal. PnL', sgn(uPnl, 2), aps.length + ' offene Position(en)', cls(uPnl)],
+    ['Hebel (effektiv)', T.total > 0 ? (num(ms.totalNtlPos) / T.total).toFixed(2) + 'x' : '–',
+      'Positionswert ÷ Account Value', '']
+  ];
+  $('#accKpis').innerHTML = items.map(([k, v, s, c]) =>
+    '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
+    (s ? '<div class="s">' + s + '</div>' : '') + '</div>').join('');
+
+  const perpNote = aps.length
+    ? 'Margin für ' + aps.length + ' offene Position' + (aps.length > 1 ? 'en' : '') +
+      ' + unreal. PnL — dieses Geld liegt nicht auf Spot'
+    : 'freies Guthaben im Perps-Konto';
+  renderDiagnostics(T, ms, aps);
+
+  const rows = [
+    ['perp',  'Perps-Konto',    T.perp,     perpNote],
+    ['spot',  'Spot-Guthaben',  T.spotUsd,  T.spotRows.map(r => r.coin).slice(0,6).join(', ')],
+    ['vault', 'Vaults',         T.vaultUsd, (S.vaults || []).length + ' Vault(s), z.B. HLP'],
+    ['stake', 'Gestaktes HYPE', T.stakeUsd, T.hypeStaked ? T.hypeStaked.toFixed(2) + ' HYPE' : '']
+  ];
+  $('#balBreak').innerHTML =
+    '<p class="mut" style="font-size:12.5px;line-height:1.6;margin:0 0 10px">' +
+    'Hyperliquid führt Spot und Perps als <b>getrennte Konten</b> — dieselben Dollar können nicht in ' +
+    'beiden liegen. Wenn eine Perp-Position offen ist, wurde deren Margin vorher von Spot ins ' +
+    'Perps-Konto überwiesen; sie fehlt dann im Spot-Guthaben und wird hier korrekt dazugezählt. ' +
+    'Häkchen weg = Bereich zählt nicht in die Summe. Die Einstellung wird gespeichert.</p>' +
+    rows.map(([key, k, v, s]) =>
+      '<div class="dl"><span><label style="cursor:pointer;user-select:none">' +
+      '<input type="checkbox" class="balopt" data-k="' + key + '"' +
+      (S.balOpts[key] ? ' checked' : '') + ' style="margin-right:8px;vertical-align:-1px"> ' + k +
+      '</label>' + (s ? ' <span class="mut" style="font-size:11px">' + esc(s) + '</span>' : '') +
+      '</span><span' + (S.balOpts[key] ? '' : ' style="opacity:.4;text-decoration:line-through"') + '>' +
+      usd(v, 2) +
+      (T.total > 0 && S.balOpts[key] ? ' <span class="mut">(' + (v / T.total * 100).toFixed(0) + '%)</span>' : '') +
+      '</span></div>').join('') +
+    '<div class="dl" style="border:0;padding-top:10px"><span><b>Gesamt</b></span><span><b>' +
+    usd(T.total, 2) + '</b></span></div>' +
+    (T.spotUsdc ? '<div class="dl" style="border:0;padding-top:2px"><span class="mut">' +
+      'davon USDC auf Spot</span><span class="mut">' + usd(T.spotUsdc, 2) + '</span></div>' : '') +
+    '<details style="margin-top:14px"><summary class="mut" style="cursor:pointer;font-size:13px">' +
+    'Rohdaten der API anzeigen (zum Abgleich mit der Hyperliquid-App)</summary>' +
+    '<div style="font-size:11.5px;line-height:1.5;margin-top:10px">' +
+    rawBlock('clearinghouseState → marginSummary (Perps)', ms) +
+    rawBlock('spotClearinghouseState → balances (Spot)', (S.spot && S.spot.balances) || []) +
+    rawBlock('userVaultEquities (Vaults)', S.vaults) +
+    rawBlock('delegatorSummary (Staking)', S.staking) +
+    rawBlock('subAccounts', (S.subAccounts || []).map(s => ({name:s.name,
+      subAccountUser:s.subAccountUser,
+      accountValue:((s.clearinghouseState || {}).marginSummary || {}).accountValue}))) +
+    '</div></details>';
+
+  $$('.picksub').forEach(el => el.addEventListener('click', ev => {
+    ev.preventDefault();
+    $('#addr').value = el.dataset.w;
+    load(false);
+  }));
+
+  $$('.balopt').forEach(el => el.addEventListener('change', () => {
+    S.balOpts[el.dataset.k] = el.checked;
+    localStorage.setItem(LS.balOpts, JSON.stringify(S.balOpts));
+    renderAll();
+  }));
+
+  $('#tblSpot tbody').innerHTML = T.spotRows.map(r =>
+    '<tr><td><b>' + esc(r.coin) + '</b></td>' +
+    '<td class="mono">' + r.amount.toLocaleString('de-DE', {maximumFractionDigits:6}) + '</td>' +
+    '<td class="mono">' + (r.px != null ? price(r.px) : '<span class="mut">kein Kurs</span>') + '</td>' +
+    '<td>' + (r.usd != null ? usd(r.usd, 2) : '–') + '</td>' +
+    '<td class="mut">' + (r.hold ? r.hold.toLocaleString('de-DE', {maximumFractionDigits:6}) : '–') + '</td></tr>').join('');
+  $('#spotEmpty').classList.toggle('hide', T.spotRows.length > 0);
+
+  $('#tblPos tbody').innerHTML = aps.map(a => {
+    const q = a.position || {};
+    const szi = num(q.szi);
+    const lev = q.leverage || {};
+    const roe = num(q.returnOnEquity) * 100;
+    return '<tr><td><b>' + esc(q.coin) + '</b></td>' +
+      '<td><span class="pill ' + (szi >= 0 ? 'long' : 'short') + '">' + (szi >= 0 ? 'LONG' : 'SHORT') + '</span></td>' +
+      '<td class="mono">' + Math.abs(szi) + '</td>' +
+      '<td>' + usd(num(q.positionValue), 2) + '</td>' +
+      '<td class="mono">' + price(num(q.entryPx)) + '</td>' +
+      '<td class="mono warn">' + (q.liquidationPx ? price(num(q.liquidationPx)) : '–') + '</td>' +
+      '<td>' + (lev.value || '–') + 'x <span class="mut">' + esc(lev.type || '') + '</span></td>' +
+      '<td class="' + cls(num(q.unrealizedPnl)) + '"><b>' + sgn(num(q.unrealizedPnl), 2) + '</b></td>' +
+      '<td class="' + cls(roe) + '">' + pct(roe, 1) + '</td>' +
+      '<td class="mut">' + sgn(-num(q.cumFunding && q.cumFunding.sinceOpen), 2) + '</td></tr>';
+  }).join('');
+  $('#posEmpty').classList.toggle('hide', aps.length > 0);
+}
+
+/* ---------- Render: Daten ---------- */
+function renderSettings(){
+  const n = Object.keys(S.notes).length;
+  const withTag = Object.values(S.notes).filter(x => x && x.tag).length;
+  $('#notesInfo').innerHTML = n
+    ? '<b>' + n + '</b> Trades mit Eintrag · <b>' + withTag + '</b> mit Setup-Tag'
+    : 'Noch keine Notizen erfasst.';
+  $('#tagEditor').value = S.tags.join('\n');
+  let w = [];
+  try{ w = JSON.parse(localStorage.getItem(LS.wallets) || '[]'); }catch(e){}
+  $('#walletList').innerHTML = w.length
+    ? w.map(a => '<div class="dl"><span class="mono">' + esc(a) + '</span>' +
+        '<span><a href="#" data-w="' + esc(a) + '" class="pickw">laden</a></span></div>').join('')
+    : 'Noch keine Wallet gespeichert.';
+  $$('.pickw').forEach(el => el.addEventListener('click', ev => {
+    ev.preventDefault();
+    $('#addr').value = el.dataset.w;
+    load(true);
+    switchTab('overview');
+  }));
+}
+
+/* ---------- Trade-Detail ---------- */
+let mCurrent = null;
+function openTrade(id){
+  const t = S.trades.find(x => x.id === id);
+  if(!t) return;
+  mCurrent = t;
+  const n = S.notes[id] || {};
+  $('#mTitle').innerHTML = coinName(t.coin) + ' <span class="pill ' + t.side + '">' +
+    (t.side === 'long' ? 'LONG' : 'SHORT') + '</span>' + (t.liquidated ? ' <span class="pill liq">LIQUIDIERT</span>' : '');
+  $('#mSub').textContent = dt(t.openTime) + '  →  ' + dt(t.closeTime) + '  ·  ' + dur(t.durationMs);
+  const size = t.maxNotional || t.entryNotional;
+  $('#mStats').innerHTML = [
+    ['Netto-PnL', '<b class="' + cls(t.net) + '">' + sgn(t.net, 2) + '</b>'],
+    ['Rendite auf Positionsgröße', '<span class="' + cls(t.retPct) + '">' + pct(t.retPct, 2) + '</span>'],
+    ['Ø Entry', '<span class="mono">' + price(t.avgEntry) + '</span>'],
+    ['Ø Exit', '<span class="mono">' + price(t.avgExit) + '</span>'],
+    ['Größte Position', usd(size, 2)],
+    ['Roh-PnL (vor Gebühren)', sgn(t.closedPnl, 2)],
+    ['Gebühren', usd(t.fees, 4)],
+    ['Anzahl Fills', t.fills.length],
+    t.partial ? ['Hinweis', '<span class="warn">Eröffnung liegt vor dem geladenen Zeitraum – Entry geschätzt</span>'] : null
+  ].filter(Boolean).map(([k, v]) => '<div class="dl"><span>' + k + '</span><span>' + v + '</span></div>').join('');
+
+  $('#mTag').innerHTML = '<option value="">– kein Tag –</option>' +
+    S.tags.map(x => '<option value="' + esc(x) + '">' + esc(x) + '</option>').join('');
+  $('#mTag').value = n.tag || '';
+  $('#mNote').value = n.note || '';
+  renderStars(n.rating || 0);
+
+  $('#mFills tbody').innerHTML = t.fills.map(f =>
+    '<tr><td class="mut">' + dt(f.time) + '</td><td>' + esc(f.dir || (f.side === 'B' ? 'Buy' : 'Sell')) +
+    '</td><td class="mono">' + price(num(f.px)) + '</td><td class="mono">' + f.sz +
+    '</td><td class="mut">' + usd(num(f.fee), 4) + '</td><td class="' + cls(num(f.closedPnl)) + '">' +
+    (num(f.closedPnl) ? sgn(num(f.closedPnl), 2) : '–') + '</td></tr>').join('');
+
+  $('#modal').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+function renderStars(r){
+  $('#mStars').innerHTML = [1,2,3,4,5].map(i =>
+    '<div class="star' + (i <= r ? ' on' : '') + '" data-r="' + i + '">' + i + '★</div>').join('');
+  $$('#mStars .star').forEach(el => el.addEventListener('click', () => {
+    const v = +el.dataset.r;
+    renderStars(v === currentRating() ? 0 : v);
+  }));
+}
+function currentRating(){
+  const on = $$('#mStars .star.on');
+  return on.length;
+}
+function closeModal(){
+  $('#modal').classList.remove('on');
+  document.body.style.overflow = '';
+  mCurrent = null;
+}
+
+/* ---------- Export / Import ---------- */
+function download(name, text, type){
+  const b = new Blob([text], {type: type || 'application/json'});
+  const u = URL.createObjectURL(b);
+  const a = document.createElement('a');
+  a.href = u; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(u), 2000);
+}
+function exportNotes(){
+  const payload = {app:'hyperliquid-journal', version:1, wallet:S.addr,
+    exportedAt:new Date().toISOString(), tags:S.tags, notes:S.notes};
+  download('hl-journal-notizen-' + S.addr.slice(0,8) + '-' +
+    new Date().toISOString().slice(0,10) + '.json', JSON.stringify(payload, null, 2));
+}
+function importNotes(file){
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const d = JSON.parse(r.result);
+      if(!d || !d.notes) throw new Error('Keine Notizen in der Datei gefunden.');
+      let added = 0;
+      for(const k in d.notes){
+        const incoming = d.notes[k], existing = S.notes[k];
+        if(!existing || (incoming.updatedAt || 0) >= (existing.updatedAt || 0)){
+          S.notes[k] = incoming; added++;
+        }
+      }
+      if(Array.isArray(d.tags) && d.tags.length){
+        S.tags = Array.from(new Set(S.tags.concat(d.tags)));
+        localStorage.setItem(LS.tags, JSON.stringify(S.tags));
+      }
+      saveNotes(); renderAll();
+      showErr('');
+      alert(added + ' Notizen importiert und zusammengeführt.');
+    }catch(e){ showErr('Import fehlgeschlagen: ' + esc(e.message)); }
+  };
+  r.readAsText(file);
+}
+function exportCsv(tr){
+  const head = ['Geschlossen','Eroeffnet','Coin','Seite','AvgEntry','AvgExit','GroesseUSD',
+    'PnLBrutto','Gebuehren','PnLNetto','RenditeProzent','DauerMin','Setup','Rating','Notiz'];
+  const rows = sortTrades(tr).map(t => {
+    const n = S.notes[t.id] || {};
+    return [
+      new Date(t.closeTime).toISOString(), new Date(t.openTime).toISOString(),
+      t.coin, t.side, t.avgEntry.toFixed(8), t.avgExit.toFixed(8),
+      (t.maxNotional || t.entryNotional).toFixed(2),
+      t.closedPnl.toFixed(4), t.fees.toFixed(4), t.net.toFixed(4), t.retPct.toFixed(3),
+      (t.durationMs / 60000).toFixed(1), n.tag || '', n.rating || '',
+      (n.note || '').replace(/[\r\n]+/g, ' ')
+    ].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(';');
+  });
+  download('hl-trades-' + new Date().toISOString().slice(0,10) + '.csv',
+    '﻿' + head.join(';') + '\n' + rows.join('\n'), 'text/csv');
+}
+
+/* ---------- Tabs / Render ---------- */
+function switchTab(t){
+  $$('.tab[data-t]').forEach(el => el.classList.toggle('on', el.dataset.t === t));
+  ['overview','trades','setups','calendar','costs','positions','settings'].forEach(v =>
+    $('#v-' + v).classList.toggle('hide', v !== t));
+  $('#globalFilters').classList.toggle('hide', t === 'settings' || t === 'positions');
+  window.scrollTo(0, 0);
+}
+
+function calendarTrades(){
+  const mkt = $('#fMarket').value;
+  return S.trades.filter(t => {
+    if(mkt === 'perp' && t.spot) return false;
+    if(mkt === 'spot' && !t.spot) return false;
+    return true;
+  });
+}
+
+function renderAll(){
+  S.totals = computeTotals();
+  fillTagFilter();
+  const tr = filtered();
+  renderKpis(tr);
+  renderCharts(tr);
+  renderTrades(tr);
+  renderSetups(tr);
+  renderCalendar(calendarTrades());
+  renderCosts(tr);
+  renderPositions();
+  renderSettings();
+}
+
+/* ---------- Events ---------- */
+$('#btnLoad').addEventListener('click', () => load(false));
+$('#btnRefresh').addEventListener('click', () => load(true));
+$('#addr').addEventListener('keydown', e => { if(e.key === 'Enter') load(true); });
+$$('.tab[data-t]').forEach(el => el.addEventListener('click', () => switchTab(el.dataset.t)));
+['#fRange','#fCoin','#fTag','#fMarket','#fSort','#fResult'].forEach(s =>
+  $(s).addEventListener('change', renderAll));
+$$('[data-curve]').forEach(el => el.addEventListener('click', () => {
+  $$('[data-curve]').forEach(x => x.classList.remove('on'));
+  el.classList.add('on');
+  S.curve = el.dataset.curve;
+  renderEquity(filtered());
+}));
+$('#calPrev').addEventListener('click', () => {
+  S.calDate = new Date(S.calDate.getFullYear(), S.calDate.getMonth() - 1, 1);
+  renderCalendar(calendarTrades());
+});
+$('#calNext').addEventListener('click', () => {
+  S.calDate = new Date(S.calDate.getFullYear(), S.calDate.getMonth() + 1, 1);
+  renderCalendar(calendarTrades());
+});
+$('#mClose').addEventListener('click', closeModal);
+$('#modal').addEventListener('click', e => { if(e.target.id === 'modal') closeModal(); });
+$('#mSave').addEventListener('click', () => {
+  if(!mCurrent) return;
+  const tag = $('#mTag').value, note = $('#mNote').value.trim(), rating = currentRating();
+  if(!tag && !note && !rating) delete S.notes[mCurrent.id];
+  else S.notes[mCurrent.id] = {tag, note, rating, updatedAt:Date.now()};
+  saveNotes(); closeModal(); renderAll();
+});
+$('#mDel').addEventListener('click', () => {
+  if(!mCurrent) return;
+  delete S.notes[mCurrent.id];
+  saveNotes(); closeModal(); renderAll();
+});
+$('#btnExport').addEventListener('click', exportNotes);
+$('#btnImport').addEventListener('click', () => $('#fileImport').click());
+$('#fileImport').addEventListener('change', e => { if(e.target.files[0]) importNotes(e.target.files[0]); });
+$('#btnCsv').addEventListener('click', () => exportCsv(filtered()));
+$('#btnSaveTags').addEventListener('click', () => {
+  const t = $('#tagEditor').value.split('\n').map(x => x.trim()).filter(Boolean);
+  S.tags = t.length ? t : DEFAULT_TAGS.slice();
+  localStorage.setItem(LS.tags, JSON.stringify(S.tags));
+  renderSettings();
+  alert('Tags gespeichert.');
+});
+$('#btnClearCache').addEventListener('click', () => {
+  if(S.addr) localStorage.removeItem(LS.cache(S.addr));
+  load(false);
+});
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeModal(); });
+
+/* ---------- Start ---------- */
+S.tags = loadTags();
+try{
+  const bo = JSON.parse(localStorage.getItem(LS.balOpts) || 'null');
+  if(bo && typeof bo === 'object') S.balOpts = Object.assign(S.balOpts, bo);
+}catch(e){}
+const saved = localStorage.getItem(LS.addr);
+if(saved){
+  $('#addr').value = saved;
+  S.addr = saved;
+  S.notes = loadNotes(saved);
+  load(true);
+}else{
+  setStatus('Wallet-Adresse eingeben und auf „Laden“ tippen.');
+  renderSettings();
+}
+</script>
+</body>
+</html>
