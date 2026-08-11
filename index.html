@@ -150,7 +150,14 @@ tbody tr:hover{background:var(--panel2)}
 .resrow b{font-weight:650}
 .resmk{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 7px}
 .chip .x{margin-left:7px;opacity:.6}
+#livePanel{margin-bottom:26px}
+#liveWatch{margin-bottom:2px}
+#kpis{margin-top:2px}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(126px,1fr));gap:9px}
+.tile{cursor:pointer;transition:.12s}
+.tile:hover{border-color:var(--txt)}
+.lpos{cursor:pointer;transition:.12s}
+.lpos:hover{border-color:var(--txt)}
 .tile{border:1px solid var(--line);border-radius:10px;padding:10px 11px;background:var(--panel2)}
 .tile .tc{font-size:12px;font-weight:650;letter-spacing:.3px}
 .tile .tp{font-size:15px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums}
@@ -809,6 +816,39 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   <div class="foot">
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
+  </div>
+</div>
+
+<!-- COIN-STATISTIK -->
+<div class="modal" id="coinModal">
+  <div class="sheet">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+      <div>
+        <h3 id="coTitle">–</h3>
+        <div class="mut" style="font-size:12.5px" id="coSub">–</div>
+      </div>
+      <button id="coClose">✕</button>
+    </div>
+    <div id="coLive" style="margin:12px 0"></div>
+    <div class="kpis" id="coKpis"></div>
+    <div class="panel" style="margin:14px 0 0;box-shadow:none">
+      <h2>Verlauf auf diesem Markt</h2>
+      <div class="chartbox sm"><canvas id="chCoin1"></canvas></div>
+    </div>
+    <div class="panel" style="margin:14px 0 0;box-shadow:none">
+      <h2>Long gegen Short</h2>
+      <div class="scroll"><table id="coLS">
+        <thead><tr><th></th><th>Trades</th><th>Trefferquote</th><th>Netto</th><th>Ø je Trade</th></tr></thead>
+        <tbody></tbody></table></div>
+    </div>
+    <div id="coMarkets"></div>
+    <div class="panel" style="margin:14px 0 0;box-shadow:none">
+      <h2>Letzte Trades</h2>
+      <div id="coTrades"></div>
+    </div>
+    <div class="filters">
+      <button class="primary" id="coAll" style="flex:1">Alle Trades dieses Marktes zeigen</button>
+    </div>
   </div>
 </div>
 
@@ -4226,36 +4266,43 @@ const LIVE = {
      Perp-Märkten. Deren Symbole heißen {markt}:{coin}, z.B. xyz:SNDK.            */
   async loadDexes(){
     if(this.dexes) return this.dexes;
-    let list = [];
-    try{ list = await info({type:'perpDexs'}); }catch(e){ list = []; }
-    const names = [];
-    if(Array.isArray(list)){
-      for(const d of list){
-        if(!d) continue;                       // der leere Eintrag ist der Hauptmarkt
-        const n = typeof d === 'string' ? d : d.name;
-        if(n) names.push(n);
-      }
-    }
-    this.dexes = names.slice(0, 12);
-    // Symbolverzeichnis der Sondermärkte einmalig aufbauen
-    for(const dex of this.dexes){
-      try{
-        const m = await info({type:'meta', dex});
-        const uni = (m || {}).universe || [];
-        const full = [];
-        for(const u of uni){
-          if(!u || !u.name) continue;
-          const name = u.name.indexOf(':') > 0 ? u.name : (dex + ':' + u.name);
-          full.push(name);
-          this.index[name.split(':').pop().toUpperCase()] = name;
+    if(this.dexLoading) return this.dexLoading;
+    this.dexLoading = (async () => {
+      let list = [];
+      try{ list = await info({type:'perpDexs'}); }catch(e){ list = []; }
+      const names = [];
+      if(Array.isArray(list)){
+        for(const d of list){
+          if(!d) continue;                       // der leere Eintrag ist der Hauptmarkt
+          const n = typeof d === 'string' ? d : d.name;
+          if(n) names.push(n);
         }
-        this.dexMeta[dex] = full;
-        this.universe = this.universe.concat(full);
-      }catch(e){}
-      await sleep(80);
-    }
-    return this.dexes;
+      }
+      this.dexes = names.slice(0, 12);
+      // Alle Märkte gleichzeitig abfragen statt nacheinander
+      await Promise.all(this.dexes.map(async dex => {
+        try{
+          const m = await info({type:'meta', dex});
+          const uni = (m || {}).universe || [];
+          const full = [];
+          for(const u of uni){
+            if(!u || !u.name) continue;
+            const name = u.name.indexOf(':') > 0 ? u.name : (dex + ':' + u.name);
+            full.push(name);
+            // Nur eintragen, wenn der Hauptmarkt das Symbol nicht schon führt
+            const key = name.split(':').pop().toUpperCase();
+            if(!this.index[key]) this.index[key] = name;
+            if(this.universe.indexOf(name) < 0) this.universe.push(name);
+          }
+          this.dexMeta[dex] = full;
+        }catch(e){}
+      }));
+      this.dexLoading = null;
+      return this.dexes;
+    })();
+    return this.dexLoading;
   },
+
   /* Welche Sondermärkte brauche ich überhaupt? Nur die mit beobachteten Symbolen. */
   neededDexes(){
     const want = new Set();
@@ -4288,7 +4335,6 @@ const LIVE = {
     if(document.hidden) return;
     const first = !this.at;
     try{
-      if(first) await this.loadDexes();
       this.prevMids = this.mids;
       const merged = {};
 
@@ -4336,6 +4382,13 @@ const LIVE = {
       this.at = Date.now();
       this.tick++;
       renderLive();
+
+      // Erst wenn ein beobachtetes Symbol auf dem Hauptmarkt fehlt, die
+      // Sondermärkte nachladen – im Hintergrund, ohne die Anzeige aufzuhalten
+      if(!this.dexes && !this.dexLoading &&
+         this.watch().some(c => !this.price(c))){
+        this.loadDexes().then(() => { this.pull(); });
+      }
     }catch(e){
       const dot = document.getElementById('liveDot');
       if(dot) dot.style.background = 'var(--down)';
@@ -4352,7 +4405,9 @@ const LIVE = {
         if(!u || !u.name) return;
         const name = (dex && u.name.indexOf(':') < 0) ? (dex + ':' + u.name) : u.name;
         if(this.universe.indexOf(name) < 0) this.universe.push(name);
-        this.index[name.split(':').pop().toUpperCase()] = name;
+        const key = name.split(':').pop().toUpperCase();
+        // Hauptmarkt (ohne Marktnamen) hat immer Vorrang
+        if(!this.index[key] || name.indexOf(':') < 0) this.index[key] = name;
         const c = ctx[i];
         if(c && c.prevDayPx) this.prev[name] = num(c.prevDayPx);
       });
@@ -4419,8 +4474,8 @@ function renderLive(){
   const multi = activeWallets().length > 1;
   $('#livePos').innerHTML = rows.length
     ? rows.map(r =>
-      '<div class="lpos">' +
-        '<span class="lc">' + esc(r.coin) + '</span>' +
+      '<div class="lpos" data-coin="' + esc(r.coin) + '">' +
+        '<span class="lc">' + esc(LIVE.base(r.coin)) + '</span>' +
         '<span class="pill ' + (r.szi >= 0 ? 'long' : 'short') + '">' +
           (r.szi >= 0 ? 'LONG' : 'SHORT') + '</span>' +
         (multi ? '<span class="mut" style="font-size:11.5px">' + esc(walletLabel(r.wallet)) + '</span>' : '') +
@@ -4443,18 +4498,150 @@ function renderLive(){
     const pv = LIVE.prevOf(c);
     const mk = LIVE.market(c);
     const label = LIVE.base(c) + (mk ? ' <span class="mut" style="font-weight:400">' + esc(mk) + '</span>' : '');
-    if(!px) return '<div class="tile"><div class="tc">' + label + '</div>' +
+    if(!px) return '<div class="tile" data-coin="' + esc(c) + '"><div class="tc">' + label + '</div>' +
       '<div class="tp mut">–</div><div class="td mut">kein Kurs</div></div>';
     const ch = pv ? (px - pv) / pv * 100 : null;
     const before = num(LIVE.prevMids[LIVE.full(c)] != null ? LIVE.prevMids[LIVE.full(c)] : LIVE.prevMids[c]);
     const moved = before && Math.abs(px - before) > 1e-12;
-    return '<div class="tile' + (moved ? ' flash' : '') + '">' +
+    return '<div class="tile' + (moved ? ' flash' : '') + '" data-coin="' + esc(c) + '">' +
       '<div class="tc">' + label + '</div>' +
       '<div class="tp">' + price(px) + '</div>' +
       '<div class="td ' + (ch === null ? 'mut' : cls(ch)) + '">' +
         (ch === null ? '24 h –' : pct(ch, 2) + ' <span class="mut">24 h</span>') + '</div></div>';
   }).join('');
 
+}
+
+/* ---------- Statistik zu einem einzelnen Markt ---------- */
+let coCurrent = null;
+function tradesOfCoin(coin){
+  const base = LIVE.base(coin).toUpperCase();
+  return S.trades.filter(t => LIVE.base(t.coin).toUpperCase() === base);
+}
+function openCoin(coin){
+  const base = LIVE.base(coin).toUpperCase();
+  coCurrent = coin;
+  const tr = tradesOfCoin(coin);
+  const m = metrics(tr);
+  const mk = LIVE.market(coin);
+
+  $('#coTitle').innerHTML = esc(base) +
+    (mk ? ' <span class="resmk">' + esc(mk) + '</span>' : '');
+  const px = LIVE.price(coin), pv = LIVE.prevOf(coin);
+  const ch = (px && pv) ? (px - pv) / pv * 100 : null;
+  $('#coSub').innerHTML = (px ? 'Kurs ' + price(px) : 'kein Kurs') +
+    (ch !== null ? ' · <span class="' + cls(ch) + '">' + pct(ch, 2) + ' 24 h</span>' : '') +
+    ' · ' + tr.length + ' Trade' + (tr.length === 1 ? '' : 's') + ' in deiner Historie';
+
+  // Offene Position auf diesem Markt
+  const open = ((S.positions || {}).assetPositions || [])
+    .filter(a => LIVE.base((a.position || {}).coin).toUpperCase() === base)
+    .map(livePos).filter(Boolean);
+  $('#coLive').innerHTML = open.length ? open.map(r =>
+    '<div class="lpos" style="cursor:default"><span class="lc">offen</span>' +
+    '<span class="pill ' + (r.szi >= 0 ? 'long' : 'short') + '">' +
+      (r.szi >= 0 ? 'LONG' : 'SHORT') + '</span>' +
+    '<span class="lm">' + price(r.entry) + ' → ' + price(r.mark) + ' · ' + usd(r.value, 0) + '</span>' +
+    '<span class="lr"><b class="' + cls(r.uPnl) + '">' + sgn(r.uPnl, 2) + '</b>' +
+    '<span class="' + cls(r.roe) + '" style="font-size:12.5px">' + pct(r.roe, 1) + '</span></span></div>'
+  ).join('') : '';
+
+  if(!tr.length){
+    $('#coKpis').innerHTML = '';
+    $('#coLS tbody').innerHTML = '';
+    $('#coMarkets').innerHTML = '';
+    $('#coTrades').innerHTML = '<div class="mut" style="font-size:13.5px">' +
+      'Auf diesem Markt hast du noch nichts abgeschlossen.</div>';
+    if(S.charts.chCoin1){ S.charts.chCoin1.destroy(); S.charts.chCoin1 = null; }
+  }else{
+    const share = S.trades.length ? tr.length / S.trades.length * 100 : 0;
+    const totalNet = S.trades.reduce((a,t) => a + t.net, 0);
+    const items = [
+      ['Netto-Ergebnis', sgn(m.net, 2), 'nach Gebühren', cls(m.net)],
+      ['Ø je Trade', sgn(m.net / m.n, 2), '', cls(m.net / m.n)],
+      ['Trefferquote', pctn(m.winrate, 1), m.wins + ' W / ' + m.losses + ' L',
+        m.winrate >= 50 ? 'up' : 'down'],
+      ['Profit Factor', m.pf === Infinity ? '∞' : m.pf.toFixed(2), '', m.pf >= 1 ? 'up' : 'down'],
+      ['Erwartungswert', sgn(m.expectancy, 2), 'pro Trade', cls(m.expectancy)],
+      ['Ø Gewinn', sgn(m.avgWin, 2), '', 'up'],
+      ['Ø Verlust', sgn(-m.avgLoss, 2), '', 'down'],
+      ['Bester', sgn(m.best, 2), '', 'up'],
+      ['Schlechtester', sgn(m.worst, 2), '', 'down'],
+      ['Ø Haltedauer', dur(m.avgDur), '', ''],
+      ['Gebühren', usd(m.fees, 2), '', 'down'],
+      ['Anteil an allen Trades', pctn(share, 0),
+        totalNet !== 0 ? 'am Ergebnis: ' + pctn(m.net / Math.abs(totalNet) * 100, 0) : '', '']
+    ];
+    $('#coKpis').innerHTML = items.map(([k,v,sub,c]) =>
+      '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
+      (sub ? '<div class="s">' + sub + '</div>' : '') + '</div>').join('');
+
+    const side = (name, g) => {
+      if(!g.length) return '';
+      const mm = metrics(g);
+      return '<tr><td><span class="pill ' + (name === 'Long' ? 'long' : 'short') + '">' +
+        name.toUpperCase() + '</span></td><td>' + mm.n + '</td>' +
+        '<td class="' + (mm.winrate >= 50 ? 'up' : 'down') + '">' + pctn(mm.winrate, 0) + '</td>' +
+        '<td class="' + cls(mm.net) + '">' + sgn(mm.net, 2) + '</td>' +
+        '<td class="' + cls(mm.net/mm.n) + '">' + sgn(mm.net/mm.n, 2) + '</td></tr>';
+    };
+    $('#coLS tbody').innerHTML =
+      side('Long', tr.filter(t => t.side === 'long')) +
+      side('Short', tr.filter(t => t.side === 'short'));
+
+    const chron = tr.slice().sort((a,b) => a.closeTime - b.closeTime);
+    let cum = 0;
+    const data = chron.map(t => (cum += t.net));
+    mkChart('chCoin1', {
+      type:'line',
+      data:{labels:chron.map((t,i) => i + 1), datasets:[{
+        data, borderColor: cum >= 0 ? '#0f8a5f' : '#c9354a',
+        backgroundColor: cum >= 0 ? 'rgba(15,138,95,.10)' : 'rgba(201,53,74,.10)',
+        borderWidth:2, pointRadius:0, tension:.2, fill:true}]},
+      options:{responsive:true, maintainAspectRatio:false, plugins:NOLEG,
+        scales:{x:Object.assign({}, AXIS, {ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:8})}),
+          y:AXIS}}
+    });
+
+    // Kommt derselbe Basiswert auf mehreren Märkten vor, getrennt ausweisen
+    const byMarket = {};
+    for(const t of tr){
+      const k = LIVE.market(t.coin) || 'Hauptmarkt';
+      (byMarket[k] = byMarket[k] || []).push(t);
+    }
+    const mks = Object.keys(byMarket);
+    $('#coMarkets').innerHTML = mks.length > 1
+      ? '<div class="panel" style="margin:14px 0 0;box-shadow:none"><h2>Nach Markt getrennt</h2>' +
+        '<p class="mut" style="font-size:12.5px;line-height:1.6;margin-top:0">' +
+        'Du hast ' + esc(base) + ' auf mehreren Märkten gehandelt. Oben sind alle zusammengefasst, ' +
+        'hier die Aufteilung.</p>' +
+        mks.map(k => {
+          const mm = metrics(byMarket[k]);
+          return '<div class="dl"><span><b>' + esc(k) + '</b> <span class="mut">' + mm.n +
+            ' Trades · ' + pctn(mm.winrate, 0) + '</span></span>' +
+            '<span class="' + cls(mm.net) + '">' + sgn(mm.net, 2) + '</span></div>';
+        }).join('') + '</div>'
+      : '';
+
+    $('#coTrades').innerHTML = chron.slice().reverse().slice(0, 8).map(t => {
+      const n = noteOf(t.id);
+      const tm = LIVE.market(t.coin);
+      return '<div class="dl"><span>' + dt(t.closeTime) +
+        ' <span class="pill ' + t.side + '">' + (t.side === 'long' ? 'L' : 'S') + '</span>' +
+        (tm ? ' <span class="resmk">' + esc(tm) + '</span>' : '') +
+        (tagsOf(n).length ? ' <span class="mut" style="font-size:11.5px">' +
+          esc(tagsOf(n).join(', ')) + '</span>' : '') +
+        '</span><span class="' + cls(t.net) + '">' + sgn(t.net, 2) + '</span></div>';
+    }).join('');
+  }
+
+  $('#coinModal').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+function closeCoin(){
+  $('#coinModal').classList.remove('on');
+  document.body.style.overflow = '';
+  coCurrent = null;
 }
 
 /* ---------- Symbolsuche für die Beobachtungsliste ---------- */
@@ -4515,6 +4702,8 @@ function renderWatchEditor(){
     renderWatchEditor(); renderLive();
     LIVE.pull();
   }));
+  $$('#livePanel [data-coin]').forEach(el =>
+    el.addEventListener('click', () => openCoin(el.dataset.coin)));
 }
 
 /* ---------- Notiztext und Bild ---------- */
@@ -4944,6 +5133,18 @@ function renderAll(){
 /* ---------- Events ---------- */
 setInterval(() => { if(!document.hidden && LIVE.at) renderLive(); }, 5000);
 $('#btnRefresh').addEventListener('click', () => load(true));
+$('#coClose').addEventListener('click', closeCoin);
+$('#coinModal').addEventListener('click', e => { if(e.target.id === 'coinModal') closeCoin(); });
+$('#coAll').addEventListener('click', () => {
+  if(!coCurrent) return;
+  const base = LIVE.base(coCurrent).toUpperCase();
+  const hit = Array.from($('#fCoin').options).find(o =>
+    LIVE.base(o.value).toUpperCase() === base);
+  $('#fCoin').value = hit ? hit.value : '';
+  closeCoin();
+  renderAll();
+  switchTab('trades');
+});
 $('#liveEdit').addEventListener('click', async () => {
   const box = $('#liveEditBox');
   box.classList.toggle('hide');
@@ -4963,7 +5164,7 @@ $('#watchReset').addEventListener('click', () => {
 
 document.addEventListener('keydown', e => {
   if(e.key !== 'Escape') return;
-  closeModal(); closePlanModal(); closeEvModal(); closeWallets();
+  closeModal(); closePlanModal(); closeEvModal(); closeWallets(); closeCoin();
 });
 
 /* Kalender: Planung / PnL */
