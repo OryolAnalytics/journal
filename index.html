@@ -734,6 +734,15 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   <section id="v-costs" class="hide">
     <div class="kpis" id="costKpis"></div>
     <div class="panel" style="margin-top:14px">
+      <h2>Gebühren nachgerechnet</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Gegenprobe: Die addierten Gebühren werden durch den gehandelten Umsatz geteilt und mit dem
+        Satz verglichen, den Hyperliquid für dein Konto ansetzt. Stimmen beide überein, ist die
+        Summe belastbar.
+      </p>
+      <div id="feeAudit"></div>
+    </div>
+    <div class="panel">
       <h2>Funding pro Coin</h2>
       <div class="scroll"><table id="tblFunding">
         <thead><tr><th>Coin</th><th>Funding gesamt</th><th>Zahlungen</th></tr></thead><tbody></tbody>
@@ -1383,6 +1392,11 @@ function newTrade(coin, side, t){
     closedPnl:0, fees:0, maxSize:0, maxNotional:0,
     fills:[], liquidated:false, partial:false, spot:isSpot(coin)};
 }
+/* Gebühren zählen nur, wenn sie in USDC abgerechnet wurden */
+function feeUsd(f){
+  const tok = (f.feeToken || 'USDC').toUpperCase();
+  return (tok === 'USDC' || tok === 'USD') ? num(f.fee) : 0;
+}
 function finishTrade(t){
   t.avgEntry = t.entrySize > 0 ? t.entryNotional / t.entrySize : 0;
   t.avgExit  = t.exitSize  > 0 ? t.exitNotional  / t.exitSize  : 0;
@@ -1402,7 +1416,7 @@ function buildTrades(fills){
     const coin = f.coin;
     const sz = Math.abs(num(f.sz));
     const px = num(f.px);
-    const fee = num(f.fee);
+    const fee = feeUsd(f);
     const cp = num(f.closedPnl);
     if(sz <= 0 || !coin) continue;
     const isBuy = f.side === 'B';
@@ -3100,6 +3114,95 @@ function renderSubAccounts(){
       '</span></div>';
   }
   return html + '</div>';
+}
+
+/* ---------- Gebühren nachrechnen ----------
+   Prüft die addierten Gebühren gegen Umsatz und die Sätze, die Hyperliquid
+   für dein Konto ansetzt. Weicht beides ab, stimmt etwas nicht.          */
+function feeAudit(tr){
+  let fills = 0, taker = 0, maker = 0, unknown = 0;
+  let volT = 0, volM = 0, volU = 0, fees = 0, feesT = 0, feesM = 0;
+  const otherToken = {};
+  for(const t of tr){
+    for(const f of t.fills){
+      const v = num(f.px) * Math.abs(num(f.sz));
+      const fee = num(f.fee);
+      const tok = (f.feeToken || 'USDC').toUpperCase();
+      if(tok !== 'USDC'){ otherToken[tok] = (otherToken[tok] || 0) + fee; continue; }
+      fills++; fees += fee;
+      if(f.crossed === true){ taker++; volT += v; feesT += fee; }
+      else if(f.crossed === false){ maker++; volM += v; feesM += fee; }
+      else { unknown++; volU += v; }
+    }
+  }
+  const vol = volT + volM + volU;
+  const rates = S.feeRates || null;
+  const expected = rates ? (volT * rates.cross + volM * rates.add + volU * rates.cross) : null;
+  return {fills, taker, maker, unknown, vol, volT, volM, volU,
+    fees, feesT, feesM, rates, expected,
+    effT: volT > 0 ? feesT / volT : null,
+    effM: volM > 0 ? feesM / volM : null,
+    eff: vol > 0 ? fees / vol : null,
+    otherToken};
+}
+
+function renderFeeAudit(tr){
+  const a = feeAudit(tr);
+  const box = $('#feeAudit');
+  if(!box) return;
+  if(!a.fills){
+    box.innerHTML = Object.keys(a.otherToken).length
+      ? '<div class="err">Alle Gebühren im Filter wurden nicht in USDC abgerechnet (' +
+        Object.keys(a.otherToken).join(', ') + '). Sie sind deshalb nicht in der Dollar-Summe ' +
+        'enthalten — sonst würden verschiedene Währungen addiert.</div>'
+      : '<div class="mut" style="font-size:13.5px">Keine Ausführungen im Filter.</div>';
+    return;
+  }
+
+  const bp = v => v === null ? '–' : (v * 100).toFixed(4).replace('.', ',') + ' %';
+  const diff = a.expected !== null ? a.fees - a.expected : null;
+  const off = diff !== null && a.expected > 0 ? Math.abs(diff) / a.expected * 100 : null;
+
+  box.innerHTML =
+    '<div class="dl"><span>Ausführungen</span><span>' + a.fills.toLocaleString('de-DE') +
+      ' <span class="mut">(' + a.taker + ' Taker, ' + a.maker + ' Maker' +
+      (a.unknown ? ', ' + a.unknown + ' ohne Angabe' : '') + ')</span></span></div>' +
+    '<div class="dl"><span>Gehandelter Umsatz</span><span>' + usd(a.vol, 0) + '</span></div>' +
+    '<div class="dl"><span><b>Summe der Gebühren</b></span><span><b>' + usd(a.fees, 2) + '</b></span></div>' +
+    '<div class="dl"><span>Daraus errechneter Satz</span><span>' + bp(a.eff) + '</span></div>' +
+    (a.taker ? '<div class="dl"><span>davon Taker</span><span>' + usd(a.feesT, 2) +
+      ' bei ' + usd(a.volT, 0) + ' → ' + bp(a.effT) + '</span></div>' : '') +
+    (a.maker ? '<div class="dl"><span>davon Maker</span><span>' + usd(a.feesM, 2) +
+      ' bei ' + usd(a.volM, 0) + ' → ' + bp(a.effM) + '</span></div>' : '') +
+
+    (a.rates
+      ? '<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:10px">' +
+        '<div class="dl"><span>Dein Satz laut Hyperliquid</span><span>Taker ' + bp(a.rates.cross) +
+          ' · Maker ' + bp(a.rates.add) + '</span></div>' +
+        '<div class="dl"><span>Damit erwartete Gebühren</span><span>' + usd(a.expected, 2) + '</span></div>' +
+        '<div class="dl"><span><b>Abweichung</b></span><span class="' +
+          (off !== null && off < 2 ? 'up' : 'warn') + '"><b>' +
+          (diff >= 0 ? '+' : '−') + usd(Math.abs(diff), 2) +
+          (off !== null ? ' (' + pctn(off, 1) + ')' : '') + '</b></span></div>' +
+        '<div class="' + (off !== null && off < 2 ? 'mut' : 'err') + '" ' +
+          'style="font-size:12.5px;line-height:1.6;margin-top:10px' +
+          (off !== null && off < 2 ? '' : ';padding:10px 12px') + '">' +
+          (off !== null && off < 2
+            ? 'Passt. Die addierten Gebühren stimmen mit deinem Gebührensatz überein — ' +
+              'die Summe ist also echt und kein Rechenfehler.'
+            : 'Die Summen passen nicht zusammen. Mögliche Gründe: dein Gebührensatz hat sich im ' +
+              'Zeitraum geändert (Staking-Rabatt, Volumenstufe, Empfehlungscode), oder es sind ' +
+              'Builder-Gebühren enthalten. Bei einer Abweichung über 10 % sag mir Bescheid.') +
+        '</div></div>'
+      : '<div class="mut" style="font-size:12.5px;margin-top:10px">' +
+        'Deine persönlichen Gebührensätze konnten nicht geladen werden — ohne sie ist kein ' +
+        'Vergleich möglich. Lade die Seite neu.</div>') +
+
+    (Object.keys(a.otherToken).length
+      ? '<div class="err" style="margin-top:12px">Bei einigen Ausführungen wurde die Gebühr nicht ' +
+        'in USDC abgerechnet (' + Object.keys(a.otherToken).join(', ') + '). Diese sind oben ' +
+        '<b>nicht</b> mitgezählt, weil sie sonst Äpfel mit Birnen addieren würden.</div>'
+      : '');
 }
 
 /* ---------- Render: Positionen ---------- */
@@ -5305,6 +5408,7 @@ function renderAll(){
   renderPlans();
   renderCalendarTab();
   renderCosts(tr);
+  renderFeeAudit(tr);
   renderPositions();
   renderSettings();
   renderArchive();
