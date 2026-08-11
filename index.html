@@ -3315,10 +3315,7 @@ const FX = {
       const start = y === y0 ? fromISO : y + '-01-01';
       const end   = y === y1 ? toISO   : y + '-12-31';
       if(onProgress) onProgress('Lade EZB-Kurse ' + y + '…');
-      const url = 'https://api.frankfurter.app/' + start + '..' + end + '?base=USD&symbols=EUR';
-      const res = await fetch(url);
-      if(!res.ok) throw new Error('Kursabfrage fehlgeschlagen (HTTP ' + res.status + ')');
-      const j = await res.json();
+      const j = await this.fetchRange(start, end);
       for(const d in (j.rates || {})){
         const v = j.rates[d] && j.rates[d].EUR;
         if(v) this.map[d] = v;
@@ -3329,8 +3326,32 @@ const FX = {
     this.save();
     if(!this.keys.length) throw new Error('Es konnten keine Kurse geladen werden.');
   },
+  /* Zwei Adressen derselben Quelle – die erste vermeidet eine Umleitung,
+     an der Browser-Schutzfunktionen sonst abbrechen */
+  async fetchRange(start, end){
+    const urls = [
+      'https://api.frankfurter.dev/v1/' + start + '..' + end + '?base=USD&symbols=EUR',
+      'https://api.frankfurter.app/' + start + '..' + end + '?base=USD&symbols=EUR'
+    ];
+    let last = null;
+    for(const url of urls){
+      try{
+        const res = await fetch(url);
+        if(!res.ok){ last = new Error('Die Kursquelle antwortet mit Status ' + res.status + '.'); continue; }
+        return await res.json();
+      }catch(e){
+        last = e;
+      }
+    }
+    const blocked = last && (last.name === 'TypeError' || /fetch/i.test(last.message || ''));
+    throw new Error(blocked
+      ? 'Die Kursabfrage wurde blockiert.|blocked'
+      : 'Kursabfrage fehlgeschlagen: ' + (last ? last.message : 'unbekannt'));
+  },
+
   /* Kurs für ein Datum – notfalls der letzte davor veröffentlichte */
   rate(iso){
+    if(this.manual) return this.manual;
     if(!this.keys || !this.keys.length) return null;
     if(this.map[iso]) return this.map[iso];
     let lo = 0, hi = this.keys.length - 1, best = -1;
@@ -3457,6 +3478,7 @@ function csv(head, rows){
   return '﻿' + head.map(esc2).join(';') + '\n' +
     rows.map(r => r.map(esc2).join(';')).join('\n');
 }
+function fxLabel(){ return FX.manual ? 'fester Kurs' : 'EZB'; }
 function taxSuffix(){
   const y = S.taxResult && S.taxResult.year;
   return (y ? y : 'alle-Jahre') + '.csv';
@@ -3513,8 +3535,42 @@ async function runTax(){
     $('#taxStatus').innerHTML = '<span class="up">✓ Fertig</span> · Kurse der EZB, ' +
       Object.keys(FX.map).length + ' Tage im Zwischenspeicher';
   }catch(e){
-    $('#taxStatus').innerHTML = '<span class="down">Fehler:</span> ' + esc(e.message) +
-      '<br><span class="mut">Ohne Internetverbindung lassen sich keine Kurse abrufen.</span>';
+    const parts = String(e.message).split('|');
+    if(parts[1] === 'blocked'){
+      $('#taxStatus').innerHTML =
+        '<div class="err" style="margin:8px 0 0">' +
+        '<b>Die Kursabfrage wurde blockiert.</b> Nicht vom Internet, sondern vom Browser. ' +
+        'Häufigste Ursachen:' +
+        '<ul style="margin:8px 0 0;padding-left:20px">' +
+        '<li><b>Brave:</b> Löwen-Symbol in der Adresszeile → <b>Shields für diese Seite aus</b>, ' +
+        'dann Seite neu laden</li>' +
+        '<li>Werbeblocker wie uBlock oder AdGuard für diese Seite abschalten</li>' +
+        '<li>Firmen- oder Schulnetzwerk, das fremde Adressen sperrt</li>' +
+        '</ul>' +
+        '<div style="margin-top:10px">Falls das alles nicht geht, trag den Kurs unten von Hand ein — ' +
+        'für einen groben Überblick reicht das, für die Abgabe solltest du die Tageskurse nutzen.</div>' +
+        '</div>' +
+        '<div class="filters" style="margin-top:10px">' +
+        '<input type="number" id="fxManual" step="0.00001" placeholder="z.B. 0.86" ' +
+        'style="max-width:150px">' +
+        '<button id="fxManualGo">Mit festem Kurs rechnen</button></div>';
+      const go = document.getElementById('fxManualGo');
+      if(go) go.addEventListener('click', () => {
+        const v = num(document.getElementById('fxManual').value);
+        if(!(v > 0.1 && v < 10)){
+          alert('Bitte einen Kurs zwischen 0,1 und 10 eintragen — z.B. 0,86 für USD in Euro.');
+          return;
+        }
+        FX.manual = v;
+        FX.keys = FX.keys || [];
+        S.taxResult = computeTax($('#taxYear').value === 'all' ? null : +$('#taxYear').value);
+        renderTaxResult();
+        $('#taxStatus').innerHTML = '<span class="warn">Mit festem Kurs ' + de(v, 5) +
+          ' gerechnet</span> — nicht die tagesgenauen EZB-Kurse.';
+      });
+    }else{
+      $('#taxStatus').innerHTML = '<span class="down">Fehler:</span> ' + esc(parts[0]);
+    }
   }finally{
     btn.disabled = false;
   }
@@ -3530,8 +3586,11 @@ function renderTaxResult(){
     '</span><span class="' + (c || '') + '">' + v + '</span></div>';
 
   $('#taxOut').innerHTML =
+    (FX.manual ? '<div class="err"><b>Achtung:</b> Es wurde durchgehend mit dem festen Kurs ' +
+      de(FX.manual, 5) + ' gerechnet, nicht mit den Tageskursen der EZB. Für die Steuererklärung ' +
+      'sind tagesgenaue Kurse erforderlich.</div>' : '') +
     (r.missingRate ? '<div class="err">Für einzelne Tage lag kein Kurs vor. ' +
-      'Prüfe die Internetverbindung und lass die Berechnung nochmal laufen.</div>' : '') +
+      'Lass die Berechnung nochmal laufen.</div>' : '') +
 
     '<h3 style="font-size:15px;margin:18px 0 6px">Termingeschäfte · Anlage KAP</h3>' +
     '<div class="mut" style="font-size:12px;margin-bottom:6px">' +
