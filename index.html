@@ -278,6 +278,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
           <button id="watchReset">Standardliste</button>
         </div>
       </div>
+    </div>
     <div class="kpis" id="kpis"></div>
     <div class="panel" style="margin-top:14px">
       <h2>Verlauf</h2>
@@ -4510,6 +4511,9 @@ function renderLive(){
         (ch === null ? '24 h –' : pct(ch, 2) + ' <span class="mut">24 h</span>') + '</div></div>';
   }).join('');
 
+  // Kacheln und offene Positionen öffnen die Statistik zu diesem Markt
+  $$('#livePos [data-coin], #liveWatch [data-coin]').forEach(el =>
+    el.addEventListener('click', () => openCoin(el.dataset.coin)));
 }
 
 /* ---------- Statistik zu einem einzelnen Markt ---------- */
@@ -4702,8 +4706,6 @@ function renderWatchEditor(){
     renderWatchEditor(); renderLive();
     LIVE.pull();
   }));
-  $$('#livePanel [data-coin]').forEach(el =>
-    el.addEventListener('click', () => openCoin(el.dataset.coin)));
 }
 
 /* ---------- Notiztext und Bild ---------- */
