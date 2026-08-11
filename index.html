@@ -50,7 +50,6 @@ input,select,button,textarea{font-family:inherit;font-size:14px}
 input[type=text],input[type=search],select,textarea{background:var(--panel2);border:1px solid var(--line);
   color:var(--txt);border-radius:10px;padding:9px 11px;outline:none}
 input[type=text]:focus,select:focus,textarea:focus{border-color:var(--acc)}
-#addr{flex:1;min-width:200px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
 button{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:10px;
   padding:9px 14px;cursor:pointer;transition:.15s}
 button:hover{border-color:var(--acc);color:var(--acc)}
@@ -875,7 +874,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 11.08.2026, 20:03</span><br>
+    <span class="build">Fassung 11.08.2026, 20:13</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1070,7 +1069,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Datenquelle: https://api.hyperliquid.xyz/info (öffentlich, kostenlos)
    ============================================================ */
 
-const BUILD = '11.08.2026, 20:03';
+const BUILD = '11.08.2026, 20:13';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -1084,7 +1083,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 11.08.2026, 20:03';
+      ' · Fassung 11.08.2026, 20:13';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -3117,7 +3116,8 @@ function renderSubAccounts(){
       esc(s.subAccountUser || '') + '</span></span>' +
       '<span style="text-align:right">Perps ' + usd(av, 2) +
       '<br><span class="mut">Spot USDC ' + usd(sb, 2) + '</span><br>' +
-      '<a href="#" class="picksub" data-w="' + esc(s.subAccountUser || '') + '">dieses Konto laden</a>' +
+      '<a href="#" class="picksub" data-w="' + esc(s.subAccountUser || '') +
+      '" data-label="' + esc(s.name || 'Sub-Account') + '">dieses Konto laden</a>' +
       '</span></div>';
   }
   return html + '</div>';
@@ -3288,7 +3288,18 @@ function renderPositions(){
 
   $$('.picksub').forEach(el => el.addEventListener('click', ev => {
     ev.preventDefault();
-    $('#addr').value = el.dataset.w;
+    const addr = String(el.dataset.w || '').toLowerCase();
+    if(!/^0x[a-f0-9]{40}$/.test(addr)) return;
+    let w = S.wallets.find(x => x.addr === addr);
+    if(!w){
+      w = {id:'w' + Date.now().toString(36), addr,
+        label: (el.dataset.label || 'Sub-Account'), on:false};
+      S.wallets.push(w);
+    }
+    // Nur dieses Konto auswerten
+    S.wallets.forEach(x => x.on = (x.addr === addr));
+    saveWallets(S.wallets);
+    renderWalletBtn();
     load(false);
   }));
 
@@ -5784,14 +5795,18 @@ $('#btnSaveTags').addEventListener('click', () => {
 });
 
 /* Steuer, Sicherung, Archiv, Cache */
-$('#taxDlDeriv').addEventListener('click', () =>
-  download('steuer-termingeschaefte-' + taxSuffix(), csvDerivate(), 'text/csv'));
-$('#taxDlFunding').addEventListener('click', () =>
-  download('steuer-funding-' + taxSuffix(), csvFunding(), 'text/csv'));
-$('#taxDlSpot').addEventListener('click', () =>
-  download('steuer-spot-' + taxSuffix(), csvSpot(), 'text/csv'));
-$('#taxDlLedger').addEventListener('click', () =>
-  download('steuer-ein-auszahlungen-' + taxSuffix(), csvLedger(), 'text/csv'));
+function taxDownload(name, build){
+  if(!S.taxResult){
+    $('#taxStatus').innerHTML = '<span class="warn">Bitte zuerst auf ' +
+      '„Steuerdaten berechnen“ klicken.</span>';
+    return;
+  }
+  download(name + taxSuffix(), build(), 'text/csv');
+}
+$('#taxDlDeriv').addEventListener('click', () => taxDownload('steuer-termingeschaefte-', csvDerivate));
+$('#taxDlFunding').addEventListener('click', () => taxDownload('steuer-funding-', csvFunding));
+$('#taxDlSpot').addEventListener('click', () => taxDownload('steuer-spot-', csvSpot));
+$('#taxDlLedger').addEventListener('click', () => taxDownload('steuer-ein-auszahlungen-', csvLedger));
 $('#btnExport').addEventListener('click', exportNotes);
 $('#btnImport').addEventListener('click', () => $('#fileImport').click());
 $('#fileImport').addEventListener('change', e => { if(e.target.files[0]) importNotes(e.target.files[0]); });
