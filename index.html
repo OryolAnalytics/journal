@@ -380,6 +380,22 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   <!-- SETUPS -->
   <section id="v-setups" class="hide">
     <div class="panel">
+      <h2>Meine Setups</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Ein Setup pro Zeile. Diese Liste erscheint überall zur Auswahl — im Trade-Detail und
+        bei der Trade-Planung. Umbenennen wirkt sich nicht rückwirkend aus: Trades behalten den
+        Namen, unter dem du sie eingetragen hast.
+      </p>
+      <div class="f">
+        <textarea id="tagEditor" style="min-height:190px" spellcheck="false"></textarea>
+      </div>
+      <div class="filters">
+        <button class="primary" id="btnSaveTags">Setups speichern</button>
+        <button id="btnResetTags">Vorschläge zurückholen</button>
+      </div>
+      <div id="tagUsage" class="mut" style="font-size:12.5px;margin-top:10px"></div>
+    </div>
+    <div class="panel">
       <h2>Auswertung nach Setup-Tag</h2>
       <div class="scroll">
         <table id="tblSetups">
@@ -629,14 +645,6 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         <input type="file" id="fileImport" accept=".json" class="hide">
       </div>
       <div id="notesInfo" class="mut" style="font-size:13px;margin-top:10px"></div>
-    </div>
-    <div class="panel">
-      <h2>Setup-Tags verwalten</h2>
-      <div class="f">
-        <label>Ein Tag pro Zeile</label>
-        <textarea id="tagEditor" style="min-height:170px"></textarea>
-      </div>
-      <button class="primary" id="btnSaveTags">Tags speichern</button>
     </div>
     <div class="panel">
       <h2>Wallets</h2>
@@ -1878,7 +1886,28 @@ function renderOpen(){
 }
 
 /* ---------- Render: Setups ---------- */
+function renderTagEditor(tr){
+  const ed = $('#tagEditor');
+  if(ed && document.activeElement !== ed) ed.value = S.tags.join('\n');
+  const used = {};
+  for(const t of tr){
+    const n = noteOf(t.id);
+    if(n && n.tag) used[n.tag] = (used[n.tag] || 0) + 1;
+  }
+  const unknown = Object.keys(used).filter(k => S.tags.indexOf(k) < 0);
+  const unused = S.tags.filter(k => !used[k]);
+  $('#tagUsage').innerHTML =
+    (unknown.length
+      ? '<span class="warn">In Trades vergeben, aber nicht in der Liste:</span> ' +
+        unknown.map(k => esc(k) + ' (' + used[k] + ')').join(', ') + '<br>'
+      : '') +
+    (unused.length
+      ? 'Noch nie verwendet: ' + unused.map(esc).join(', ')
+      : (S.tags.length ? 'Alle Setups sind mindestens einmal vergeben.' : ''));
+}
+
 function renderSetups(tr){
+  renderTagEditor(tr);
   const groups = {};
   for(const t of tr){
     const n = noteOf(t.id);
@@ -2887,7 +2916,7 @@ function renderSettings(){
   $('#notesInfo').innerHTML = n
     ? '<b>' + n + '</b> Trades mit Eintrag · <b>' + withTag + '</b> mit Setup-Tag'
     : 'Noch keine Notizen erfasst.';
-  $('#tagEditor').value = S.tags.join('\n');
+
   $('#walletList').innerHTML = S.wallets.length
     ? S.wallets.map(w => '<div class="dl"><span>' + (w.on ? '<b>✓ ' : '<span class="mut">') +
         esc(w.label) + (w.on ? '</b>' : '</span>') +
@@ -3981,12 +4010,18 @@ $('#btnExport').addEventListener('click', exportNotes);
 $('#btnImport').addEventListener('click', () => $('#fileImport').click());
 $('#fileImport').addEventListener('change', e => { if(e.target.files[0]) importNotes(e.target.files[0]); });
 $('#btnCsv').addEventListener('click', () => exportCsv(filtered()));
+$('#btnResetTags').addEventListener('click', () => {
+  const add = DEFAULT_TAGS.filter(t => S.tags.indexOf(t) < 0);
+  if(!add.length){ alert('Die Vorschläge sind schon alle in deiner Liste.'); return; }
+  setTags(S.tags.concat(add));
+  renderAll(); syncSoon();
+});
 $('#btnSaveTags').addEventListener('click', () => {
   const t = $('#tagEditor').value.split('\n').map(x => x.trim()).filter(Boolean);
   setTags(t.length ? t : DEFAULT_TAGS.slice());
-  renderSettings();
+  renderAll();
   syncSoon();
-  alert('Tags gespeichert.');
+  alert('Setups gespeichert.');
 });
 $('#btnClearCache').addEventListener('click', () => {
   if(S.addr) localStorage.removeItem(LS.cache(S.addr));
