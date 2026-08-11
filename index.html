@@ -139,6 +139,19 @@ tbody tr:hover{background:var(--panel2)}
 .mcell .mv{font-size:17px;font-weight:650;letter-spacing:-.2px}
 .mcell .ms{font-size:11px;color:var(--muted);margin-top:2px}
 .mcell.cur{outline:2px solid var(--txt);outline-offset:-2px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(126px,1fr));gap:9px}
+.tile{border:1px solid var(--line);border-radius:10px;padding:10px 11px;background:var(--panel2)}
+.tile .tc{font-size:12px;font-weight:650;letter-spacing:.3px}
+.tile .tp{font-size:15px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums}
+.tile .td{font-size:11.5px;margin-top:2px;font-variant-numeric:tabular-nums}
+.lpos{display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid var(--line);
+  border-radius:10px;margin-bottom:8px;flex-wrap:wrap}
+.lpos .lc{font-weight:650;font-size:15px;min-width:58px}
+.lpos .lm{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.lpos .lr{margin-left:auto;text-align:right;font-variant-numeric:tabular-nums}
+.lpos .lr b{font-size:16px;display:block}
+.flash{animation:fl .6s ease-out}
+@keyframes fl{from{background:rgba(13,125,111,.16)}to{background:transparent}}
 .chips{display:flex;flex-wrap:wrap;gap:7px}
 .chip{padding:7px 13px;border:1px solid var(--line);border-radius:999px;background:var(--panel2);
   cursor:pointer;font-size:13px;user-select:none;transition:.12s}
@@ -221,6 +234,30 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
 
   <!-- ÜBERSICHT -->
   <section id="v-overview">
+    <div class="panel" id="livePanel">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <h2 style="margin:0">Live <span id="liveDot" class="dot" style="display:inline-block;
+          background:var(--up);vertical-align:middle;margin-left:4px"></span></h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="liveAge" class="mut" style="font-size:12px"></span>
+          <button id="liveEdit" style="padding:5px 11px;font-size:12px">Beobachtungsliste</button>
+        </div>
+      </div>
+      <div id="livePos" style="margin-top:12px"></div>
+      <div id="liveWatch" class="tiles" style="margin-top:12px"></div>
+      <div id="liveEditBox" class="hide" style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+        <div class="f"><label>Symbole, durch Komma getrennt</label>
+          <input type="text" id="watchInput" class="mono" spellcheck="false"
+            placeholder="BTC, ETH, SOL, HYPE" list="allCoins">
+          <datalist id="allCoins"></datalist>
+          <div class="mut" style="font-size:11.5px;margin-top:6px" id="watchHint"></div>
+        </div>
+        <div class="filters">
+          <button class="primary" id="watchSave">Speichern</button>
+          <button id="watchClose">Schließen</button>
+        </div>
+      </div>
+    </div>
     <div class="kpis" id="kpis"></div>
     <div class="panel" style="margin-top:14px">
       <h2>Verlauf</h2>
@@ -952,7 +989,13 @@ function sgn(v, dec){
 }
 function pct(v, dec){
   if(!isFinite(v)) return '–';
-  return (v > 0 ? '+' : '') + v.toFixed(dec === undefined ? 1 : dec) + '%';
+  const d = dec === undefined ? 1 : dec;
+  return (v > 0 ? '+' : '') + v.toFixed(d).replace('.', ',').replace('-', '−') + '%';
+}
+/* Prozent ohne Vorzeichen, ebenfalls mit deutschem Komma */
+function pctn(v, dec){
+  if(!isFinite(v)) return '–';
+  return v.toFixed(dec === undefined ? 1 : dec).replace('.', ',').replace('-', '−') + '%';
 }
 function price(v){
   if(!isFinite(v)) return '–';
@@ -1745,6 +1788,7 @@ async function load(incremental){
         esc(err.message) + '<br>Die Zahlen oben stimmen trotzdem.');
     }
     if(SYNC.active()) SYNC.run({});
+    LIVE.start();
     const act2 = activeWallets();
     setStatus(S.fills.length + ' Fills · ' + S.trades.length + ' abgeschlossene Trades · ' +
       (act2.length === 1 ? esc(act2[0].label) : act2.length + ' Wallets zusammengefasst') +
@@ -1815,7 +1859,7 @@ function renderKpis(tr){
     ['Account Value', T ? usd(T.total, 2) : '–', sub, ''],
     ['Realisierter PnL', sgn(m.net), 'netto nach Gebühren', cls(m.net)],
     ['Trades', m.n, m.wins + ' W / ' + m.losses + ' L', ''],
-    ['Winrate', m.n ? m.winrate.toFixed(1) + '%' : '–', 'Gewinner-Anteil', m.winrate >= 50 ? 'up' : 'down'],
+    ['Winrate', m.n ? pctn(m.winrate, 1) : '–', 'Gewinner-Anteil', m.winrate >= 50 ? 'up' : 'down'],
     ['Profit Factor', m.pf === Infinity ? '∞' : m.pf.toFixed(2), 'Gewinn ÷ Verlust', m.pf >= 1 ? 'up' : 'down'],
     ['Erwartungswert', sgn(m.expectancy, 2), 'pro Trade', cls(m.expectancy)],
     ['Ø Gewinn', sgn(m.avgWin, 2), '', 'up'],
@@ -2154,7 +2198,7 @@ function renderLongShort(tr){
     ['Anteil', a.n, b.n, null, 'share'],
     ['Netto-PnL', a.net, b.net, v => sgn(v, 2), 'money'],
     ['Ø PnL pro Trade', a.n ? a.net/a.n : 0, b.n ? b.net/b.n : 0, v => sgn(v, 2), 'money'],
-    ['Trefferquote', a.winrate, b.winrate, v => v.toFixed(1) + '%', 'pct'],
+    ['Trefferquote', a.winrate, b.winrate, v => pctn(v, 1), 'pct'],
     ['Gewinner / Verlierer', null, null, null, 'wl'],
     ['Profit Factor', a.pf, b.pf, v => v === Infinity ? '∞' : v.toFixed(2), 'ratio'],
     ['Erwartungswert', a.expectancy, b.expectancy, v => sgn(v, 2), 'money'],
@@ -2689,10 +2733,10 @@ function renderSim(){
     ['Typische Spanne', usd(r.p25, 0) + ' – ' + usd(r.p75, 0), 'die mittleren 50 % der Durchläufe', ''],
     ['Schlechter Verlauf', usd(r.p05, 0), 'schlechter als 95 % der Durchläufe', 'down'],
     ['Guter Verlauf', usd(r.p95, 0), 'besser als 95 % der Durchläufe', 'up'],
-    ['Mittlerer Drawdown', '−' + r.medDD.toFixed(1) + '%', 'typischer Einbruch unterwegs', 'down'],
-    ['Schlimmster Drawdown', '−' + r.worstDD.toFixed(1) + '%', 'über alle Durchläufe', 'down'],
-    ['Risiko: Hälfte weg', r.ruin.toFixed(1) + '%', 'Durchläufe unter 50 % des Startkapitals', r.ruin > 5 ? 'down' : ''],
-    ['Am Ende im Minus', r.loss.toFixed(1) + '%', 'der Durchläufe', r.loss > 40 ? 'down' : '']
+    ['Mittlerer Drawdown', '−' + pctn(r.medDD, 1), 'typischer Einbruch unterwegs', 'down'],
+    ['Schlimmster Drawdown', '−' + pctn(r.worstDD, 1), 'über alle Durchläufe', 'down'],
+    ['Risiko: Hälfte weg', pctn(r.ruin, 1), 'Durchläufe unter 50 % des Startkapitals', r.ruin > 5 ? 'down' : ''],
+    ['Am Ende im Minus', pctn(r.loss, 1), 'der Durchläufe', r.loss > 40 ? 'down' : '']
   ];
   $('#simKpis').innerHTML = items.map(([k,v,s,c]) =>
     '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
@@ -2765,7 +2809,7 @@ function renderCosts(tr){
     ['Kosten gesamt', usd(fees + Math.max(0, -fundSum), 2), 'Gebühren + gezahltes Funding', 'down'],
     ['Brutto-PnL', sgn(gross, 2), 'vor Gebühren', cls(gross)],
     ['Netto-PnL', sgn(gross - fees, 2), 'nach Gebühren', cls(gross - fees)],
-    ['Gebührenquote', gross !== 0 ? (fees / Math.abs(gross) * 100).toFixed(1) + '%' : '–', 'Gebühren ÷ |Brutto-PnL|', 'warn'],
+    ['Gebührenquote', gross !== 0 ? pctn(fees / Math.abs(gross) * 100, 1) : '–', 'Gebühren ÷ |Brutto-PnL|', 'warn'],
     ['Einzahlungen', usd(dep, 2), '', ''],
     ['Auszahlungen', usd(wd, 2), '', '']
   ];
@@ -3867,7 +3911,7 @@ function renderExcursion(tr){
     ['Ø größter Gewinn im Trade', usd(st.mfeAll, 2), 'bevor du geschlossen hast', 'up'],
     ['Ø größter Rücksetzer', usd(st.maeAll, 2), 'gegen dich gelaufen', 'down'],
     ['Ø bei Gewinnern erreicht', usd(st.mfeWin, 2), 'mitgenommen: ' + usd(st.netWin, 2), 'up'],
-    ['Ausschöpfung', (st.capture * 100).toFixed(0) + '%', 'vom Möglichen bei Gewinnern', ''],
+    ['Ausschöpfung', pctn(st.capture * 100, 0), 'vom Möglichen bei Gewinnern', ''],
     ['Ø Plus bei Verlierern', usd(st.mfeLoss, 2), 'waren sie zwischendurch vorn', ''],
     ['Ø Minus bei Gewinnern', usd(st.maeWin, 2), 'mussten sie aushalten', 'down'],
     ['Nie nennenswert im Plus', st.neverGreen, 'von ' + st.n + ' Trades', ''],
@@ -4157,6 +4201,155 @@ function renderGrid(tr){
     : '';
 }
 
+/* ---------- Live-Daten ----------
+   Sparsam gebaut: Der laufende Gewinn wird aus dem Kurs und der bekannten Position
+   selbst gerechnet. Der Kontostand muss deshalb nur selten abgefragt werden.      */
+const DEFAULT_WATCH = ['BTC','ETH','SOL','HYPE'];
+const LIVE = {
+  mids:{}, prev:{}, universe:[], at:0, tick:0, timer:null, prevMids:{},
+
+  watch(){
+    const n = S.notes['__watch__'];
+    if(n && !n.deleted && n.note){
+      try{
+        const a = JSON.parse(n.note);
+        if(Array.isArray(a) && a.length) return a;
+      }catch(e){}
+    }
+    return DEFAULT_WATCH.slice();
+  },
+  setWatch(list){
+    S.notes['__watch__'] = {tag:'', rating:0, note:JSON.stringify(list),
+      deleted:false, updatedAt:Date.now()};
+    saveNotes();
+  },
+
+  async pull(){
+    if(document.hidden) return;
+    const first = !this.at;
+    try{
+      this.prevMids = this.mids;
+      const mids = await info({type:'allMids'});
+      if(mids && typeof mids === 'object') this.mids = mids;
+
+      // Tagesveränderung und Symbolliste seltener nachziehen
+      if(first || this.tick % 6 === 0){
+        const mc = await info({type:'metaAndAssetCtxs'}).catch(() => null);
+        if(Array.isArray(mc) && mc.length >= 2){
+          const uni = (mc[0] || {}).universe || [], ctx = mc[1] || [];
+          this.universe = uni.map(u => u.name).filter(Boolean);
+          const prev = {};
+          uni.forEach((u, i) => {
+            const c = ctx[i];
+            if(u && u.name && c && c.prevDayPx) prev[u.name] = num(c.prevDayPx);
+          });
+          this.prev = prev;
+        }
+      }
+      // Positionen seltener, sie ändern sich nur beim Handeln
+      if(!first && this.tick % 6 === 3 && activeWallets().length){
+        const data = await Promise.all(activeWallets().map(w =>
+          info({type:'clearinghouseState', user:w.addr})
+            .then(r => ({addr:w.addr, positions:r})).catch(() => null)));
+        const ok = data.filter(Boolean);
+        if(ok.length){
+          S.wdata.forEach(d => {
+            const f = ok.find(x => x.addr === d.addr);
+            if(f && f.positions) d.positions = f.positions;
+          });
+          S.positions = mergePositions(S.wdata);
+        }
+      }
+      this.at = Date.now();
+      this.tick++;
+      renderLive();
+    }catch(e){
+      const dot = document.getElementById('liveDot');
+      if(dot) dot.style.background = 'var(--down)';
+    }
+  },
+  start(){
+    if(this.timer) return;
+    this.pull();
+    this.timer = setInterval(() => this.pull(), 10000);
+  },
+  price(coin){ return num(this.mids[coin]); }
+};
+
+/* Laufender Gewinn einer Position aus dem aktuellen Kurs */
+function livePos(a){
+  const q = a.position || {};
+  const szi = num(q.szi);
+  const entry = num(q.entryPx);
+  const mark = LIVE.price(q.coin) || num(q.positionValue) / Math.abs(szi || 1);
+  if(!entry || !szi || !mark) return null;
+  const uPnl = (mark - entry) * szi;                  // szi ist bei Short negativ
+  const margin = num(q.marginUsed);
+  const roe = margin > 0 ? uPnl / margin * 100 : 0;
+  const movePct = (mark - entry) / entry * 100 * (szi >= 0 ? 1 : -1);
+  const liq = num(q.liquidationPx);
+  return {coin:q.coin, szi, entry, mark, uPnl, roe, movePct, margin,
+    value:Math.abs(szi) * mark,
+    liqDist: liq > 0 ? Math.abs(mark - liq) / mark * 100 : null,
+    wallet:a.wallet};
+}
+
+function renderLive(){
+  const box = $('#livePanel');
+  if(!box) return;
+  const age = LIVE.at ? Math.round((Date.now() - LIVE.at) / 1000) : null;
+  $('#liveAge').textContent = age === null ? 'lädt…'
+    : (age < 15 ? 'gerade eben' : 'vor ' + age + ' s');
+  const dot = $('#liveDot');
+  if(dot) dot.style.background = (age !== null && age < 40) ? 'var(--up)' : 'var(--warn)';
+
+  // Offene Positionen
+  const aps = ((S.positions || {}).assetPositions || []);
+  const rows = aps.map(livePos).filter(Boolean);
+  const total = rows.reduce((s,r) => s + r.uPnl, 0);
+  const multi = activeWallets().length > 1;
+  $('#livePos').innerHTML = rows.length
+    ? rows.map(r =>
+      '<div class="lpos">' +
+        '<span class="lc">' + esc(r.coin) + '</span>' +
+        '<span class="pill ' + (r.szi >= 0 ? 'long' : 'short') + '">' +
+          (r.szi >= 0 ? 'LONG' : 'SHORT') + '</span>' +
+        (multi ? '<span class="mut" style="font-size:11.5px">' + esc(walletLabel(r.wallet)) + '</span>' : '') +
+        '<span class="lm">' + price(r.entry) + ' → ' + price(r.mark) + ' · ' + usd(r.value, 0) +
+          (r.liqDist !== null ? ' · Liq ' + pctn(r.liqDist, 1) : '') + '</span>' +
+        '<span class="lr"><b class="' + cls(r.uPnl) + '">' + sgn(r.uPnl, 2) + '</b>' +
+          '<span class="' + cls(r.roe) + '" style="font-size:12.5px">' + pct(r.roe, 1) +
+          ' <span class="mut">(' + pct(r.movePct, 2) + ' Kurs)</span></span></span>' +
+      '</div>').join('') +
+      (rows.length > 1
+        ? '<div class="dl" style="border:0;padding-top:4px"><span><b>Gesamt unrealisiert</b></span>' +
+          '<span class="' + cls(total) + '"><b>' + sgn(total, 2) + '</b></span></div>'
+        : '')
+    : '<div class="mut" style="font-size:13.5px">Keine offene Position.</div>';
+
+  // Beobachtungsliste
+  const wl = LIVE.watch();
+  $('#liveWatch').innerHTML = wl.map(c => {
+    const px = LIVE.price(c);
+    const pv = LIVE.prev[c];
+    if(!px) return '<div class="tile"><div class="tc">' + esc(c) + '</div>' +
+      '<div class="tp mut">–</div><div class="td mut">nicht gelistet</div></div>';
+    const ch = pv ? (px - pv) / pv * 100 : null;
+    const before = num(LIVE.prevMids[c]);
+    const moved = before && Math.abs(px - before) > 1e-12;
+    return '<div class="tile' + (moved ? ' flash' : '') + '">' +
+      '<div class="tc">' + esc(c) + '</div>' +
+      '<div class="tp">' + price(px) + '</div>' +
+      '<div class="td ' + (ch === null ? 'mut' : cls(ch)) + '">' +
+        (ch === null ? '24 h –' : pct(ch, 2) + ' <span class="mut">24 h</span>') + '</div></div>';
+  }).join('');
+
+  const dl = $('#allCoins');
+  if(dl && LIVE.universe.length && !dl.innerHTML){
+    dl.innerHTML = LIVE.universe.map(c => '<option value="' + esc(c) + '">').join('');
+  }
+}
+
 /* ---------- Notiztext und Bild ---------- */
 function noteText(n){
   if(!n || !n.note) return '';
@@ -4349,14 +4542,14 @@ function renderProgress(tr){
     ['Trades', B.m.n, A.m.n, v => v, 0],
     ['Netto-Ergebnis', B.m.net, A.m.net, v => sgn(v, 2), 1],
     ['Ø je Trade', B.m.n ? B.m.net/B.m.n : 0, A.m.n ? A.m.net/A.m.n : 0, v => sgn(v, 2), 1],
-    ['Trefferquote', B.m.winrate, A.m.winrate, v => v.toFixed(1) + '%', 1],
+    ['Trefferquote', B.m.winrate, A.m.winrate, v => pctn(v, 1), 1],
     ['Chance-Risiko', B.rr, A.rr, v => v ? v.toFixed(2) + ' : 1' : '–', 1],
     ['Profit Factor', B.m.pf, A.m.pf, v => v === Infinity ? '∞' : v.toFixed(2), 1],
     ['Erwartungswert', B.m.expectancy, A.m.expectancy, v => sgn(v, 2), 1],
     ['Ø Verlust', -B.m.avgLoss, -A.m.avgLoss, v => sgn(v, 2), 1],
-    ['Gebührenquote', B.feeShare, A.feeShare, v => v.toFixed(1) + '%', -1],
+    ['Gebührenquote', B.feeShare, A.feeShare, v => pctn(v, 1), -1],
     ['Ø Haltedauer', B.m.avgDur, A.m.avgDur, v => dur(v), 0],
-    ['Ausschöpfung', B.capture, A.capture, v => v == null ? '–' : v.toFixed(0) + '%', 1]
+    ['Ausschöpfung', B.capture, A.capture, v => v == null ? '–' : pctn(v, 0), 1]
   ];
   $('#tblProg tbody').innerHTML = rows.map(([k, b, a, f, dir]) => {
     const has = b != null && a != null && isFinite(b) && isFinite(a);
@@ -4444,7 +4637,7 @@ function renderReview(){
   const items = [
     ['Trades', m.n, m.wins + ' W / ' + m.losses + ' L', ''],
     ['Ergebnis', sgn(m.net, 2), 'netto', cls(m.net)],
-    ['Trefferquote', m.n ? m.winrate.toFixed(0) + '%' : '–', '', ''],
+    ['Trefferquote', m.n ? pctn(m.winrate, 0) : '–', '', ''],
     ['Gebühren', usd(m.fees, 2), '', 'down']
   ];
   $('#revKpis').innerHTML = items.map(([k,v,sub,c]) =>
@@ -4578,10 +4771,34 @@ function renderAll(){
   renderPositions();
   renderSettings();
   renderArchive();
+  renderLive();
 }
 
 /* ---------- Events ---------- */
+setInterval(() => { if(!document.hidden && LIVE.at) renderLive(); }, 5000);
 $('#btnRefresh').addEventListener('click', () => load(true));
+$('#liveEdit').addEventListener('click', () => {
+  const box = $('#liveEditBox');
+  box.classList.toggle('hide');
+  if(!box.classList.contains('hide')){
+    $('#watchInput').value = LIVE.watch().join(', ');
+    $('#watchHint').innerHTML = LIVE.universe.length
+      ? LIVE.universe.length + ' Symbole bei Hyperliquid verfügbar. Beim Tippen schlägt der Browser vor.'
+      : 'Symbolliste wird noch geladen.';
+  }
+});
+$('#watchClose').addEventListener('click', () => $('#liveEditBox').classList.add('hide'));
+$('#watchSave').addEventListener('click', () => {
+  const list = $('#watchInput').value.split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
+  const uniq = Array.from(new Set(list)).slice(0, 24);
+  LIVE.setWatch(uniq.length ? uniq : DEFAULT_WATCH.slice());
+  const unknown = LIVE.universe.length ? uniq.filter(c => LIVE.universe.indexOf(c) < 0) : [];
+  $('#watchHint').innerHTML = unknown.length
+    ? '<span class="warn">Nicht gelistet bei Hyperliquid:</span> ' + esc(unknown.join(', ')) +
+      ' — diese bleiben leer.'
+    : '<span class="up">Gespeichert.</span>';
+  renderLive();
+});
 $('#riskPct').addEventListener('input', () => { renderLab(filtered()); renderGrid(filtered()); });
 $('#excRun').addEventListener('click', async () => {
   if(EXC.running) return;
@@ -4826,6 +5043,7 @@ if(activeWallets().length){
 }
 // Beim Zurückkehren auf den Tab abgleichen – so ist das Handy sofort aktuell
 document.addEventListener('visibilitychange', () => {
+  if(!document.hidden) LIVE.pull();
   if(!document.hidden && SYNC.active() && Date.now() - (S.lastSync || 0) > 20000) SYNC.run({});
 });
 </script>
