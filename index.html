@@ -417,9 +417,16 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     <div class="panel">
       <h2>Kursausschläge messen</h2>
       <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
-        Wie weit lief jeder Trade zu deinen Gunsten, bevor du geschlossen hast, und wie weit gegen dich?
-        Dafür lade ich den Kursverlauf jedes Trades. Beim ersten Mal dauert das ein bis zwei Minuten,
-        danach liegt alles lokal.</p>
+        Für jeden Trade wird der Kursverlauf zwischen Einstieg und Ausstieg geholt und gemessen,
+        wie weit er zwischenzeitlich <b>im Plus</b> war und wie weit <b>im Minus</b> — jeweils in
+        Dollar, gerechnet mit der Menge, die zu dem Zeitpunkt offen war.</p>
+      <p class="mut" style="font-size:13px;line-height:1.6">
+        <b>Beispiel:</b> Du steigst bei 100 ein, der Kurs läuft auf 134, fällt zurück und du
+        schließt bei 113. Dann war der Trade bis <b>+34</b> vorn, mitgenommen hast du <b>+13</b>.
+        Passiert das immer wieder, liegt dein Problem beim Ausstieg — nicht beim Einstieg.
+        Genau diese Unterscheidung ist der ganze Zweck der Messung.</p>
+      <p class="mut" style="font-size:13px;line-height:1.6">
+        Beim ersten Mal dauert es ein bis zwei Minuten, danach liegt alles lokal.</p>
       <div class="filters">
         <button class="primary" id="excRun">Ausschläge messen</button>
         <button id="excStop" class="hide">Abbrechen</button>
@@ -868,7 +875,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 11.08.2026, 18:56</span><br>
+    <span class="build">Fassung 11.08.2026, 20:03</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1063,7 +1070,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Datenquelle: https://api.hyperliquid.xyz/info (öffentlich, kostenlos)
    ============================================================ */
 
-const BUILD = '11.08.2026, 18:56';
+const BUILD = '11.08.2026, 20:03';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -1077,7 +1084,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 11.08.2026, 18:56';
+      ' · Fassung 11.08.2026, 20:03';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -3443,6 +3450,36 @@ function renderSettings(){
     : 'Noch keine Wallet gespeichert.';
 }
 
+/* Ausschläge eines einzelnen Trades, in Worten */
+function excursionBlock(t){
+  const e = EXC.get(t.id);
+  if(!e){
+    const raw = EXC.load()[t.id];
+    const why = raw && raw.failed ? 'keine Kursdaten für diesen Zeitraum'
+      : raw ? 'Messung veraltet' : 'noch nicht gemessen';
+    return '<div class="dl"><span>Kursausschläge</span><span class="mut">' + why + '</span></div>';
+  }
+  const cap = e.mfe > 0 ? t.net / e.mfe * 100 : null;
+  let satz = '';
+  if(t.net > 0 && cap !== null && cap < 60){
+    satz = 'Der Trade war deutlich weiter vorn, als du mitgenommen hast — ' +
+      'du hast ' + pctn(cap, 0) + ' der Bewegung realisiert.';
+  }else if(t.net <= 0 && e.mfe > Math.abs(t.net)){
+    satz = 'Dieser Verlust war zwischenzeitlich ' + usd(e.mfe, 2) + ' im Plus.';
+  }else if(t.net > 0 && e.mae > t.net){
+    satz = 'Der Trade lag ' + usd(e.mae, 2) + ' hinten, bevor er drehte — mehr als der Gewinn am Ende.';
+  }else if(t.net <= 0 && e.mfe < Math.abs(t.net) * 0.25){
+    satz = 'Der Trade war nie nennenswert im Plus — hier liegt es am Einstieg, nicht am Ausstieg.';
+  }
+  return '<div class="dl"><span>War im Plus bis</span><span class="up">' + usd(e.mfe, 2) + '</span></div>' +
+    '<div class="dl"><span>War im Minus bis</span><span class="down">' + usd(e.mae, 2) + '</span></div>' +
+    '<div class="dl"><span>Davon mitgenommen</span><span class="' + cls(t.net) + '">' +
+      sgn(t.net, 2) + (cap !== null ? ' <span class="mut">(' + pctn(cap, 0) + ')</span>' : '') +
+      '</span></div>' +
+    (satz ? '<div class="mut" style="font-size:12.5px;line-height:1.6;padding:8px 0 0">' +
+      esc(satz) + '</div>' : '');
+}
+
 /* ---------- Trade-Detail ---------- */
 let mCurrent = null;
 function openTrade(id){
@@ -3464,7 +3501,8 @@ function openTrade(id){
     ['Gebühren', usd(t.fees, 4)],
     ['Anzahl Fills', t.fills.length],
     t.partial ? ['Hinweis', '<span class="warn">Eröffnung liegt vor dem geladenen Zeitraum – Entry geschätzt</span>'] : null
-  ].filter(Boolean).map(([k, v]) => '<div class="dl"><span>' + k + '</span><span>' + v + '</span></div>').join('');
+  ].filter(Boolean).map(([k, v]) => '<div class="dl"><span>' + k + '</span><span>' + v + '</span></div>').join('')
+  + excursionBlock(t);
 
   chipBox('#mTags', tagsOf(n));
   $('#mNote').value = noteText(n);
@@ -4031,20 +4069,53 @@ const EXC = {
   clear(){ this.data = {}; try{ localStorage.removeItem('hlj_exc'); }catch(e){} },
   get(id){
     const e = this.load()[id];
-    // Vor Version 2 wurde ohne Berücksichtigung von Teilausstiegen gerechnet
-    return (e && e.v === this.VERSION) ? e : null;
+    // Nur aktuelle und tatsächlich gelungene Messungen sind auswertbar
+    return (e && e.v === this.VERSION && !e.failed) ? e : null;
+  },
+  /* Ehrliche Zählung: was liegt vor, was ist brauchbar, was fehlt */
+  counts(trades){
+    const d = this.load();
+    let usable = 0, outdated = 0, failed = 0, missing = 0;
+    const failCoins = {};
+    for(const t of trades){
+      if(t.spot) continue;
+      const e = d[t.id];
+      if(!e){ missing++; continue; }
+      if(e.v !== this.VERSION){ outdated++; continue; }
+      if(e.failed){ failed++; failCoins[t.coin] = (failCoins[t.coin] || 0) + 1; continue; }
+      usable++;
+    }
+    return {usable, outdated, failed, missing, failCoins,
+      total: usable + outdated + failed + missing};
+  },
+  clearFailed(){
+    const d = this.load();
+    for(const k in d){ if(d[k] && d[k].failed) delete d[k]; }
+    this.save();
   },
   outdated(){
     const d = this.load();
     return Object.keys(d).filter(k => d[k] && d[k].v !== this.VERSION).length;
   },
 
-  /* Kerzenintervall so wählen, dass ein Trade auf 30–300 Kerzen kommt */
-  interval(ms){
-    const opts = [['1m',60e3],['3m',18e4],['5m',3e5],['15m',9e5],['30m',18e5],
-                  ['1h',36e5],['4h',144e5],['1d',864e5]];
-    for(const [name, len] of opts){ if(ms / len <= 300) return [name, len]; }
+  /* Hyperliquid liefert je Raster nur die letzten 5000 Kerzen. Ein feines Raster
+     reicht deshalb nur wenige Tage zurück – das Alter des Trades entscheidet mit. */
+  STEPS: [['1m',60e3],['3m',18e4],['5m',3e5],['15m',9e5],['30m',18e5],
+          ['1h',36e5],['4h',144e5],['12h',432e5],['1d',864e5]],
+  LIMIT: 5000,
+  interval(durationMs, ageMs){
+    const age = Math.max(0, ageMs || 0);
+    for(const [name, len] of this.STEPS){
+      const reichtZurueck = len * this.LIMIT * 0.9 >= age;   // Sicherheitspuffer
+      const genugAufloesung = durationMs / len <= 300;
+      if(reichtZurueck && genugAufloesung) return [name, len];
+    }
     return ['1d', 864e5];
+  },
+  /* Nächstgröberes Raster, falls eine Abfrage leer zurückkommt */
+  nextInterval(name){
+    const i = this.STEPS.findIndex(x => x[0] === name);
+    return (i >= 0 && i < this.STEPS.length - 1) ? this.STEPS[i+1][0] : null;
   },
 
   /* Wie groß war die Position zu welchem Zeitpunkt, und zu welchem Ø Einstand?
@@ -4084,11 +4155,21 @@ const EXC = {
   async measure(trade){
     if(trade.spot) return null;
     const span = Math.max(60e3, trade.closeTime - trade.openTime);
-    const [iv] = this.interval(span);
-    const res = await info({type:'candleSnapshot', req:{
-      coin: trade.coin, interval: iv,
-      startTime: trade.openTime - 60e3, endTime: trade.closeTime + 60e3}});
-    if(!Array.isArray(res) || !res.length) return null;
+    const age = Date.now() - trade.openTime;
+    let [iv] = this.interval(span, age);
+    let res = null;
+    // Bis zu drei Versuche mit jeweils gröberem Raster
+    for(let attempt = 0; attempt < 3 && iv; attempt++){
+      res = await info({type:'candleSnapshot', req:{
+        coin: trade.coin, interval: iv,
+        startTime: trade.openTime - 60e3, endTime: trade.closeTime + 60e3}});
+      if(Array.isArray(res) && res.length) break;
+      iv = this.nextInterval(iv);
+      if(iv) await sleep(120);
+    }
+    if(!Array.isArray(res) || !res.length){
+      return {v:EXC.VERSION, failed:true, reason:'keine Kursdaten', coin:trade.coin};
+    }
 
     const long = trade.side === 'long';
     const fallback = {size: trade.entrySize || 0, entry: trade.avgEntry || 0};
@@ -4129,18 +4210,24 @@ const EXC = {
   async runAll(onProgress){
     this.load();
     this.running = true; this.cancel = false;
-    const todo = S.trades.filter(t => !t.spot && !this.data[t.id]);
+    const todo = S.trades.filter(t => !t.spot &&
+      !(this.data[t.id] && this.data[t.id].v === this.VERSION && !this.data[t.id].failed));
     let done = 0, failed = 0;
     for(const t of todo){
       if(this.cancel) break;
       try{
         const m = await this.measure(t);
-        if(m) this.data[t.id] = m; else failed++;
-      }catch(e){ failed++; }
+        if(m){ this.data[t.id] = m; if(m.failed) failed++; }
+        else { this.data[t.id] = {v:EXC.VERSION, failed:true, reason:'nicht messbar', coin:t.coin}; failed++; }
+      }catch(e){
+        this.data[t.id] = {v:EXC.VERSION, failed:true,
+          reason:(e && e.message) ? e.message.slice(0,60) : 'Abfrage fehlgeschlagen', coin:t.coin};
+        failed++;
+      }
       done++;
       if(done % 5 === 0) this.save();
       if(onProgress) onProgress(done, todo.length, failed);
-      await sleep(60);
+      await sleep(120);
     }
     this.save();
     this.running = false;
@@ -4175,16 +4262,39 @@ function excStats(tr){
 }
 
 function renderExcursion(tr){
-  const done = Object.keys(EXC.load()).length;
   const perp = tr.filter(t => !t.spot);
-  const old = EXC.outdated();
-  $('#excStatus').innerHTML = EXC.running ? $('#excStatus').innerHTML :
-    ((done ? '<span class="up">' + done + ' Trades vermessen</span>' +
-      (perp.length > done ? ' · <span class="mut">' + (perp.length - done) + ' noch offen</span>' : '')
-     : '<span class="mut">Noch nichts gemessen.</span>') +
-    (old ? '<div class="err" style="margin-top:8px">' + old + ' Messungen stammen aus einer ' +
-      'älteren Fassung, die Teilausstiege noch nicht berücksichtigt hat. Klick auf ' +
-      '„Ausschläge messen“, dann werden sie neu berechnet.</div>' : ''));
+  const c = EXC.counts(perp);
+  const line = (k, v, cls_) => '<span class="' + (cls_ || '') + '">' + v + ' ' + k + '</span>';
+  if(!EXC.running){
+    const parts = [];
+    if(c.usable) parts.push(line('auswertbar', c.usable, 'up'));
+    if(c.missing) parts.push(line('noch nicht gemessen', c.missing, 'mut'));
+    if(c.outdated) parts.push(line('veraltet', c.outdated, 'warn'));
+    if(c.failed) parts.push(line('ohne Kursdaten', c.failed, 'down'));
+    const coins = Object.keys(c.failCoins).sort((a,b) => c.failCoins[b] - c.failCoins[a]).slice(0,5);
+    $('#excStatus').innerHTML =
+      (parts.length ? parts.join(' · ') : '<span class="mut">Noch nichts gemessen.</span>') +
+      ' <span class="mut">von ' + c.total + ' Trades</span>' +
+      (c.failed
+        ? '<div class="err" style="margin-top:8px">Für ' + c.failed + ' Trades gibt es keine ' +
+          'Kursdaten mehr. Hyperliquid gibt je Zeitraster nur die letzten 5.000 Kerzen heraus — ' +
+          'bei sehr alten Trades reicht selbst das gröbste Raster nicht zurück.' +
+          (coins.length ? '<br>Betroffen vor allem: ' + esc(coins.map(k =>
+            LIVE.base(k) + ' (' + c.failCoins[k] + ')').join(', ')) : '') +
+          '<br><a href="#" id="excRetry">Fehlversuche verwerfen und erneut probieren</a></div>'
+        : '') +
+      (c.outdated
+        ? '<div class="err" style="margin-top:8px">' + c.outdated + ' Messungen stammen aus einer ' +
+          'älteren Fassung ohne Teilausstiege. Klick auf „Ausschläge messen“, dann werden sie ' +
+          'neu berechnet.</div>'
+        : '');
+    const rt = document.getElementById('excRetry');
+    if(rt) rt.addEventListener('click', ev => {
+      ev.preventDefault();
+      EXC.clearFailed();
+      renderExcursion(filtered());
+    });
+  }
 
   const st = excStats(perp);
   if(!st){
