@@ -422,12 +422,14 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
         Trades danach gruppiert, welche Setups <b>gemeinsam</b> vergeben wurden. Hier siehst du,
         ob „Plan befolgt“ zusammen mit einem bestimmten Setup besser läuft als das Setup allein.
+        Anders als in der Tabelle darüber zählt jeder Trade hier <b>genau einmal</b>.
       </p>
       <div class="scroll"><table id="tblCombo">
         <thead><tr><th>Kombination</th><th>Trades</th><th>Trefferquote</th><th>Netto</th>
           <th>Ø je Trade</th><th>Profit Factor</th></tr></thead><tbody></tbody></table></div>
+      <div id="comboNote" class="mut" style="font-size:12px;margin-top:10px"></div>
       <div id="comboEmpty" class="empty-state hide">
-        Noch keine Trades mit mehr als einem Setup.
+        Noch keine Trades mit Setup. Öffne im Bereich Trades einen Trade und wähl dort deine Setups aus.
       </div>
     </div>
     <div class="panel">
@@ -2009,20 +2011,34 @@ function renderSetups(tr){
     const key = tl.slice().sort().join(' + ');
     (combos[key] = combos[key] || []).push(t);
   }
+  const MIN_AUSSAGE = 5;
   const cRows = Object.keys(combos)
-    .map(k => ({k, g:combos[k], m:metrics(combos[k])}))
-    .filter(x => x.g.length >= 2)
-    .sort((a,b) => b.m.net - a.m.net);
-  $('#tblCombo tbody').innerHTML = cRows.map(x =>
-    '<tr><td><b>' + esc(x.k) + '</b>' +
-      (x.k.indexOf(' + ') > 0 ? '' : ' <span class="mut">(allein)</span>') + '</td>' +
+    .map(k => ({k, g:combos[k], m:metrics(combos[k]), multi:k.indexOf(' + ') > 0}))
+    .sort((a,b) => (b.g.length - a.g.length) || (b.m.net - a.m.net));
+  $('#tblCombo tbody').innerHTML = cRows.map(x => {
+    const thin = x.m.n < MIN_AUSSAGE;
+    return '<tr' + (thin ? ' style="opacity:.62"' : '') + '>' +
+    '<td><b>' + esc(x.k) + '</b>' +
+      (x.multi ? '' : ' <span class="mut">(allein)</span>') +
+      (thin ? '<br><span class="mut" style="font-size:11px">noch zu wenig Trades für eine Aussage</span>' : '') +
+      '</td>' +
     '<td>' + x.m.n + '</td>' +
-    '<td class="' + (x.m.winrate >= 50 ? 'up' : 'down') + '">' + x.m.winrate.toFixed(0) + '%</td>' +
+    '<td class="' + (thin ? 'mut' : (x.m.winrate >= 50 ? 'up' : 'down')) + '">' +
+      x.m.winrate.toFixed(0) + '%</td>' +
     '<td class="' + cls(x.m.net) + '"><b>' + sgn(x.m.net, 2) + '</b></td>' +
-    '<td class="' + cls(x.m.net / x.m.n) + '">' + sgn(x.m.net / x.m.n, 2) + '</td>' +
-    '<td class="' + (x.m.pf >= 1 ? 'up' : 'down') + '">' +
-      (x.m.pf === Infinity ? '∞' : x.m.pf.toFixed(2)) + '</td></tr>').join('');
+    '<td class="' + (thin ? 'mut' : cls(x.m.net / x.m.n)) + '">' + sgn(x.m.net / x.m.n, 2) + '</td>' +
+    '<td class="' + (thin ? 'mut' : (x.m.pf >= 1 ? 'up' : 'down')) + '">' +
+      (x.m.pf === Infinity ? '∞' : x.m.pf.toFixed(2)) + '</td></tr>';
+  }).join('');
   $('#comboEmpty').classList.toggle('hide', cRows.length > 0);
+  const solid = cRows.filter(x => x.m.n >= MIN_AUSSAGE).length;
+  $('#comboNote').innerHTML = cRows.length
+    ? (solid
+        ? solid + ' von ' + cRows.length + ' Zusammenstellungen haben mindestens ' + MIN_AUSSAGE +
+          ' Trades. Die blasseren Zeilen darunter sind noch Einzelfälle.'
+        : 'Alle Zeilen sind noch Einzelfälle. Ab etwa ' + MIN_AUSSAGE +
+          ' Trades je Zusammenstellung wird ein Vergleich sinnvoll.')
+    : '';
 
   const byR = {};
   for(const t of tr){
