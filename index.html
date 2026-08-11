@@ -296,6 +296,17 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         <tbody></tbody></table></div>
     </div>
     <div class="panel">
+      <h2>Geplant gegen spontan</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Ein Trade gilt als geplant, wenn es einen Plan mit gleichem Ticker, gleicher Richtung und
+        passendem Zeitfenster gibt. Die Zuordnung passiert automatisch, du musst nichts markieren.
+      </p>
+      <div class="scroll"><table id="tblPlanned">
+        <thead><tr><th>Art</th><th>Trades</th><th>Trefferquote</th><th>Netto</th><th>Ø je Trade</th>
+          <th>Profit Factor</th><th>Ø Größe</th></tr></thead><tbody></tbody></table></div>
+      <div id="plannedNote" class="mut" style="font-size:12.5px;margin-top:10px"></div>
+    </div>
+    <div class="panel">
       <h2>Positionsgröße</h2>
       <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
         Alle Trades in vier gleich große Gruppen nach Positionsgröße geteilt.</p>
@@ -380,6 +391,57 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     <div class="panel">
       <h2>Bestes Ergebnis im Raster</h2>
       <div id="gridBest"></div>
+    </div>
+  </section>
+
+  <!-- FORTSCHRITT -->
+  <section id="v-progress" class="hide">
+    <div class="panel">
+      <h2>Werde ich besser?</h2>
+      <div class="filters">
+        <select id="progWin">
+          <option value="30">Letzte 30 Tage gegen die 30 davor</option>
+          <option value="14">Letzte 14 Tage gegen die 14 davor</option>
+          <option value="60">Letzte 60 Tage gegen die 60 davor</option>
+          <option value="90">Letzte 90 Tage gegen die 90 davor</option>
+        </select>
+      </div>
+      <div class="scroll"><table id="tblProg">
+        <thead><tr><th>Kennzahl</th><th>Davor</th><th>Jetzt</th><th>Richtung</th></tr></thead>
+        <tbody></tbody></table></div>
+      <div id="progNote" class="mut" style="font-size:12.5px;margin-top:10px"></div>
+    </div>
+    <div class="panel">
+      <h2>Konsistenz</h2>
+      <div class="kpis" id="consKpis"></div>
+    </div>
+  </section>
+
+  <!-- RÜCKBLICK -->
+  <section id="v-review" class="hide">
+    <div class="panel">
+      <div class="filters" style="justify-content:space-between">
+        <button id="revPrev">‹</button>
+        <h2 style="margin:0" id="revTitle"></h2>
+        <button id="revNext">›</button>
+      </div>
+      <div class="kpis" id="revKpis"></div>
+      <div id="revTrades" style="margin-top:12px"></div>
+    </div>
+    <div class="panel">
+      <h2>Drei Fragen</h2>
+      <div class="f"><label>Was lief gut?</label><textarea id="revGood"></textarea></div>
+      <div class="f"><label>Was lief schlecht?</label><textarea id="revBad"></textarea></div>
+      <div class="f"><label>Was mache ich nächste Woche anders?</label><textarea id="revNext2"></textarea></div>
+      <div class="filters">
+        <button class="primary" id="revSave" style="flex:1">Rückblick speichern</button>
+        <button id="revDel">Löschen</button>
+      </div>
+      <div id="revStatus" class="mut" style="font-size:12.5px;margin-top:8px"></div>
+    </div>
+    <div class="panel">
+      <h2>Frühere Rückblicke</h2>
+      <div id="revList"></div>
     </div>
   </section>
 
@@ -670,6 +732,21 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <button id="wOpen2" style="margin-top:10px">Wallets verwalten</button>
     </div>
     <div class="panel">
+      <h2>Archiv — schützt deine Historie</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Hyperliquid gibt über die Schnittstelle nur die letzten 10.000 Ausführungen heraus. Ältere
+        fallen irgendwann hinten raus. Sichere dein Archiv ab und zu als Datei — beim Einlesen
+        werden alte und neue Daten zusammengeführt, nichts geht verloren und nichts doppelt sich.
+      </p>
+      <div id="archInfo" style="font-size:13px;margin-bottom:12px"></div>
+      <div class="filters">
+        <button class="primary" id="archExport">Archiv sichern</button>
+        <button id="archImport">Archiv einlesen</button>
+        <input type="file" id="archFile" accept=".json" class="hide">
+      </div>
+      <div id="archStatus" class="mut" style="font-size:12.5px;margin-top:8px"></div>
+    </div>
+    <div class="panel">
       <h2>Cache</h2>
       <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
         Die Fills werden lokal zwischengespeichert, damit das Laden schnell geht und die API geschont wird.
@@ -806,6 +883,16 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     <div class="f">
       <label>Notiz – was war der Plan, was lief gut, was nicht?</label>
       <textarea id="mNote" placeholder="z.B. Breakout über Tageshoch, Einstieg zu früh, SL zu eng gesetzt…"></textarea>
+    </div>
+    <div class="f">
+      <label>Chartbild</label>
+      <input type="text" id="mImg" placeholder="Link einfügen, z.B. tradingview.com/x/AbCdEf/" spellcheck="false">
+      <div class="filters" style="margin-top:8px">
+        <button id="mImgPick">Bild vom Gerät wählen</button>
+        <button id="mImgClear">Entfernen</button>
+        <input type="file" id="mImgFile" accept="image/*" class="hide">
+      </div>
+      <div id="mImgPrev"></div>
     </div>
     <div class="filters">
       <button class="primary" id="mSave" style="flex:1">Speichern</button>
@@ -1354,7 +1441,8 @@ function noteOf(id){
   const n = S.notes[id];
   return (n && !n.deleted) ? n : null;
 }
-function isMeta(k){ return k.indexOf('plan:') === 0 || k.indexOf('event:') === 0 || k.indexOf('__') === 0; }
+function isMeta(k){ return k.indexOf('plan:') === 0 || k.indexOf('event:') === 0 ||
+  k.indexOf('review:') === 0 || k.indexOf('__') === 0; }
 function liveNotes(){
   const out = {};
   for(const k in S.notes){ if(!S.notes[k].deleted && !isMeta(k)) out[k] = S.notes[k]; }
@@ -1863,7 +1951,7 @@ function renderTrades(tr){
   let list = tr.filter(t => {
     if(res === 'win') return t.net > 0;
     if(res === 'loss') return t.net < 0;
-    if(res === 'nonote'){ const n = noteOf(t.id); return !n || (!n.note && !tagsOf(n).length); }
+    if(res === 'nonote'){ const n = noteOf(t.id); return !n || (!noteText(n) && !tagsOf(n).length); }
     return true;
   });
   list = sortTrades(list);
@@ -1888,7 +1976,7 @@ function renderTrades(tr){
       '<td>' + (tagsOf(n).length
         ? tagsOf(n).map(x => '<span class="pill tag">' + esc(x) + '</span>').join(' ')
         : '<span class="mut">–</span>') + '</td>' +
-      '<td>' + (n.note ? '📝' : '') + (n.rating ? ' <span class="mut">' + n.rating + '★</span>' : '') + '</td>' +
+      '<td>' + (noteText(n) || noteImg(n) ? '📝' : '') + (n.rating ? ' <span class="mut">' + n.rating + '★</span>' : '') + '</td>' +
       '</tr>';
   }).join('');
   $('#tradesEmpty').classList.toggle('hide', list.length > 0);
@@ -3061,7 +3149,10 @@ function openTrade(id){
   ].filter(Boolean).map(([k, v]) => '<div class="dl"><span>' + k + '</span><span>' + v + '</span></div>').join('');
 
   chipBox('#mTags', tagsOf(n));
-  $('#mNote').value = n.note || '';
+  $('#mNote').value = noteText(n);
+  mImgData = noteImg(n);
+  $('#mImg').value = mImgData.indexOf('data:') === 0 ? '' : mImgData;
+  drawMImg();
   renderStars(n.rating || 0);
 
   $('#mFills tbody').innerHTML = t.fills.map(f =>
@@ -3158,6 +3249,23 @@ function shrinkImage(file, cb){
     im.src = rd.result;
   };
   rd.readAsDataURL(file);
+}
+
+let mImgData = '';
+function drawMImg(){
+  const src = imgUrl(mImgData || $('#mImg').value);
+  const box = $('#mImgPrev');
+  if(!box) return;
+  box.innerHTML = '';
+  if(!src) return;
+  const img = document.createElement('img');
+  img.className = 'preview'; img.alt = '';
+  img.onerror = () => {
+    box.innerHTML = '<div class="mut" style="font-size:12.5px;margin-top:8px">' +
+      'Bild konnte nicht geladen werden.</div>';
+  };
+  img.src = src;
+  box.appendChild(img);
 }
 
 /* ---------- Termin-Dialog ---------- */
@@ -3510,7 +3618,7 @@ function exportCsv(tr){
       (t.maxNotional || t.entryNotional).toFixed(2),
       t.closedPnl.toFixed(4), t.fees.toFixed(4), t.net.toFixed(4), t.retPct.toFixed(3),
       (t.durationMs / 60000).toFixed(1), tagsOf(n).join(' + '), n.rating || '',
-      (n.note || '').replace(/[\r\n]+/g, ' ')
+      noteText(n).replace(/[\r\n]+/g, ' ')
     ].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(';');
   });
   download('hl-trades-' + new Date().toISOString().slice(0,10) + '.csv',
@@ -3937,12 +4045,358 @@ function renderGrid(tr){
     : '';
 }
 
+/* ---------- Notiztext und Bild ---------- */
+function noteText(n){
+  if(!n || !n.note) return '';
+  const v = n.note;
+  if(typeof v === 'string' && v.charAt(0) === '{'){
+    try{ const o = JSON.parse(v); if(o && typeof o.t === 'string') return o.t; }catch(e){}
+  }
+  return v;
+}
+function noteImg(n){
+  if(!n || !n.note) return '';
+  const v = n.note;
+  if(typeof v === 'string' && v.charAt(0) === '{'){
+    try{ const o = JSON.parse(v); if(o && typeof o.t === 'string') return o.img || ''; }catch(e){}
+  }
+  return '';
+}
+function packNote(text, img){
+  return img ? JSON.stringify({t:text || '', img}) : (text || '');
+}
+
+/* ---------- Archiv ---------- */
+function archiveStats(){
+  let fills = 0, oldest = Infinity;
+  for(const w of S.wallets){
+    const c = readCache(w.addr);
+    if(!c || !c.fills.length) continue;
+    fills += c.fills.length;
+    if(c.fills[0].time < oldest) oldest = c.fills[0].time;
+  }
+  return {fills, oldest:isFinite(oldest) ? oldest : null,
+    notes:Object.keys(S.notes).length};
+}
+function renderArchive(){
+  const a = archiveStats();
+  const box = $('#archInfo');
+  if(!box) return;
+  box.innerHTML =
+    '<div class="dl"><span>Gespeicherte Ausführungen</span><span><b>' +
+      a.fills.toLocaleString('de-DE') + '</b></span></div>' +
+    '<div class="dl"><span>Älteste davon</span><span>' +
+      (a.oldest ? dt(a.oldest) : '–') + '</span></div>' +
+    '<div class="dl"><span>Notizen, Pläne, Termine</span><span>' + a.notes + '</span></div>' +
+    (a.fills > 8000
+      ? '<div class="err" style="margin-top:10px">Du näherst dich der Grenze von 10.000 ' +
+        'Ausführungen, ab der Hyperliquid ältere Daten nicht mehr herausgibt. Sichere dein ' +
+        'Archiv jetzt.</div>'
+      : '');
+}
+function archiveExport(){
+  const payload = {app:'oryol-journal', kind:'archiv', version:1,
+    exportedAt:new Date().toISOString(),
+    wallets:S.wallets.map(w => {
+      const c = readCache(w.addr);
+      return {addr:w.addr, label:w.label, fills:(c && c.fills) || []};
+    }),
+    notes:S.notes, tags:S.tags};
+  const n = payload.wallets.reduce((s,w) => s + w.fills.length, 0);
+  download('oryol-archiv-' + new Date().toISOString().slice(0,10) + '.json',
+    JSON.stringify(payload));
+  $('#archStatus').innerHTML = '<span class="up">✓</span> ' + n.toLocaleString('de-DE') +
+    ' Ausführungen und ' + Object.keys(S.notes).length + ' Einträge gesichert.';
+}
+function archiveImport(file){
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const d = JSON.parse(r.result);
+      if(!d || !Array.isArray(d.wallets)) throw new Error('Das ist keine Archivdatei.');
+      let added = 0, notesAdded = 0;
+      for(const w of d.wallets){
+        const addr = String(w.addr || '').toLowerCase();
+        if(!/^0x[a-f0-9]{40}$/.test(addr)) continue;
+        if(!S.wallets.some(x => x.addr === addr)){
+          S.wallets.push({id:'w' + Date.now().toString(36) + S.wallets.length,
+            addr, label:w.label || ('Wallet ' + (S.wallets.length + 1)), on:false});
+        }
+        const cur = readCache(addr);
+        const seen = new Set(), merged = [];
+        for(const f of ((cur && cur.fills) || []).concat(w.fills || [])){
+          const k = (f.tid != null ? f.tid : (f.hash + '|' + f.oid + '|' + f.time + '|' + f.px + '|' + f.sz));
+          if(!seen.has(k)){ seen.add(k); merged.push(f); }
+        }
+        merged.sort((x,y) => x.time - y.time);
+        added += merged.length - (((cur && cur.fills) || []).length);
+        writeCache(addr, merged);
+      }
+      for(const k in (d.notes || {})){
+        const inc = d.notes[k], ex = S.notes[k];
+        if(!ex || num(inc.updatedAt) > num(ex.updatedAt)){ S.notes[k] = inc; notesAdded++; }
+      }
+      if(Array.isArray(d.tags) && d.tags.length){
+        setTags(Array.from(new Set(S.tags.concat(d.tags))));
+      }
+      saveWallets(S.wallets);
+      saveNotes();
+      $('#archStatus').innerHTML = '<span class="up">✓</span> ' + added +
+        ' neue Ausführungen und ' + notesAdded + ' Einträge übernommen. Lade gleich neu…';
+      setTimeout(() => load(true), 600);
+    }catch(e){
+      $('#archStatus').innerHTML = '<span class="down">Fehler:</span> ' + esc(e.message);
+    }
+  };
+  r.readAsText(file);
+}
+
+/* ---------- Pläne automatisch Trades zuordnen ---------- */
+function baseTicker(coin){
+  return String(coin || '').replace(/^@/, '').replace(/\/.*$/, '').toUpperCase();
+}
+function linkPlans(tr){
+  const plans = planEntries().filter(p => p.ticker && p.from);
+  const map = {};
+  for(const t of tr){
+    const tick = baseTicker(t.coin);
+    const hit = plans.find(p => {
+      if(String(p.ticker).toUpperCase() !== tick) return false;
+      if((p.side || 'long') !== t.side) return false;
+      const from = Date.parse(p.from + 'T00:00:00');
+      // ohne Enddatum gilt der Plan zwei Wochen
+      const to = p.to ? Date.parse(p.to + 'T23:59:59') : from + 14 * 86400000;
+      return t.openTime >= from - 86400000 && t.openTime <= to;
+    });
+    if(hit) map[t.id] = hit.id;
+  }
+  return map;
+}
+function renderPlanned(tr){
+  const map = linkPlans(tr);
+  S.planLink = map;
+  const planned = tr.filter(t => map[t.id]);
+  const spont = tr.filter(t => !map[t.id]);
+  const row = (name, g) => {
+    if(!g.length) return '';
+    const m = metrics(g);
+    const avgSize = g.reduce((s,t) => s + (t.maxNotional || t.entryNotional), 0) / g.length;
+    return '<tr><td><b>' + name + '</b></td><td>' + m.n + '</td>' +
+      '<td class="' + (m.winrate >= 50 ? 'up' : 'down') + '">' + m.winrate.toFixed(0) + '%</td>' +
+      '<td class="' + cls(m.net) + '"><b>' + sgn(m.net, 2) + '</b></td>' +
+      '<td class="' + cls(m.net/m.n) + '">' + sgn(m.net/m.n, 2) + '</td>' +
+      '<td class="' + (m.pf >= 1 ? 'up' : 'down') + '">' +
+        (m.pf === Infinity ? '∞' : m.pf.toFixed(2)) + '</td>' +
+      '<td class="mut">' + usd(avgSize, 0) + '</td></tr>';
+  };
+  $('#tblPlanned tbody').innerHTML = row('Geplant', planned) + row('Spontan', spont) ||
+    '<tr><td colspan="7" class="mut">Keine Trades im Filter.</td></tr>';
+
+  let note = '';
+  if(!planEntries().length){
+    note = 'Noch keine Pläne angelegt — deshalb gelten alle Trades als spontan. ' +
+      'Leg unter Planung → Pläne welche an, dann füllt sich diese Tabelle von allein.';
+  }else if(!planned.length){
+    note = 'Keiner deiner Trades passt zu einem Plan. Prüfe, ob Ticker und Richtung übereinstimmen ' +
+      'und ob das Datum des Plans zum Einstieg passt.';
+  }else{
+    const mp = metrics(planned), ms = metrics(spont);
+    if(spont.length){
+      const d = (mp.net / mp.n) - (ms.net / ms.n);
+      note = 'Geplante Trades bringen dir pro Stück <b class="' + cls(d) + '">' +
+        sgn(d, 2) + '</b> ' + (d >= 0 ? 'mehr' : 'weniger') + ' als spontane.';
+    }
+  }
+  $('#plannedNote').innerHTML = note;
+}
+
+/* ---------- Fortschritt ---------- */
+function periodStats(tr, from, to){
+  const g = tr.filter(t => t.closeTime >= from && t.closeTime < to);
+  const m = metrics(g);
+  const fees = g.reduce((s,t) => s + t.fees, 0);
+  const gross = g.reduce((s,t) => s + t.closedPnl, 0);
+  let capN = 0, capS = 0;
+  for(const t of g){
+    if(t.net <= 0) continue;
+    const e = EXC.get(t.id);
+    if(e && e.mfe > 0){ capS += t.net / e.mfe; capN++; }
+  }
+  return {m, g, fees, gross,
+    rr: m.avgLoss > 0 ? m.avgWin / m.avgLoss : 0,
+    feeShare: Math.abs(gross) > 0 ? fees / Math.abs(gross) * 100 : 0,
+    capture: capN ? capS / capN * 100 : null};
+}
+function renderProgress(tr){
+  const days = parseInt($('#progWin').value, 10) || 30;
+  const now = Date.now(), span = days * 86400000;
+  const A = periodStats(tr, now - span, now + 1);
+  const B = periodStats(tr, now - 2 * span, now - span);
+
+  const rows = [
+    ['Trades', B.m.n, A.m.n, v => v, 0],
+    ['Netto-Ergebnis', B.m.net, A.m.net, v => sgn(v, 2), 1],
+    ['Ø je Trade', B.m.n ? B.m.net/B.m.n : 0, A.m.n ? A.m.net/A.m.n : 0, v => sgn(v, 2), 1],
+    ['Trefferquote', B.m.winrate, A.m.winrate, v => v.toFixed(1) + '%', 1],
+    ['Chance-Risiko', B.rr, A.rr, v => v ? v.toFixed(2) + ' : 1' : '–', 1],
+    ['Profit Factor', B.m.pf, A.m.pf, v => v === Infinity ? '∞' : v.toFixed(2), 1],
+    ['Erwartungswert', B.m.expectancy, A.m.expectancy, v => sgn(v, 2), 1],
+    ['Ø Verlust', -B.m.avgLoss, -A.m.avgLoss, v => sgn(v, 2), 1],
+    ['Gebührenquote', B.feeShare, A.feeShare, v => v.toFixed(1) + '%', -1],
+    ['Ø Haltedauer', B.m.avgDur, A.m.avgDur, v => dur(v), 0],
+    ['Ausschöpfung', B.capture, A.capture, v => v == null ? '–' : v.toFixed(0) + '%', 1]
+  ];
+  $('#tblProg tbody').innerHTML = rows.map(([k, b, a, f, dir]) => {
+    const has = b != null && a != null && isFinite(b) && isFinite(a);
+    let arrow = '<span class="mut">–</span>';
+    if(has && dir !== 0){
+      const d = a - b;
+      const better = dir > 0 ? d > 0 : d < 0;
+      if(Math.abs(d) > 1e-9){
+        arrow = '<span class="' + (better ? 'up' : 'down') + '">' +
+          (better ? '▲ besser' : '▼ schlechter') + '</span>';
+      }else arrow = '<span class="mut">gleich</span>';
+    }
+    return '<tr><td>' + k + '</td>' +
+      '<td class="mut">' + (b == null ? '–' : f(b)) + '</td>' +
+      '<td><b>' + (a == null ? '–' : f(a)) + '</b></td>' +
+      '<td>' + arrow + '</td></tr>';
+  }).join('');
+
+  $('#progNote').innerHTML = (A.m.n < 10 || B.m.n < 10)
+    ? 'Achtung: In mindestens einem der beiden Zeiträume liegen weniger als zehn Trades. ' +
+      'Unterschiede sind dann eher Zufall als Fortschritt.'
+    : 'Verglichen werden ' + B.m.n + ' Trades aus dem älteren mit ' + A.m.n +
+      ' aus dem jüngeren Zeitraum.';
+
+  // Konsistenz
+  const byWeek = {}, byDay = {};
+  for(const t of tr){
+    const wk = weekKey(t.closeTime), dk = dayKey(t.closeTime);
+    byWeek[wk] = (byWeek[wk] || 0) + t.net;
+    byDay[dk] = (byDay[dk] || 0) + t.net;
+  }
+  const wk = Object.values(byWeek), dv = Object.values(byDay);
+  const green = wk.filter(v => v > 0).length;
+  const mean = dv.length ? dv.reduce((a,b) => a+b, 0) / dv.length : 0;
+  const sd = dv.length > 1
+    ? Math.sqrt(dv.reduce((s,v) => s + (v-mean)*(v-mean), 0) / (dv.length - 1)) : 0;
+  // Längste Zeit unter dem alten Hoch
+  const chron = tr.slice().sort((a,b) => a.closeTime - b.closeTime);
+  let cum = 0, peak = 0, peakAt = chron.length ? chron[0].closeTime : 0, worst = 0;
+  for(const t of chron){
+    cum += t.net;
+    if(cum >= peak){ peak = cum; peakAt = t.closeTime; }
+    else if(t.closeTime - peakAt > worst) worst = t.closeTime - peakAt;
+  }
+  const items = [
+    ['Profitable Wochen', wk.length ? green + ' von ' + wk.length : '–',
+      wk.length ? Math.round(green/wk.length*100) + '%' : '', green*2 >= wk.length ? 'up' : 'down'],
+    ['Profitable Tage', dv.length ? dv.filter(v => v>0).length + ' von ' + dv.length : '–',
+      dv.length ? Math.round(dv.filter(v=>v>0).length/dv.length*100) + '%' : '', ''],
+    ['Ø Tagesergebnis', sgn(mean, 2), 'an Handelstagen', cls(mean)],
+    ['Schwankung pro Tag', usd(sd, 2), 'je größer, desto unruhiger', ''],
+    ['Längste Durststrecke', worst ? dur(worst) : '–', 'bis zum alten Hoch', 'down']
+  ];
+  $('#consKpis').innerHTML = items.map(([k,v,sub,c]) =>
+    '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
+    (sub ? '<div class="s">' + sub + '</div>' : '') + '</div>').join('');
+}
+
+/* ---------- Wöchentlicher Rückblick ---------- */
+function weekKey(ms){
+  const d = new Date(ms);
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));      // Donnerstag derselben ISO-Woche
+  const y0 = new Date(d.getFullYear(), 0, 1);
+  const wk = Math.ceil(((d - y0) / 86400000 + 1) / 7);
+  return d.getFullYear() + '-W' + String(wk).padStart(2, '0');
+}
+function weekRange(ms){
+  const d = new Date(ms);
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));      // Montag
+  const from = d.getTime();
+  return {from, to: from + 7 * 86400000};
+}
+function renderReview(){
+  const ref = S.revWeek || Date.now();
+  const {from, to} = weekRange(ref);
+  const key = 'review:' + weekKey(ref);
+  $('#revTitle').textContent = 'Woche ' + weekKey(ref).slice(-3).replace('W','KW ') +
+    ' · ' + deDate(new Date(from).toISOString().slice(0,10)) + ' – ' +
+    deDate(new Date(to - 86400000).toISOString().slice(0,10));
+
+  const g = S.trades.filter(t => t.closeTime >= from && t.closeTime < to && !t.spot);
+  const m = metrics(g);
+  const items = [
+    ['Trades', m.n, m.wins + ' W / ' + m.losses + ' L', ''],
+    ['Ergebnis', sgn(m.net, 2), 'netto', cls(m.net)],
+    ['Trefferquote', m.n ? m.winrate.toFixed(0) + '%' : '–', '', ''],
+    ['Gebühren', usd(m.fees, 2), '', 'down']
+  ];
+  $('#revKpis').innerHTML = items.map(([k,v,sub,c]) =>
+    '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
+    (sub ? '<div class="s">' + sub + '</div>' : '') + '</div>').join('');
+
+  const best = g.slice().sort((a,b) => b.net - a.net)[0];
+  const worst = g.slice().sort((a,b) => a.net - b.net)[0];
+  $('#revTrades').innerHTML = g.length
+    ? '<div class="dl"><span>Bester Trade</span><span class="up">' + esc(coinName(best.coin)) +
+        ' ' + sgn(best.net, 2) + '</span></div>' +
+      '<div class="dl"><span>Schlechtester Trade</span><span class="down">' +
+        esc(coinName(worst.coin)) + ' ' + sgn(worst.net, 2) + '</span></div>' +
+      '<div class="dl"><span>Meistgehandelt</span><span>' +
+        Object.entries(g.reduce((a,t) => (a[t.coin] = (a[t.coin]||0)+1, a), {}))
+          .sort((a,b) => b[1]-a[1]).slice(0,3)
+          .map(([c,n]) => coinName(c) + ' (' + n + ')').join(', ') + '</span></div>'
+    : '<div class="mut" style="font-size:13.5px">In dieser Woche keine Trades. ' +
+      'Auch das ist eine Beobachtung wert.</div>';
+
+  const n = S.notes[key];
+  let d = {good:'', bad:'', next:''};
+  if(n && !n.deleted){
+    try{ d = Object.assign(d, JSON.parse(noteText(n) || '{}')); }catch(e){}
+  }
+  $('#revGood').value = d.good || '';
+  $('#revBad').value = d.bad || '';
+  $('#revNext2').value = d.next || '';
+  $('#revStatus').innerHTML = (n && !n.deleted)
+    ? 'Zuletzt gespeichert am ' + dt(n.updatedAt)
+    : 'Für diese Woche noch nichts festgehalten.';
+  $('#revDel').classList.toggle('hide', !(n && !n.deleted));
+
+  const past = Object.keys(S.notes)
+    .filter(k => k.indexOf('review:') === 0 && !S.notes[k].deleted)
+    .sort().reverse();
+  $('#revList').innerHTML = past.length ? past.map(k => {
+    let o = {};
+    try{ o = JSON.parse(noteText(S.notes[k]) || '{}'); }catch(e){}
+    const txt = [o.good, o.bad, o.next].filter(Boolean).join(' · ');
+    return '<div class="dl" style="cursor:pointer" data-w="' + esc(k) + '">' +
+      '<span><b>' + esc(k.replace('review:','').replace('-W',' · KW ')) + '</b>' +
+      (txt ? '<br><span class="mut" style="font-size:12px">' +
+        esc(txt.slice(0, 120)) + (txt.length > 120 ? '…' : '') + '</span>' : '') + '</span>' +
+      '<span class="mut">öffnen</span></div>';
+  }).join('') : '<div class="mut" style="font-size:13.5px">Noch keine Rückblicke.</div>';
+  $$('#revList [data-w]').forEach(el => el.addEventListener('click', () => {
+    const wkk = el.dataset.w.replace('review:','');
+    const [yy, ww] = wkk.split('-W');
+    // Montag der gewünschten ISO-Woche bestimmen
+    const jan4 = new Date(+yy, 0, 4);
+    const mon1 = new Date(jan4); mon1.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7));
+    S.revWeek = mon1.getTime() + (+ww - 1) * 7 * 86400000;
+    renderReview();
+  }));
+}
+
 /* ---------- Tabs / Render ---------- */
 const GROUPS = [
   {id:'facts', label:'Fakten', tabs:[['overview','Übersicht'],['trades','Trades'],
-    ['longshort','Long / Short'],['setups','Setups'],['behavior','Verhalten'],['excursion','Ausschläge']]},
+    ['longshort','Long / Short'],['setups','Setups'],['behavior','Verhalten'],
+    ['excursion','Ausschläge'],['progress','Fortschritt']]},
   {id:'lab', label:'Labor', tabs:[['labimpact','Wirkung'],['labexit','Exit & Stop'],['sim','Simulator']]},
-  {id:'plan', label:'Planung', tabs:[['plans','Pläne'],['calendar','Kalender']]},
+  {id:'plan', label:'Planung', tabs:[['plans','Pläne'],['calendar','Kalender'],['review','Rückblick']]},
   {id:'acct', label:'Konto', tabs:[['positions','Guthaben'],['costs','Gebühren & Funding'],
     ['tax','Steuer'],['settings','Daten']]}
 ];
@@ -3996,6 +4450,9 @@ function renderAll(){
   renderKpis(tr);
   renderCharts(tr);
   renderBehavior(tr);
+  renderPlanned(tr);
+  renderProgress(tr);
+  renderReview();
   renderExcursion(tr);
   renderLab(tr);
   if(S.tab === 'labexit') renderGrid(tr);
@@ -4008,6 +4465,7 @@ function renderAll(){
   renderCosts(tr);
   renderPositions();
   renderSettings();
+  renderArchive();
 }
 
 /* ---------- Events ---------- */
@@ -4086,13 +4544,22 @@ $$('[data-scale]').forEach(el => el.addEventListener('click', () => {
 }));
 $('#mClose').addEventListener('click', closeModal);
 $('#modal').addEventListener('click', e => { if(e.target.id === 'modal') closeModal(); });
+$('#mImg').addEventListener('input', () => { mImgData = $('#mImg').value.trim(); drawMImg(); });
+$('#mImgPick').addEventListener('click', () => $('#mImgFile').click());
+$('#mImgFile').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if(f) shrinkImage(f, d => { mImgData = d; $('#mImg').value = ''; drawMImg(); });
+});
+$('#mImgClear').addEventListener('click', () => { mImgData = ''; $('#mImg').value = ''; drawMImg(); });
 $('#mSave').addEventListener('click', () => {
   if(!mCurrent) return;
   const tags = chipValue('#mTags'), note = $('#mNote').value.trim(), rating = currentRating();
-  if(!tags.length && !note && !rating){
+  const img = mImgData || $('#mImg').value.trim();
+  if(!tags.length && !note && !rating && !img){
     S.notes[mCurrent.id] = {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()};
   }else{
-    S.notes[mCurrent.id] = {tag:packTags(tags), note, rating, deleted:false, updatedAt:Date.now()};
+    S.notes[mCurrent.id] = {tag:packTags(tags), note:packNote(note, mImgData || $('#mImg').value.trim()),
+      rating, deleted:false, updatedAt:Date.now()};
   }
   saveNotes(); closeModal(); renderAll();
 });
@@ -4111,6 +4578,33 @@ $('#taxDlSpot').addEventListener('click', () =>
   download('steuer-spot-' + taxSuffix(), csvSpot(), 'text/csv'));
 $('#taxDlLedger').addEventListener('click', () =>
   download('steuer-ein-auszahlungen-' + taxSuffix(), csvLedger(), 'text/csv'));
+$('#archExport').addEventListener('click', archiveExport);
+$('#archImport').addEventListener('click', () => $('#archFile').click());
+$('#archFile').addEventListener('change', e => { if(e.target.files[0]) archiveImport(e.target.files[0]); });
+$('#progWin').addEventListener('change', () => renderProgress(filtered()));
+$('#revPrev').addEventListener('click', () => {
+  S.revWeek = weekRange(S.revWeek || Date.now()).from - 7 * 86400000; renderReview();
+});
+$('#revNext').addEventListener('click', () => {
+  S.revWeek = weekRange(S.revWeek || Date.now()).from + 7 * 86400000; renderReview();
+});
+$('#revSave').addEventListener('click', () => {
+  const key = 'review:' + weekKey(S.revWeek || Date.now());
+  const d = {good:$('#revGood').value.trim(), bad:$('#revBad').value.trim(),
+             next:$('#revNext2').value.trim()};
+  if(!d.good && !d.bad && !d.next){
+    S.notes[key] = {tag:'', rating:0, note:'', deleted:true, updatedAt:Date.now()};
+  }else{
+    S.notes[key] = {tag:'', rating:0, note:JSON.stringify(d), deleted:false, updatedAt:Date.now()};
+  }
+  saveNotes(); renderReview();
+});
+$('#revDel').addEventListener('click', () => {
+  if(!confirm('Diesen Rückblick löschen?')) return;
+  const key = 'review:' + weekKey(S.revWeek || Date.now());
+  S.notes[key] = {tag:'', rating:0, note:'', deleted:true, updatedAt:Date.now()};
+  saveNotes(); renderReview();
+});
 $('#btnExport').addEventListener('click', exportNotes);
 $('#btnImport').addEventListener('click', () => $('#fileImport').click());
 $('#fileImport').addEventListener('change', e => { if(e.target.files[0]) importNotes(e.target.files[0]); });
