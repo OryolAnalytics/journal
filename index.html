@@ -129,6 +129,12 @@ tbody tr:hover{background:var(--panel2)}
 .wrow .wv{font-size:12.5px;color:var(--muted);white-space:nowrap}
 .wact{display:flex;gap:5px;flex:0 0 auto}
 .wact button{padding:5px 9px;font-size:12px}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:9px}
+.mcell{border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:#fff}
+.mcell .mn{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:4px}
+.mcell .mv{font-size:17px;font-weight:650;letter-spacing:-.2px}
+.mcell .ms{font-size:11px;color:var(--muted);margin-top:2px}
+.mcell.cur{outline:2px solid var(--txt);outline-offset:-2px}
 .simgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
 .plan{border:1px solid var(--line);border-radius:11px;padding:13px 14px;margin-bottom:10px;
   background:var(--panel);cursor:pointer;transition:.12s}
@@ -187,7 +193,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     <div class="tab" data-t="calendar">Kalender</div>
     <div class="tab" data-t="sim">Simulator</div>
     <div class="tab" data-t="costs">Kosten</div>
-    <div class="tab" data-t="positions">Offen</div>
+    <div class="tab" data-t="positions">Konto</div>
     <div class="tab" data-t="settings">Daten</div>
   </div>
   <div id="status"></div>
@@ -237,6 +243,20 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
 
   <!-- TRADES -->
   <section id="v-trades" class="hide">
+    <div class="panel" id="openPanel">
+      <h2>Offen <span class="mut" id="openCount"></span></h2>
+      <div class="kpis" id="openKpis" style="margin-bottom:12px"></div>
+      <div class="scroll">
+        <table id="tblOpen">
+          <thead><tr>
+            <th>Seit</th><th class="wcol">Wallet</th><th>Coin</th><th>Seite</th><th>Entry</th>
+            <th>Größe (USD)</th><th>Unreal. PnL</th><th>ROE</th><th>Liq.-Preis</th>
+            <th>Hebel</th><th>Funding</th><th>Dauer</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
     <div class="panel">
       <h2>Abgeschlossene Trades <span class="mut" id="tradeCount"></span></h2>
       <div class="filters">
@@ -391,6 +411,10 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     <div class="filters">
       <button class="tab on" data-cal="plan">Planung</button>
       <button class="tab" data-cal="pnl">PnL-Rückblick</button>
+      <span id="scaleBox" class="hide" style="display:flex;gap:6px">
+        <button class="tab on" data-scale="day">Tage</button>
+        <button class="tab" data-scale="month">Monate</button>
+      </span>
       <button id="evNew" style="margin-left:auto">+ Termin</button>
     </div>
     <div class="panel">
@@ -402,8 +426,8 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <div class="cal" id="calDow"></div>
       <div class="cal" id="calGrid" style="margin-top:5px"></div>
       <div class="filters" style="margin:14px 0 0" id="calPnlKpis">
-        <div class="kpi" style="flex:1"><div class="k">Monats-PnL</div><div class="v" id="calSum">–</div></div>
-        <div class="kpi" style="flex:1"><div class="k">Grüne / rote Tage</div><div class="v" id="calDays">–</div></div>
+        <div class="kpi" style="flex:1"><div class="k" id="calSumLbl">Monats-PnL</div><div class="v" id="calSum">–</div></div>
+        <div class="kpi" style="flex:1"><div class="k" id="calDaysLbl">Grüne / rote Tage</div><div class="v" id="calDays">–</div></div>
       </div>
     </div>
     <div class="panel" id="calAgenda">
@@ -672,7 +696,7 @@ let S = {
   funding:[], ledger:[], notes:{}, tags:[], curve:'equity',
   spot:null, spotPrices:{USDC:1}, vaults:[], staking:null, totals:null,
   balOpts:{perp:false, spot:true, vault:true, stake:true}, subAccounts:[],
-  calDate:new Date(), calMode:'plan', charts:{}, loading:false
+  calDate:new Date(), calMode:'plan', calScale:'day', charts:{}, loading:false
 };
 
 /* ---------- Helpers ---------- */
@@ -1676,6 +1700,58 @@ function renderTrades(tr){
     row.addEventListener('click', () => openTrade(row.dataset.id)));
 }
 
+/* ---------- Offene Positionen über der Trade-Liste ---------- */
+function renderOpen(){
+  const aps = ((S.positions || {}).assetPositions || []);
+  const mkt = $('#fMarket').value;
+  const list = aps.filter(a => mkt !== 'spot');
+  $('#openCount').textContent = '(' + list.length + ')';
+  $('#openPanel').classList.toggle('hide', list.length === 0);
+  if(!list.length) return;
+
+  // Eröffnungszeit aus den offenen Round-Trips holen
+  const since = {};
+  for(const t of S.openTrades) since[(t.wallet || '') + '|' + t.coin] = t.openTime;
+
+  let uPnl = 0, notional = 0, marg = 0, funding = 0;
+  const rows = list.map(a => {
+    const q = a.position || {};
+    const szi = num(q.szi);
+    const lev = q.leverage || {};
+    const up = num(q.unrealizedPnl);
+    const roe = num(q.returnOnEquity) * 100;
+    const fnd = -num(q.cumFunding && q.cumFunding.sinceOpen);
+    uPnl += up; notional += num(q.positionValue); marg += num(q.marginUsed); funding += fnd;
+    const t0 = since[(a.wallet || '') + '|' + q.coin];
+    return '<tr>' +
+      '<td class="mut">' + (t0 ? dt(t0) : '–') + '</td>' +
+      '<td class="wcol mut">' + esc(walletLabel(a.wallet)) + '</td>' +
+      '<td><b>' + esc(q.coin) + '</b></td>' +
+      '<td><span class="pill ' + (szi >= 0 ? 'long' : 'short') + '">' +
+        (szi >= 0 ? 'LONG' : 'SHORT') + '</span></td>' +
+      '<td class="mono">' + price(num(q.entryPx)) + '</td>' +
+      '<td>' + usd(num(q.positionValue), 2) + '</td>' +
+      '<td class="' + cls(up) + '"><b>' + sgn(up, 2) + '</b></td>' +
+      '<td class="' + cls(roe) + '">' + pct(roe, 1) + '</td>' +
+      '<td class="mono warn">' + (q.liquidationPx ? price(num(q.liquidationPx)) : '–') + '</td>' +
+      '<td>' + (lev.value || '–') + 'x <span class="mut">' + esc(lev.type || '') + '</span></td>' +
+      '<td class="' + cls(fnd) + '">' + sgn(fnd, 2) + '</td>' +
+      '<td class="mut">' + (t0 ? dur(Date.now() - t0) : '–') + '</td>' +
+      '</tr>';
+  }).join('');
+  $('#tblOpen tbody').innerHTML = rows;
+
+  const items = [
+    ['Unrealisiert', sgn(uPnl, 2), list.length + ' Position' + (list.length > 1 ? 'en' : ''), cls(uPnl)],
+    ['Positionswert', usd(notional, 2), 'Nominal gesamt', ''],
+    ['Gebundene Margin', usd(marg, 2), 'aktuell gesperrt', ''],
+    ['Funding bisher', sgn(funding, 2), 'seit Eröffnung', cls(funding)]
+  ];
+  $('#openKpis').innerHTML = items.map(([k,v,sub,c]) =>
+    '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
+    '<div class="s">' + sub + '</div></div>').join('');
+}
+
 /* ---------- Render: Setups ---------- */
 function renderSetups(tr){
   const groups = {};
@@ -2115,14 +2191,97 @@ function renderPlanCalendar(){
   }));
 }
 
+/* ---------- Jahresansicht: PnL pro Monat ---------- */
+const MON = ['Januar','Februar','März','April','Mai','Juni',
+             'Juli','August','September','Oktober','November','Dezember'];
+
+function renderYear(tr){
+  const y = S.calDate.getFullYear();
+  $('#calTitle').textContent = String(y);
+  $('#calDow').innerHTML = '';
+
+  const byMonth = {};
+  for(const t of tr){
+    const d = new Date(t.closeTime);
+    if(d.getFullYear() !== y) continue;
+    const m = d.getMonth();
+    if(!byMonth[m]) byMonth[m] = {pnl:0, n:0, w:0, l:0, fees:0};
+    const e = byMonth[m];
+    e.pnl += t.net; e.n++; e.fees += t.fees;
+    if(t.net > 0) e.w++; else if(t.net < 0) e.l++;
+  }
+  const vals = Object.keys(byMonth).map(m => Math.abs(byMonth[m].pnl));
+  const max = vals.length ? Math.max.apply(null, vals) : 1;
+  const now = new Date();
+
+  let html = '';
+  for(let m = 0; m < 12; m++){
+    const e = byMonth[m];
+    let style = '';
+    if(e){
+      const a = Math.min(.55, .09 + Math.abs(e.pnl)/max * .46);
+      style = 'background:rgba(' + (e.pnl >= 0 ? '15,138,95,' : '201,53,74,') + a.toFixed(2) + ')';
+    }
+    const cur = (y === now.getFullYear() && m === now.getMonth()) ? ' cur' : '';
+    html += '<div class="mcell' + cur + '" style="' + style + '" data-m="' + m + '">' +
+      '<div class="mn">' + MON[m].slice(0,3) + '</div>' +
+      '<div class="mv ' + (e ? cls(e.pnl) : 'mut') + '">' + (e ? sgn(e.pnl, 0) : '–') + '</div>' +
+      '<div class="ms">' + (e ? e.n + ' Trades · ' +
+        (e.w + e.l ? Math.round(e.w/(e.w+e.l)*100) + '%' : '–') : 'keine Trades') + '</div>' +
+      '</div>';
+  }
+  $('#calGrid').className = 'mgrid';
+  $('#calGrid').innerHTML = html;
+  $$('#calGrid .mcell').forEach(el => el.addEventListener('click', () => {
+    S.calDate = new Date(y, +el.dataset.m, 1);
+    S.calScale = 'day';
+    $$('[data-scale]').forEach(x => x.classList.toggle('on', x.dataset.scale === 'day'));
+    renderCalendarTab();
+  }));
+
+  const months = Object.keys(byMonth).map(m => ({m:+m, e:byMonth[m]}));
+  const yearPnl = months.reduce((s,x) => s + x.e.pnl, 0);
+  const yearN = months.reduce((s,x) => s + x.e.n, 0);
+  const green = months.filter(x => x.e.pnl > 0).length;
+  const best = months.slice().sort((a,b) => b.e.pnl - a.e.pnl)[0];
+  const worst = months.slice().sort((a,b) => a.e.pnl - b.e.pnl)[0];
+
+  $('#calSum').innerHTML = '<span class="' + cls(yearPnl) + '">' + sgn(yearPnl, 2) + '</span>';
+  $('#calDays').innerHTML = '<span class="up">' + green + '</span> / <span class="down">' +
+    (months.length - green) + '</span>';
+  $('#calSumLbl').textContent = 'Jahres-PnL';
+  $('#calDaysLbl').textContent = 'Grüne / rote Monate';
+
+  $('#bestWorst').innerHTML = months.length
+    ? '<div class="dl"><span>Bester Monat</span><span class="up">' + MON[best.m] + ' · ' +
+        sgn(best.e.pnl, 2) + '</span></div>' +
+      '<div class="dl"><span>Schlechtester Monat</span><span class="down">' + MON[worst.m] + ' · ' +
+        sgn(worst.e.pnl, 2) + '</span></div>' +
+      '<div class="dl"><span>Ø pro Monat</span><span class="' + cls(yearPnl/months.length) + '">' +
+        sgn(yearPnl/months.length, 2) + '</span></div>' +
+      '<div class="dl"><span>Trades im Jahr</span><span>' + yearN + '</span></div>' +
+      '<div class="dl"><span>Gebühren im Jahr</span><span class="down">' +
+        usd(months.reduce((s,x) => s + x.e.fees, 0), 2) + '</span></div>'
+    : '<div class="mut">In ' + y + ' keine Trades.</div>';
+}
+
 function renderCalendarTab(){
   const plan = S.calMode !== 'pnl';
   $('#calPnlKpis').classList.toggle('hide', plan);
   $('#calBestWorst').classList.toggle('hide', plan);
   $('#calAgenda').classList.toggle('hide', !plan);
   $('#evNew').classList.toggle('hide', !plan);
-  if(plan) renderPlanCalendar();
-  else renderCalendar(calendarTrades());
+  $('#scaleBox').classList.toggle('hide', plan);
+  if(plan){
+    $('#calGrid').className = 'cal';
+    renderPlanCalendar();
+    return;
+  }
+  if(S.calScale === 'month'){ renderYear(calendarTrades()); return; }
+  $('#calGrid').className = 'cal';
+  $('#calSumLbl').textContent = 'Monats-PnL';
+  $('#calDaysLbl').textContent = 'Grüne / rote Tage';
+  renderCalendar(calendarTrades());
 }
 
 /* ---------- Simulator ---------- */
@@ -2836,6 +2995,7 @@ function renderAll(){
   const tr = filtered();
   renderKpis(tr);
   renderCharts(tr);
+  renderOpen();
   renderTrades(tr);
   renderSetups(tr);
   renderLongShort(tr);
@@ -2887,14 +3047,21 @@ $$('[data-curve]').forEach(el => el.addEventListener('click', () => {
   S.curve = el.dataset.curve;
   renderEquity(filtered());
 }));
-$('#calPrev').addEventListener('click', () => {
-  S.calDate = new Date(S.calDate.getFullYear(), S.calDate.getMonth() - 1, 1);
+function calStep(dir){
+  const yearly = S.calMode === 'pnl' && S.calScale === 'month';
+  S.calDate = yearly
+    ? new Date(S.calDate.getFullYear() + dir, 0, 1)
+    : new Date(S.calDate.getFullYear(), S.calDate.getMonth() + dir, 1);
   renderCalendarTab();
-});
-$('#calNext').addEventListener('click', () => {
-  S.calDate = new Date(S.calDate.getFullYear(), S.calDate.getMonth() + 1, 1);
+}
+$('#calPrev').addEventListener('click', () => calStep(-1));
+$('#calNext').addEventListener('click', () => calStep(1));
+$$('[data-scale]').forEach(el => el.addEventListener('click', () => {
+  $$('[data-scale]').forEach(x => x.classList.remove('on'));
+  el.classList.add('on');
+  S.calScale = el.dataset.scale;
   renderCalendarTab();
-});
+}));
 $('#mClose').addEventListener('click', closeModal);
 $('#modal').addEventListener('click', e => { if(e.target.id === 'modal') closeModal(); });
 $('#mSave').addEventListener('click', () => {
