@@ -139,6 +139,12 @@ tbody tr:hover{background:var(--panel2)}
 .mcell .mv{font-size:17px;font-weight:650;letter-spacing:-.2px}
 .mcell .ms{font-size:11px;color:var(--muted);margin-top:2px}
 .mcell.cur{outline:2px solid var(--txt);outline-offset:-2px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{padding:7px 13px;border:1px solid var(--line);border-radius:999px;background:var(--panel2);
+  cursor:pointer;font-size:13px;user-select:none;transition:.12s}
+.chip:hover{border-color:var(--txt)}
+.chip.on{background:var(--txt);border-color:var(--txt);color:#fff;font-weight:600}
+.chipsempty{font-size:13px;color:var(--muted)}
 .simgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
 .plan{border:1px solid var(--line);border-radius:11px;padding:13px 14px;margin-bottom:10px;
   background:var(--panel);cursor:pointer;transition:.12s}
@@ -397,6 +403,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     </div>
     <div class="panel">
       <h2>Auswertung nach Setup-Tag</h2>
+      <div id="setupNote" class="mut" style="font-size:12.5px;margin-bottom:10px"></div>
       <div class="scroll">
         <table id="tblSetups">
           <thead><tr>
@@ -408,6 +415,19 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       </div>
       <div id="setupsEmpty" class="empty-state hide">
         Noch keine Setups vergriffen.<br>Öffne im Tab „Trades“ einen Trade und vergib einen Setup-Tag.
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Kombinationen</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Trades danach gruppiert, welche Setups <b>gemeinsam</b> vergeben wurden. Hier siehst du,
+        ob „Plan befolgt“ zusammen mit einem bestimmten Setup besser läuft als das Setup allein.
+      </p>
+      <div class="scroll"><table id="tblCombo">
+        <thead><tr><th>Kombination</th><th>Trades</th><th>Trefferquote</th><th>Netto</th>
+          <th>Ø je Trade</th><th>Profit Factor</th></tr></thead><tbody></tbody></table></div>
+      <div id="comboEmpty" class="empty-state hide">
+        Noch keine Trades mit mehr als einem Setup.
       </div>
     </div>
     <div class="panel">
@@ -633,12 +653,8 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <div id="syncBox"></div>
     </div>
     <div class="panel">
-      <h2>Notizen sichern &amp; übertragen</h2>
-      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
-        Trades kommen live aus der Blockchain und müssen nie gesichert werden. Deine <b>Notizen, Tags und Ratings</b>
-        liegen nur in diesem Browser. Exportiere sie regelmäßig – und importiere die Datei auf dem anderen Gerät,
-        damit Handy und PC denselben Stand haben.
-      </p>
+      <h2>Sicherungskopie</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0" id="backupHint"></p>
       <div class="filters">
         <button class="primary" id="btnExport">Notizen exportieren (.json)</button>
         <button id="btnImport">Notizen importieren</button>
@@ -708,7 +724,8 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <div class="f"><label>Richtung</label>
         <select id="pSide"><option value="long">Long</option><option value="short">Short</option></select></div>
     </div>
-    <div class="f"><label>Setup</label><select id="pSetup"></select></div>
+    <div class="f"><label>Setups — mehrere möglich</label>
+      <div class="chips" id="pSetups"></div></div>
     <div class="grid2">
       <div class="f"><label>Erwartet ab</label><input type="date" id="pFrom"></div>
       <div class="f"><label>Erwartet bis (optional)</label><input type="date" id="pTo"></div>
@@ -777,8 +794,8 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     </div>
     <div id="mStats" style="margin:14px 0"></div>
     <div class="f">
-      <label>Setup-Tag</label>
-      <select id="mTag"></select>
+      <label>Setups — mehrere möglich</label>
+      <div class="chips" id="mTags"></div>
     </div>
     <div class="f">
       <label>Bewertung der Ausführung</label>
@@ -1290,6 +1307,46 @@ function loadTags(){
 }
 
 /* ---------- Notiz-Zugriff (gelöschte gelten als nicht vorhanden) ---------- */
+/* Setups eines Eintrags – verträgt die alte Einfach-Ablage und die neue Liste */
+function tagsOf(n){
+  if(!n) return [];
+  if(Array.isArray(n.tags)) return n.tags.filter(Boolean);
+  const t = n.tag;
+  if(!t) return [];
+  if(typeof t === 'string' && t.charAt(0) === '['){
+    try{ const a = JSON.parse(t); if(Array.isArray(a)) return a.filter(Boolean); }catch(e){}
+  }
+  return [t];
+}
+/* Für Ablage und Abgleich: eine Marke bleibt Text, mehrere werden zur Liste */
+function packTags(list){
+  const a = (list || []).filter(Boolean);
+  if(!a.length) return '';
+  return a.length === 1 ? a[0] : JSON.stringify(a);
+}
+function chipBox(sel, selected){
+  const box = $(sel);
+  if(!box) return;
+  if(!S.tags.length){
+    box.innerHTML = '<div class="chipsempty">Noch keine Setups angelegt — ' +
+      'Fakten → Setups.</div>';
+    return;
+  }
+  const cur = new Set(selected || []);
+  // Auch Setups anzeigen, die nicht mehr in der Liste stehen, aber hier vergeben sind
+  const extra = Array.from(cur).filter(t => S.tags.indexOf(t) < 0);
+  box.innerHTML = S.tags.concat(extra).map(t =>
+    '<div class="chip' + (cur.has(t) ? ' on' : '') + '" data-tag="' + esc(t) + '">' +
+    esc(t) + '</div>').join('');
+  box.querySelectorAll('.chip').forEach(el =>
+    el.addEventListener('click', () => el.classList.toggle('on')));
+}
+function chipValue(sel){
+  const box = $(sel);
+  if(!box) return [];
+  return Array.from(box.querySelectorAll('.chip.on')).map(el => el.dataset.tag);
+}
+
 function noteOf(id){
   if(isMeta(id)) return null;
   const n = S.notes[id];
@@ -1623,7 +1680,9 @@ function fillCoinFilter(){
   sel.value = cur;
 }
 function fillTagFilter(){
-  const used = Array.from(new Set(Object.values(liveNotes()).map(n => n && n.tag).filter(Boolean))).sort();
+  const set = new Set();
+  Object.values(liveNotes()).forEach(n => tagsOf(n).forEach(t => set.add(t)));
+  const used = Array.from(set).sort();
   const sel = $('#fTag'), cur = sel.value;
   sel.innerHTML = '<option value="">Alle Setups</option>' +
     '<option value="__none">Ohne Tag</option>' +
@@ -1643,9 +1702,9 @@ function filtered(){
     if(mkt === 'perp' && t.spot) return false;
     if(mkt === 'spot' && !t.spot) return false;
     if(tag){
-      const n = noteOf(t.id);
-      if(tag === '__none'){ if(n && n.tag) return false; }
-      else if(!n || n.tag !== tag) return false;
+      const tl = tagsOf(noteOf(t.id));
+      if(tag === '__none'){ if(tl.length) return false; }
+      else if(tl.indexOf(tag) < 0) return false;
     }
     return true;
   });
@@ -1802,7 +1861,7 @@ function renderTrades(tr){
   let list = tr.filter(t => {
     if(res === 'win') return t.net > 0;
     if(res === 'loss') return t.net < 0;
-    if(res === 'nonote'){ const n = noteOf(t.id); return !n || (!n.note && !n.tag); }
+    if(res === 'nonote'){ const n = noteOf(t.id); return !n || (!n.note && !tagsOf(n).length); }
     return true;
   });
   list = sortTrades(list);
@@ -1824,7 +1883,9 @@ function renderTrades(tr){
       '<td class="' + cls(t.retPct) + '">' + pct(t.retPct, 2) + '</td>' +
       '<td class="mut">' + usd(t.fees, 2) + '</td>' +
       '<td class="mut">' + dur(t.durationMs) + '</td>' +
-      '<td>' + (n.tag ? '<span class="pill tag">' + esc(n.tag) + '</span>' : '<span class="mut">–</span>') + '</td>' +
+      '<td>' + (tagsOf(n).length
+        ? tagsOf(n).map(x => '<span class="pill tag">' + esc(x) + '</span>').join(' ')
+        : '<span class="mut">–</span>') + '</td>' +
       '<td>' + (n.note ? '📝' : '') + (n.rating ? ' <span class="mut">' + n.rating + '★</span>' : '') + '</td>' +
       '</tr>';
   }).join('');
@@ -1890,10 +1951,7 @@ function renderTagEditor(tr){
   const ed = $('#tagEditor');
   if(ed && document.activeElement !== ed) ed.value = S.tags.join('\n');
   const used = {};
-  for(const t of tr){
-    const n = noteOf(t.id);
-    if(n && n.tag) used[n.tag] = (used[n.tag] || 0) + 1;
-  }
+  for(const t of tr) tagsOf(noteOf(t.id)).forEach(k => used[k] = (used[k] || 0) + 1);
   const unknown = Object.keys(used).filter(k => S.tags.indexOf(k) < 0);
   const unused = S.tags.filter(k => !used[k]);
   $('#tagUsage').innerHTML =
@@ -1909,10 +1967,12 @@ function renderTagEditor(tr){
 function renderSetups(tr){
   renderTagEditor(tr);
   const groups = {};
+  let multi = 0;
   for(const t of tr){
-    const n = noteOf(t.id);
-    const tag = (n && n.tag) ? n.tag : '— ohne Tag —';
-    (groups[tag] = groups[tag] || []).push(t);
+    const tl = tagsOf(noteOf(t.id));
+    if(tl.length > 1) multi++;
+    const keys = tl.length ? tl : ['— ohne Setup —'];
+    keys.forEach(k => (groups[k] = groups[k] || []).push(t));
   }
   const rows = Object.keys(groups).map(tag => {
     const g = groups[tag], m = metrics(g);
@@ -1933,9 +1993,36 @@ function renderSetups(tr){
     '<td class="' + cls(r.m.expectancy) + '">' + sgn(r.m.expectancy, 2) + '</td>' +
     '<td>' + (r.avgR ? r.avgR.toFixed(1) + '★' : '–') + '</td></tr>').join('');
   $('#setupsEmpty').classList.toggle('hide', rows.length > 0);
+  $('#setupNote').innerHTML = multi
+    ? 'Hinweis: <b>' + multi + '</b> Trades haben mehrere Setups und zählen deshalb in jeder ' +
+      'betroffenen Zeile mit. Die Summe der Zeilen ist darum größer als dein Gesamtergebnis.'
+    : '';
 
-  const tagged = rows.filter(r => r.tag !== '— ohne Tag —');
+  const tagged = rows.filter(r => r.tag !== '— ohne Setup —');
   barChart('chSetup', tagged.map(r => r.tag), tagged.map(r => +r.m.net.toFixed(2)), true);
+
+  // Kombinationen: exakte Zusammenstellung der Setups je Trade
+  const combos = {};
+  for(const t of tr){
+    const tl = tagsOf(noteOf(t.id));
+    if(!tl.length) continue;
+    const key = tl.slice().sort().join(' + ');
+    (combos[key] = combos[key] || []).push(t);
+  }
+  const cRows = Object.keys(combos)
+    .map(k => ({k, g:combos[k], m:metrics(combos[k])}))
+    .filter(x => x.g.length >= 2)
+    .sort((a,b) => b.m.net - a.m.net);
+  $('#tblCombo tbody').innerHTML = cRows.map(x =>
+    '<tr><td><b>' + esc(x.k) + '</b>' +
+      (x.k.indexOf(' + ') > 0 ? '' : ' <span class="mut">(allein)</span>') + '</td>' +
+    '<td>' + x.m.n + '</td>' +
+    '<td class="' + (x.m.winrate >= 50 ? 'up' : 'down') + '">' + x.m.winrate.toFixed(0) + '%</td>' +
+    '<td class="' + cls(x.m.net) + '"><b>' + sgn(x.m.net, 2) + '</b></td>' +
+    '<td class="' + cls(x.m.net / x.m.n) + '">' + sgn(x.m.net / x.m.n, 2) + '</td>' +
+    '<td class="' + (x.m.pf >= 1 ? 'up' : 'down') + '">' +
+      (x.m.pf === Infinity ? '∞' : x.m.pf.toFixed(2)) + '</td></tr>').join('');
+  $('#comboEmpty').classList.toggle('hide', cRows.length > 0);
 
   const byR = {};
   for(const t of tr){
@@ -2167,7 +2254,8 @@ function renderPlans(){
             '<span class="tk">' + esc(p.ticker || '?') + '</span>' +
             '<span class="pill ' + (p.side === 'short' ? 'short' : 'long') + '">' +
               (p.side === 'short' ? 'SHORT' : 'LONG') + '</span>' +
-            (p.setup ? '<span class="pill tag">' + esc(p.setup) + '</span>' : '') +
+            (p.setups || (p.setup ? [p.setup] : [])).map(t =>
+              '<span class="pill tag">' + esc(t) + '</span>').join(' ') +
             (st === 'done' ? '<span class="pill tag">umgesetzt</span>' : '') +
             (st === 'dropped' ? '<span class="pill">verworfen</span>' : '') + soon +
           '</div>' +
@@ -2322,7 +2410,8 @@ function renderPlanCalendar(){
   const row = x => {
     const o = x.obj;
     const sub = x.kind === 'plan'
-      ? [o.setup, o.entry ? 'Einstieg ' + o.entry : '', o.stop ? 'Stop ' + o.stop : '']
+      ? [(o.setups || (o.setup ? [o.setup] : [])).join(' + '),
+         o.entry ? 'Einstieg ' + o.entry : '', o.stop ? 'Stop ' + o.stop : '']
           .filter(Boolean).join(' · ')
       : (o.note || '');
     return '<div class="evrow" data-k="' + x.kind + '" data-id="' + esc(x.id) + '" style="cursor:pointer">' +
@@ -2913,6 +3002,14 @@ function renderSettings(){
   const ln = liveNotes();
   const n = Object.keys(ln).length;
   const withTag = Object.values(ln).filter(x => x && x.tag).length;
+  const bh = $('#backupHint');
+  if(bh) bh.innerHTML = SYNC.active()
+    ? 'Deine Notizen, Setups und Bewertungen werden <b>automatisch synchronisiert</b> — ' +
+      'du musst hier nichts tun. Der Export ist nur eine Sicherungskopie für den Notfall, ' +
+      'etwa wenn du Browserdaten löschst oder das Supabase-Projekt neu aufsetzt.'
+    : 'Die Synchronisation ist <b>nicht eingerichtet</b>. Solange sie fehlt, liegen deine Notizen ' +
+      'nur in diesem Browser — dann ist der Export der einzige Weg, sie auf ein anderes Gerät ' +
+      'zu bringen. Bequemer wird es über die Synchronisation weiter oben.';
   $('#notesInfo').innerHTML = n
     ? '<b>' + n + '</b> Trades mit Eintrag · <b>' + withTag + '</b> mit Setup-Tag'
     : 'Noch keine Notizen erfasst.';
@@ -2947,9 +3044,7 @@ function openTrade(id){
     t.partial ? ['Hinweis', '<span class="warn">Eröffnung liegt vor dem geladenen Zeitraum – Entry geschätzt</span>'] : null
   ].filter(Boolean).map(([k, v]) => '<div class="dl"><span>' + k + '</span><span>' + v + '</span></div>').join('');
 
-  $('#mTag').innerHTML = '<option value="">– kein Tag –</option>' +
-    S.tags.map(x => '<option value="' + esc(x) + '">' + esc(x) + '</option>').join('');
-  $('#mTag').value = n.tag || '';
+  chipBox('#mTags', tagsOf(n));
   $('#mNote').value = n.note || '';
   renderStars(n.rating || 0);
 
@@ -2998,9 +3093,7 @@ function openPlan(id, presetDay){
   $('#pNote').value   = p ? (p.note || '') : '';
   $('#pImg').value    = pImgData.indexOf('data:') === 0 ? '' : pImgData;
 
-  $('#pSetup').innerHTML = '<option value="">– kein Setup –</option>' +
-    S.tags.map(t => '<option value="' + esc(t) + '">' + esc(t) + '</option>').join('');
-  $('#pSetup').value = p ? (p.setup || '') : '';
+  chipBox('#pSetups', p ? (Array.isArray(p.setups) ? p.setups : (p.setup ? [p.setup] : [])) : []);
 
   const coins = Array.from(new Set(S.trades.map(t => t.coin).filter(c => !isSpot(c)))).sort();
   $('#coinList').innerHTML = coins.map(c => '<option value="' + esc(c) + '">').join('');
@@ -3400,7 +3493,7 @@ function exportCsv(tr){
       walletLabel(t.wallet), t.coin, t.side, t.avgEntry.toFixed(8), t.avgExit.toFixed(8),
       (t.maxNotional || t.entryNotional).toFixed(2),
       t.closedPnl.toFixed(4), t.fees.toFixed(4), t.net.toFixed(4), t.retPct.toFixed(3),
-      (t.durationMs / 60000).toFixed(1), n.tag || '', n.rating || '',
+      (t.durationMs / 60000).toFixed(1), tagsOf(n).join(' + '), n.rating || '',
       (n.note || '').replace(/[\r\n]+/g, ' ')
     ].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(';');
   });
@@ -3716,12 +3809,8 @@ function scenarios(tr){
 
   // Schlechteste Setups weglassen
   const byTag = {};
-  for(const t of tr){
-    const n = noteOf(t.id);
-    const tag = (n && n.tag) || null;
-    if(!tag) continue;
-    (byTag[tag] = byTag[tag] || []).push(t);
-  }
+  for(const t of tr) tagsOf(noteOf(t.id)).forEach(tag =>
+    (byTag[tag] = byTag[tag] || []).push(t));
   const tags = Object.keys(byTag).filter(k => byTag[k].length >= 5)
     .map(k => ({k, net:byTag[k].reduce((s,t) => s + t.net, 0)}))
     .sort((a,b) => a.net - b.net);
@@ -3983,11 +4072,11 @@ $('#mClose').addEventListener('click', closeModal);
 $('#modal').addEventListener('click', e => { if(e.target.id === 'modal') closeModal(); });
 $('#mSave').addEventListener('click', () => {
   if(!mCurrent) return;
-  const tag = $('#mTag').value, note = $('#mNote').value.trim(), rating = currentRating();
-  if(!tag && !note && !rating){
+  const tags = chipValue('#mTags'), note = $('#mNote').value.trim(), rating = currentRating();
+  if(!tags.length && !note && !rating){
     S.notes[mCurrent.id] = {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()};
   }else{
-    S.notes[mCurrent.id] = {tag, note, rating, deleted:false, updatedAt:Date.now()};
+    S.notes[mCurrent.id] = {tag:packTags(tags), note, rating, deleted:false, updatedAt:Date.now()};
   }
   saveNotes(); closeModal(); renderAll();
 });
@@ -4061,7 +4150,7 @@ $('#pSave').addEventListener('click', () => {
   showErr('');
   const id = pCurrent || ('plan:' + randomKey());
   saveEntry(id, {
-    ticker, side:$('#pSide').value, setup:$('#pSetup').value,
+    ticker, side:$('#pSide').value, setups:chipValue('#pSetups'),
     from:$('#pFrom').value, to:$('#pTo').value,
     entry:$('#pEntry').value.trim(), stop:$('#pStop').value.trim(),
     target:$('#pTarget').value.trim(), status:$('#pStatus').value,
