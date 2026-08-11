@@ -491,6 +491,36 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   <!-- DATEN / EINSTELLUNGEN -->
   <section id="v-settings" class="hide">
     <div class="panel">
+      <h2>Steuer-Export (Deutschland)</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Rechnet jede einzelne Transaktion zum <b>EZB-Referenzkurs ihres Tages</b> in Euro um und
+        trennt die Ergebnisse nach den Töpfen, die das Finanzamt getrennt sehen will.
+      </p>
+      <div class="filters">
+        <select id="taxYear"></select>
+        <button class="primary" id="taxRun">Steuerdaten berechnen</button>
+      </div>
+      <div id="taxStatus" style="font-size:12.5px;margin-bottom:6px"></div>
+      <div id="taxOut"></div>
+      <div id="taxFiles" class="hide">
+        <h3 style="font-size:15px;margin:22px 0 8px">Dateien</h3>
+        <div class="filters">
+          <button id="taxDlDeriv">Termingeschäfte</button>
+          <button id="taxDlFunding">Funding</button>
+          <button id="taxDlSpot">Spot</button>
+          <button id="taxDlLedger">Ein-/Auszahlungen</button>
+        </div>
+        <p class="mut" style="font-size:11.5px;line-height:1.6">
+          Semikolon-getrennt mit deutschem Komma — Excel und LibreOffice öffnen das ohne Nachfrage.
+        </p>
+      </div>
+      <div class="err" style="margin-top:14px">
+        <b>Keine Steuerberatung.</b> Diese Auswertung ist eine Rechenhilfe. Ob Krypto-Perpetuals bei
+        dir als Termingeschäfte gelten und ob dein Handelsumfang noch privat oder schon gewerblich
+        ist, gehört vor die Abgabe mit einem Steuerberater geklärt.
+      </div>
+    </div>
+    <div class="panel">
       <h2>Synchronisation Handy ↔ PC</h2>
       <div id="syncStatus" style="font-size:13px;margin-bottom:12px"></div>
       <div id="syncBox"></div>
@@ -2752,6 +2782,10 @@ function renderSync(){
 /* ---------- Render: Daten ---------- */
 function renderSettings(){
   renderSync();
+  const ys = taxYears(), sel = $('#taxYear'), cur = sel.value;
+  sel.innerHTML = ys.map(y => '<option value="' + y + '">Steuerjahr ' + y + '</option>').join('') +
+    '<option value="all">Alle Jahre zusammen</option>';
+  if(cur) sel.value = cur;
   const ln = liveNotes();
   const n = Object.keys(ln).length;
   const withTag = Object.values(ln).filter(x => x && x.tag).length;
@@ -2911,6 +2945,287 @@ function closeEvModal(){
   $('#evModal').classList.remove('on');
   document.body.style.overflow = '';
   eCurrent = null;
+}
+
+/* ---------- Wechselkurse (EZB-Referenzkurse) ----------
+   Quelle: Frankfurter API, liefert die täglichen Referenzkurse der Europäischen Zentralbank.
+   Die EZB veröffentlicht nur an Bankarbeitstagen – für Wochenenden und Feiertage wird der
+   zuletzt veröffentlichte Kurs verwendet, so wie es die Finanzverwaltung akzeptiert.        */
+const FX = {
+  map: null,
+  keys: null,
+  load(){
+    if(this.map) return;
+    try{ this.map = JSON.parse(localStorage.getItem('hlj_fx_usdeur') || '{}'); }
+    catch(e){ this.map = {}; }
+    this.reindex();
+  },
+  reindex(){ this.keys = Object.keys(this.map).sort(); },
+  save(){
+    try{ localStorage.setItem('hlj_fx_usdeur', JSON.stringify(this.map)); }catch(e){}
+  },
+  async ensure(fromISO, toISO, onProgress){
+    this.load();
+    // Fehlende Bereiche jahresweise nachladen
+    const y0 = +fromISO.slice(0,4), y1 = +toISO.slice(0,4);
+    for(let y = y0; y <= y1; y++){
+      const have = this.keys.filter(k => k.slice(0,4) === String(y)).length;
+      if(have >= 200) continue;                       // Jahr ist bereits vollständig
+      const start = y === y0 ? fromISO : y + '-01-01';
+      const end   = y === y1 ? toISO   : y + '-12-31';
+      if(onProgress) onProgress('Lade EZB-Kurse ' + y + '…');
+      const url = 'https://api.frankfurter.app/' + start + '..' + end + '?base=USD&symbols=EUR';
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('Kursabfrage fehlgeschlagen (HTTP ' + res.status + ')');
+      const j = await res.json();
+      for(const d in (j.rates || {})){
+        const v = j.rates[d] && j.rates[d].EUR;
+        if(v) this.map[d] = v;
+      }
+      this.reindex();
+      await sleep(120);
+    }
+    this.save();
+    if(!this.keys.length) throw new Error('Es konnten keine Kurse geladen werden.');
+  },
+  /* Kurs für ein Datum – notfalls der letzte davor veröffentlichte */
+  rate(iso){
+    if(!this.keys || !this.keys.length) return null;
+    if(this.map[iso]) return this.map[iso];
+    let lo = 0, hi = this.keys.length - 1, best = -1;
+    while(lo <= hi){
+      const mid = (lo + hi) >> 1;
+      if(this.keys[mid] <= iso){ best = mid; lo = mid + 1; } else hi = mid - 1;
+    }
+    return best >= 0 ? this.map[this.keys[best]] : this.map[this.keys[0]];
+  }
+};
+
+/* ---------- Steuerberechnung ---------- */
+function isoDay(ms){
+  const d = new Date(ms);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') +
+         '-' + String(d.getDate()).padStart(2,'0');
+}
+function taxYears(){
+  const set = new Set();
+  S.trades.forEach(t => set.add(new Date(t.closeTime).getFullYear()));
+  S.funding.forEach(f => set.add(new Date(num(f.time)).getFullYear()));
+  S.ledger.forEach(l => set.add(new Date(num(l.time)).getFullYear()));
+  return Array.from(set).sort((a,b) => b - a);
+}
+
+function computeTax(year){
+  const inYear = ms => !year || new Date(ms).getFullYear() === year;
+  const derivate = [], spot = [], funding = [], ledger = [];
+  let missingRate = false;
+
+  for(const t of S.trades){
+    if(!inYear(t.closeTime)) continue;
+    // Jeder Fill wird zu seinem eigenen Tageskurs umgerechnet
+    let eurGross = 0, eurFees = 0, usdGross = 0, usdFees = 0;
+    for(const f of t.fills){
+      const day = isoDay(f.time);
+      const r = FX.rate(day);
+      if(r == null){ missingRate = true; continue; }
+      const cp = num(f.closedPnl), fee = num(f.fee);
+      usdGross += cp; usdFees += fee;
+      eurGross += cp * r; eurFees += fee * r;
+    }
+    const row = {
+      closeTime:t.closeTime, openTime:t.openTime, wallet:walletLabel(t.wallet),
+      coin:t.coin, side:t.side, size:t.maxNotional || t.entryNotional,
+      avgEntry:t.avgEntry, avgExit:t.avgExit,
+      usdGross, usdFees, usdNet:usdGross - usdFees,
+      eurGross, eurFees, eurNet:eurGross - eurFees,
+      rateClose:FX.rate(isoDay(t.closeTime)),
+      holdDays:(t.closeTime - t.openTime) / 86400000,
+      hashes:Array.from(new Set(t.fills.map(f => f.hash).filter(Boolean))).slice(0,4).join(' ')
+    };
+    (t.spot ? spot : derivate).push(row);
+  }
+
+  for(const f of S.funding){
+    const ms = num(f.time);
+    if(!inYear(ms)) continue;
+    const d = f.delta || {};
+    const usd = num(d.usdc);
+    if(!usd) continue;
+    const r = FX.rate(isoDay(ms));
+    if(r == null){ missingRate = true; continue; }
+    funding.push({time:ms, wallet:walletLabel(f.wallet), coin:d.coin || '',
+      usd, eur:usd * r, rate:r, hash:f.hash || ''});
+  }
+
+  for(const l of S.ledger){
+    const ms = num(l.time);
+    if(!inYear(ms)) continue;
+    const d = l.delta || {};
+    const usd = num(d.usdc != null ? d.usdc : d.amount);
+    const r = FX.rate(isoDay(ms));
+    if(r == null){ missingRate = true; continue; }
+    ledger.push({time:ms, wallet:walletLabel(l.wallet), type:d.type || '',
+      usd, eur:usd * r, rate:r, hash:l.hash || ''});
+  }
+
+  const sum = (list, key, filter) => list.reduce((s,x) =>
+    s + ((!filter || filter(x)) ? x[key] : 0), 0);
+
+  const res = {
+    year, derivate, spot, funding, ledger, missingRate,
+    d:{
+      gains: sum(derivate, 'eurNet', x => x.eurNet > 0),
+      losses: -sum(derivate, 'eurNet', x => x.eurNet < 0),
+      fees: sum(derivate, 'eurFees'),
+      net: sum(derivate, 'eurNet'),
+      n: derivate.length,
+      wins: derivate.filter(x => x.eurNet > 0).length,
+      losers: derivate.filter(x => x.eurNet < 0).length
+    },
+    f:{
+      received: sum(funding, 'eur', x => x.eur > 0),
+      paid: -sum(funding, 'eur', x => x.eur < 0),
+      net: sum(funding, 'eur'),
+      n: funding.length
+    },
+    s:{
+      gains: sum(spot, 'eurNet', x => x.eurNet > 0),
+      losses: -sum(spot, 'eurNet', x => x.eurNet < 0),
+      net: sum(spot, 'eurNet'),
+      n: spot.length,
+      under1y: spot.filter(x => x.holdDays < 365).length,
+      netUnder1y: sum(spot, 'eurNet', x => x.holdDays < 365)
+    },
+    l:{
+      deposits: sum(ledger, 'eur', x => /deposit/i.test(x.type)),
+      withdrawals: -sum(ledger, 'eur', x => /withdraw/i.test(x.type)),
+      n: ledger.length
+    }
+  };
+  res.d.total = res.d.net + res.f.net;
+  return res;
+}
+
+/* ---------- Steuer-Export: Anzeige und Dateien ---------- */
+const de = (v, dec) => (isFinite(v) ? v : 0).toFixed(dec === undefined ? 2 : dec).replace('.', ',');
+const deDT = ms => new Date(ms).toLocaleString('de-DE',
+  {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
+
+function csv(head, rows){
+  const esc2 = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  return '﻿' + head.map(esc2).join(';') + '\n' +
+    rows.map(r => r.map(esc2).join(';')).join('\n');
+}
+function taxSuffix(){
+  const y = S.taxResult && S.taxResult.year;
+  return (y ? y : 'alle-Jahre') + '.csv';
+}
+function csvDerivate(){
+  const r = S.taxResult;
+  return csv(['Geschlossen','Eroeffnet','Wallet','Markt','Richtung','Positionsgroesse USD',
+    'Ø Einstieg','Ø Ausstieg','Ergebnis USD brutto','Gebuehren USD','Ergebnis USD netto',
+    'EZB-Kurs USD/EUR (Schliesstag)','Ergebnis EUR brutto','Gebuehren EUR','Ergebnis EUR netto','Nachweis (Hash)'],
+    r.derivate.map(x => [deDT(x.closeTime), deDT(x.openTime), x.wallet, coinName(x.coin),
+      x.side === 'long' ? 'Long' : 'Short', de(x.size), de(x.avgEntry, 6), de(x.avgExit, 6),
+      de(x.usdGross), de(x.usdFees), de(x.usdNet), de(x.rateClose, 5),
+      de(x.eurGross), de(x.eurFees), de(x.eurNet), x.hashes]));
+}
+function csvFunding(){
+  const r = S.taxResult;
+  return csv(['Zeitpunkt','Wallet','Markt','Betrag USD','EZB-Kurs USD/EUR','Betrag EUR','Nachweis (Hash)'],
+    r.funding.map(x => [deDT(x.time), x.wallet, x.coin, de(x.usd, 6), de(x.rate, 5), de(x.eur, 6), x.hash]));
+}
+function csvSpot(){
+  const r = S.taxResult;
+  return csv(['Verkauf','Kauf','Wallet','Markt','Haltedauer Tage','unter 1 Jahr',
+    'Ergebnis USD netto','EZB-Kurs USD/EUR','Ergebnis EUR netto','Nachweis (Hash)'],
+    r.spot.map(x => [deDT(x.closeTime), deDT(x.openTime), x.wallet, coinName(x.coin),
+      de(x.holdDays, 1), x.holdDays < 365 ? 'ja' : 'nein',
+      de(x.usdNet), de(x.rateClose, 5), de(x.eurNet), x.hashes]));
+}
+function csvLedger(){
+  const r = S.taxResult;
+  return csv(['Zeitpunkt','Wallet','Vorgang','Betrag USD','EZB-Kurs USD/EUR','Betrag EUR','Nachweis (Hash)'],
+    r.ledger.map(x => [deDT(x.time), x.wallet, x.type, de(x.usd), de(x.rate, 5), de(x.eur), x.hash]));
+}
+
+async function runTax(){
+  const yv = $('#taxYear').value;
+  const year = yv === 'all' ? null : +yv;
+  const btn = $('#taxRun');
+  btn.disabled = true;
+  $('#taxStatus').innerHTML = '<span class="spin"></span> Berechne…';
+  try{
+    let min = Infinity, max = -Infinity;
+    const track = ms => { if(ms < min) min = ms; if(ms > max) max = ms; };
+    S.trades.forEach(t => { t.fills.forEach(f => track(f.time)); track(t.closeTime); });
+    S.funding.forEach(f => track(num(f.time)));
+    S.ledger.forEach(l => track(num(l.time)));
+    if(!isFinite(min)){ $('#taxStatus').innerHTML = '<span class="mut">Keine Daten vorhanden.</span>'; return; }
+
+    // Ein paar Tage Vorlauf, damit auch für Jahresanfänge ein Kurs vorliegt
+    await FX.ensure(isoDay(min - 10 * 86400000), isoDay(Math.min(Date.now(), max)),
+      m => $('#taxStatus').innerHTML = '<span class="spin"></span> ' + m);
+
+    S.taxResult = computeTax(year);
+    renderTaxResult();
+    $('#taxStatus').innerHTML = '<span class="up">✓ Fertig</span> · Kurse der EZB, ' +
+      Object.keys(FX.map).length + ' Tage im Zwischenspeicher';
+  }catch(e){
+    $('#taxStatus').innerHTML = '<span class="down">Fehler:</span> ' + esc(e.message) +
+      '<br><span class="mut">Ohne Internetverbindung lassen sich keine Kurse abrufen.</span>';
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+function renderTaxResult(){
+  const r = S.taxResult;
+  if(!r) return;
+  const eur = v => (v < 0 ? '−' : '') + '€' + Math.abs(v).toLocaleString('de-DE',
+    {minimumFractionDigits:2, maximumFractionDigits:2});
+  const line = (k, v, c, sub) => '<div class="dl"><span>' + k +
+    (sub ? '<br><span class="mut" style="font-size:11px">' + sub + '</span>' : '') +
+    '</span><span class="' + (c || '') + '">' + v + '</span></div>';
+
+  $('#taxOut').innerHTML =
+    (r.missingRate ? '<div class="err">Für einzelne Tage lag kein Kurs vor. ' +
+      'Prüfe die Internetverbindung und lass die Berechnung nochmal laufen.</div>' : '') +
+
+    '<h3 style="font-size:15px;margin:18px 0 6px">Termingeschäfte · Anlage KAP</h3>' +
+    '<div class="mut" style="font-size:12px;margin-bottom:6px">' +
+      'Perpetuals, § 20 Abs. 2 Satz 1 Nr. 3 EStG · ' + r.d.n + ' abgeschlossene Trades</div>' +
+    line('Summe der Gewinne', eur(r.d.gains), 'up', r.d.wins + ' Trades') +
+    line('Summe der Verluste', eur(r.d.losses), 'down', r.d.losers + ' Trades') +
+    line('Enthaltene Handelsgebühren', eur(r.d.fees), 'mut', 'bereits im Ergebnis abgezogen') +
+    line('<b>Saldo aus Trades</b>', '<b>' + eur(r.d.net) + '</b>', cls(r.d.net)) +
+    line('Funding-Saldo', eur(r.f.net), cls(r.f.net),
+      r.f.n + ' Zahlungen · erhalten ' + eur(r.f.received) + ', gezahlt ' + eur(r.f.paid)) +
+    line('<b>Ergebnis gesamt</b>', '<b>' + eur(r.d.total) + '</b>', cls(r.d.total),
+      'Trades inklusive Funding') +
+
+    '<h3 style="font-size:15px;margin:22px 0 6px">Spot · Anlage SO</h3>' +
+    '<div class="mut" style="font-size:12px;margin-bottom:6px">' +
+      'Private Veräußerungsgeschäfte, § 23 EStG — <b>getrennter Verlusttopf</b>, ' +
+      'nicht mit Termingeschäften verrechenbar</div>' +
+    (r.s.n
+      ? line('Summe der Gewinne', eur(r.s.gains), 'up') +
+        line('Summe der Verluste', eur(r.s.losses), 'down') +
+        line('<b>Saldo</b>', '<b>' + eur(r.s.net) + '</b>', cls(r.s.net)) +
+        line('davon innerhalb eines Jahres', eur(r.s.netUnder1y), '',
+          r.s.under1y + ' von ' + r.s.n + ' Verkäufen · nur diese sind steuerpflichtig')
+      : '<div class="mut" style="font-size:13px;padding:6px 0">Keine Spot-Geschäfte im Zeitraum.</div>') +
+
+    '<h3 style="font-size:15px;margin:22px 0 6px">Ein- und Auszahlungen</h3>' +
+    '<div class="mut" style="font-size:12px;margin-bottom:6px">' +
+      'Kein steuerpflichtiger Vorgang, aber Teil der Belegkette</div>' +
+    line('Einzahlungen', eur(r.l.deposits), '') +
+    line('Auszahlungen', eur(r.l.withdrawals), '');
+
+  $('#taxFiles').classList.remove('hide');
+  $('#taxDlSpot').classList.toggle('hide', !r.s.n);
+  $('#taxDlLedger').classList.toggle('hide', !r.l.n);
+  $('#taxDlFunding').classList.toggle('hide', !r.f.n);
 }
 
 /* ---------- Export / Import ---------- */
@@ -3080,6 +3395,15 @@ $('#mDel').addEventListener('click', () => {
   S.notes[mCurrent.id] = {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()};
   saveNotes(); closeModal(); renderAll();
 });
+$('#taxRun').addEventListener('click', runTax);
+$('#taxDlDeriv').addEventListener('click', () =>
+  download('steuer-termingeschaefte-' + taxSuffix(), csvDerivate(), 'text/csv'));
+$('#taxDlFunding').addEventListener('click', () =>
+  download('steuer-funding-' + taxSuffix(), csvFunding(), 'text/csv'));
+$('#taxDlSpot').addEventListener('click', () =>
+  download('steuer-spot-' + taxSuffix(), csvSpot(), 'text/csv'));
+$('#taxDlLedger').addEventListener('click', () =>
+  download('steuer-ein-auszahlungen-' + taxSuffix(), csvLedger(), 'text/csv'));
 $('#btnExport').addEventListener('click', exportNotes);
 $('#btnImport').addEventListener('click', () => $('#fileImport').click());
 $('#fileImport').addEventListener('change', e => { if(e.target.files[0]) importNotes(e.target.files[0]); });
