@@ -139,6 +139,17 @@ tbody tr:hover{background:var(--panel2)}
 .mcell .mv{font-size:17px;font-weight:650;letter-spacing:-.2px}
 .mcell .ms{font-size:11px;color:var(--muted);margin-top:2px}
 .mcell.cur{outline:2px solid var(--txt);outline-offset:-2px}
+.reslist{margin-top:8px;max-height:230px;overflow-y:auto;border:1px solid var(--line);
+  border-radius:10px}
+.reslist:empty{display:none}
+.resrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 12px;
+  border-bottom:1px solid var(--line);cursor:pointer;font-size:13.5px}
+.resrow:last-child{border-bottom:0}
+.resrow:hover{background:var(--panel2)}
+.resrow.has{opacity:.5}
+.resrow b{font-weight:650}
+.resmk{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 7px}
+.chip .x{margin-left:7px;opacity:.6}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(126px,1fr));gap:9px}
 .tile{border:1px solid var(--line);border-radius:10px;padding:10px 11px;background:var(--panel2)}
 .tile .tc{font-size:12px;font-weight:650;letter-spacing:.3px}
@@ -246,18 +257,20 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <div id="livePos" style="margin-top:12px"></div>
       <div id="liveWatch" class="tiles" style="margin-top:12px"></div>
       <div id="liveEditBox" class="hide" style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
-        <div class="f"><label>Symbole, durch Komma getrennt</label>
-          <input type="text" id="watchInput" class="mono" spellcheck="false"
-            placeholder="BTC, ETH, SOL, HYPE" list="allCoins">
-          <datalist id="allCoins"></datalist>
-          <div class="mut" style="font-size:11.5px;margin-top:6px" id="watchHint"></div>
+        <div class="f">
+          <label>Symbol suchen</label>
+          <input type="text" id="watchSearch" placeholder="z.B. BTC, SNDK, HYPE" spellcheck="false" autocomplete="off">
+          <div id="watchResults" class="reslist"></div>
+        </div>
+        <div class="f">
+          <label>Deine Liste — zum Entfernen antippen</label>
+          <div class="chips" id="watchChips"></div>
         </div>
         <div class="filters">
-          <button class="primary" id="watchSave">Speichern</button>
-          <button id="watchClose">Schließen</button>
+          <button id="watchClose">Fertig</button>
+          <button id="watchReset">Standardliste</button>
         </div>
       </div>
-    </div>
     <div class="kpis" id="kpis"></div>
     <div class="panel" style="margin-top:14px">
       <h2>Verlauf</h2>
@@ -4207,6 +4220,53 @@ function renderGrid(tr){
 const DEFAULT_WATCH = ['BTC','ETH','SOL','HYPE'];
 const LIVE = {
   mids:{}, prev:{}, universe:[], at:0, tick:0, timer:null, prevMids:{},
+  dexes:null, index:{}, dexMeta:{},
+
+  /* Aktien und andere Sondermärkte laufen bei Hyperliquid über HIP-3 auf eigenen
+     Perp-Märkten. Deren Symbole heißen {markt}:{coin}, z.B. xyz:SNDK.            */
+  async loadDexes(){
+    if(this.dexes) return this.dexes;
+    let list = [];
+    try{ list = await info({type:'perpDexs'}); }catch(e){ list = []; }
+    const names = [];
+    if(Array.isArray(list)){
+      for(const d of list){
+        if(!d) continue;                       // der leere Eintrag ist der Hauptmarkt
+        const n = typeof d === 'string' ? d : d.name;
+        if(n) names.push(n);
+      }
+    }
+    this.dexes = names.slice(0, 12);
+    // Symbolverzeichnis der Sondermärkte einmalig aufbauen
+    for(const dex of this.dexes){
+      try{
+        const m = await info({type:'meta', dex});
+        const uni = (m || {}).universe || [];
+        const full = [];
+        for(const u of uni){
+          if(!u || !u.name) continue;
+          const name = u.name.indexOf(':') > 0 ? u.name : (dex + ':' + u.name);
+          full.push(name);
+          this.index[name.split(':').pop().toUpperCase()] = name;
+        }
+        this.dexMeta[dex] = full;
+        this.universe = this.universe.concat(full);
+      }catch(e){}
+      await sleep(80);
+    }
+    return this.dexes;
+  },
+  /* Welche Sondermärkte brauche ich überhaupt? Nur die mit beobachteten Symbolen. */
+  neededDexes(){
+    const want = new Set();
+    const syms = this.watch().concat(
+      ((S.positions || {}).assetPositions || []).map(a => (a.position || {}).coin || ''));
+    for(const s of syms){
+      const full = s.indexOf(':') > 0 ? s : this.index[String(s).toUpperCase()];
+      if(full && full.indexOf(':') > 0) want.add(full.split(':')[0]);
+    }
+    return Array.from(want).slice(0, 4);
+  },
 
   watch(){
     const n = S.notes['__watch__'];
@@ -4228,25 +4288,38 @@ const LIVE = {
     if(document.hidden) return;
     const first = !this.at;
     try{
+      if(first) await this.loadDexes();
       this.prevMids = this.mids;
-      const mids = await info({type:'allMids'});
-      if(mids && typeof mids === 'object') this.mids = mids;
+      const merged = {};
 
-      // Tagesveränderung und Symbolliste seltener nachziehen
-      if(first || this.tick % 6 === 0){
-        const mc = await info({type:'metaAndAssetCtxs'}).catch(() => null);
-        if(Array.isArray(mc) && mc.length >= 2){
-          const uni = (mc[0] || {}).universe || [], ctx = mc[1] || [];
-          this.universe = uni.map(u => u.name).filter(Boolean);
-          const prev = {};
-          uni.forEach((u, i) => {
-            const c = ctx[i];
-            if(u && u.name && c && c.prevDayPx) prev[u.name] = num(c.prevDayPx);
-          });
-          this.prev = prev;
+      const mids = await info({type:'allMids'});
+      if(mids && typeof mids === 'object') Object.assign(merged, mids);
+
+      // Sondermärkte seltener abfragen, und nur die, aus denen du etwas beobachtest
+      const extra = this.neededDexes();
+      if(extra.length && (first || this.tick % 3 === 0)){
+        for(const dex of extra){
+          try{
+            const m = await info({type:'allMids', dex});
+            if(m && typeof m === 'object'){
+              for(const k in m){
+                merged[k.indexOf(':') > 0 ? k : (dex + ':' + k)] = m[k];
+              }
+            }
+          }catch(e){}
+          await sleep(60);
         }
+        // bereits bekannte Kurse der Sondermärkte behalten, falls eine Abfrage scheitert
+        for(const k in this.mids){ if(k.indexOf(':') > 0 && merged[k] == null) merged[k] = this.mids[k]; }
+      }else{
+        for(const k in this.mids){ if(k.indexOf(':') > 0) merged[k] = this.mids[k]; }
       }
-      // Positionen seltener, sie ändern sich nur beim Handeln
+      this.mids = merged;
+
+      if(first || this.tick % 6 === 0){
+        await this.loadCtx('');
+        for(const dex of extra) await this.loadCtx(dex);
+      }
       if(!first && this.tick % 6 === 3 && activeWallets().length){
         const data = await Promise.all(activeWallets().map(w =>
           info({type:'clearinghouseState', user:w.addr})
@@ -4268,12 +4341,48 @@ const LIVE = {
       if(dot) dot.style.background = 'var(--down)';
     }
   },
+  /* Tagesveränderung und Symbolnamen eines Marktes */
+  async loadCtx(dex){
+    try{
+      const req = dex ? {type:'metaAndAssetCtxs', dex} : {type:'metaAndAssetCtxs'};
+      const mc = await info(req);
+      if(!Array.isArray(mc) || mc.length < 2) return;
+      const uni = (mc[0] || {}).universe || [], ctx = mc[1] || [];
+      uni.forEach((u, i) => {
+        if(!u || !u.name) return;
+        const name = (dex && u.name.indexOf(':') < 0) ? (dex + ':' + u.name) : u.name;
+        if(this.universe.indexOf(name) < 0) this.universe.push(name);
+        this.index[name.split(':').pop().toUpperCase()] = name;
+        const c = ctx[i];
+        if(c && c.prevDayPx) this.prev[name] = num(c.prevDayPx);
+      });
+    }catch(e){}
+  },
   start(){
     if(this.timer) return;
     this.pull();
     this.timer = setInterval(() => this.pull(), 10000);
   },
-  price(coin){ return num(this.mids[coin]); }
+  price(coin){
+    if(!coin) return 0;
+    if(this.mids[coin] != null) return num(this.mids[coin]);
+    const full = this.index[String(coin).toUpperCase()];
+    return full ? num(this.mids[full]) : 0;
+  },
+  prevOf(coin){
+    if(this.prev[coin] != null) return this.prev[coin];
+    const full = this.index[String(coin).toUpperCase()];
+    return full ? this.prev[full] : null;
+  },
+  full(coin){
+    if(!coin) return '';
+    return coin.indexOf(':') > 0 ? coin : (this.index[String(coin).toUpperCase()] || coin);
+  },
+  market(coin){
+    const f = this.full(coin);
+    return f.indexOf(':') > 0 ? f.split(':')[0] : '';
+  },
+  base(coin){ return String(coin || '').split(':').pop(); }
 };
 
 /* Laufender Gewinn einer Position aus dem aktuellen Kurs */
@@ -4331,23 +4440,81 @@ function renderLive(){
   const wl = LIVE.watch();
   $('#liveWatch').innerHTML = wl.map(c => {
     const px = LIVE.price(c);
-    const pv = LIVE.prev[c];
-    if(!px) return '<div class="tile"><div class="tc">' + esc(c) + '</div>' +
-      '<div class="tp mut">–</div><div class="td mut">nicht gelistet</div></div>';
+    const pv = LIVE.prevOf(c);
+    const mk = LIVE.market(c);
+    const label = LIVE.base(c) + (mk ? ' <span class="mut" style="font-weight:400">' + esc(mk) + '</span>' : '');
+    if(!px) return '<div class="tile"><div class="tc">' + label + '</div>' +
+      '<div class="tp mut">–</div><div class="td mut">kein Kurs</div></div>';
     const ch = pv ? (px - pv) / pv * 100 : null;
-    const before = num(LIVE.prevMids[c]);
+    const before = num(LIVE.prevMids[LIVE.full(c)] != null ? LIVE.prevMids[LIVE.full(c)] : LIVE.prevMids[c]);
     const moved = before && Math.abs(px - before) > 1e-12;
     return '<div class="tile' + (moved ? ' flash' : '') + '">' +
-      '<div class="tc">' + esc(c) + '</div>' +
+      '<div class="tc">' + label + '</div>' +
       '<div class="tp">' + price(px) + '</div>' +
       '<div class="td ' + (ch === null ? 'mut' : cls(ch)) + '">' +
         (ch === null ? '24 h –' : pct(ch, 2) + ' <span class="mut">24 h</span>') + '</div></div>';
   }).join('');
 
-  const dl = $('#allCoins');
-  if(dl && LIVE.universe.length && !dl.innerHTML){
-    dl.innerHTML = LIVE.universe.map(c => '<option value="' + esc(c) + '">').join('');
+}
+
+/* ---------- Symbolsuche für die Beobachtungsliste ---------- */
+function renderWatchEditor(){
+  const wl = LIVE.watch();
+  const chips = $('#watchChips');
+  if(chips){
+    chips.innerHTML = wl.length ? wl.map(c => {
+      const mk = LIVE.market(c);
+      return '<div class="chip on" data-rm="' + esc(c) + '">' + esc(LIVE.base(c)) +
+        (mk ? ' <span style="opacity:.7;font-weight:400">' + esc(mk) + '</span>' : '') +
+        '<span class="x">✕</span></div>';
+    }).join('') : '<div class="chipsempty">Liste ist leer.</div>';
+    chips.querySelectorAll('[data-rm]').forEach(el => el.addEventListener('click', () => {
+      LIVE.setWatch(LIVE.watch().filter(x => x !== el.dataset.rm));
+      renderWatchEditor(); renderLive();
+    }));
   }
+
+  const q = ($('#watchSearch').value || '').trim().toUpperCase();
+  const box = $('#watchResults');
+  if(!box) return;
+  if(!q){
+    box.innerHTML = LIVE.universe.length
+      ? '<div class="resrow" style="cursor:default;opacity:.7">' +
+        '<span>' + LIVE.universe.length + ' Symbole verfügbar — tipp los, um zu suchen</span></div>'
+      : '<div class="resrow" style="cursor:default;opacity:.7"><span>Symbolliste wird geladen…</span></div>';
+    return;
+  }
+  const have = new Set(wl.map(x => LIVE.full(x)));
+  const hits = LIVE.universe
+    .filter(c => LIVE.base(c).toUpperCase().indexOf(q) >= 0 || c.toUpperCase().indexOf(q) >= 0)
+    .sort((a,b) => {
+      const ab = LIVE.base(a).toUpperCase(), bb = LIVE.base(b).toUpperCase();
+      const as = ab === q ? 0 : (ab.indexOf(q) === 0 ? 1 : 2);
+      const bs = bb === q ? 0 : (bb.indexOf(q) === 0 ? 1 : 2);
+      return as - bs || ab.localeCompare(bb);
+    })
+    .slice(0, 40);
+
+  box.innerHTML = hits.length ? hits.map(c => {
+    const mk = LIVE.market(c);
+    const px = LIVE.price(c);
+    return '<div class="resrow' + (have.has(c) ? ' has' : '') + '" data-add="' + esc(c) + '">' +
+      '<span><b>' + esc(LIVE.base(c)) + '</b>' +
+        (mk ? ' <span class="resmk">' + esc(mk) + '</span>' : '') + '</span>' +
+      '<span class="mut">' + (px ? price(px) : '') +
+        (have.has(c) ? ' · schon dabei' : '') + '</span></div>';
+  }).join('') : '<div class="resrow" style="cursor:default"><span class="mut">' +
+    'Nichts gefunden. Aktien und Sondermärkte erscheinen erst, wenn ihre Liste geladen ist.</span></div>';
+
+  box.querySelectorAll('[data-add]').forEach(el => el.addEventListener('click', () => {
+    const c = el.dataset.add;
+    const cur = LIVE.watch();
+    if(cur.map(x => LIVE.full(x)).indexOf(c) >= 0) return;
+    LIVE.setWatch(cur.concat([c]).slice(0, 24));
+    $('#watchSearch').value = '';
+    renderWatchEditor(); renderLive();
+    LIVE.pull();
+  }));
 }
 
 /* ---------- Notiztext und Bild ---------- */
@@ -4777,184 +4944,23 @@ function renderAll(){
 /* ---------- Events ---------- */
 setInterval(() => { if(!document.hidden && LIVE.at) renderLive(); }, 5000);
 $('#btnRefresh').addEventListener('click', () => load(true));
-$('#liveEdit').addEventListener('click', () => {
+$('#liveEdit').addEventListener('click', async () => {
   const box = $('#liveEditBox');
   box.classList.toggle('hide');
   if(!box.classList.contains('hide')){
-    $('#watchInput').value = LIVE.watch().join(', ');
-    $('#watchHint').innerHTML = LIVE.universe.length
-      ? LIVE.universe.length + ' Symbole bei Hyperliquid verfügbar. Beim Tippen schlägt der Browser vor.'
-      : 'Symbolliste wird noch geladen.';
+    $('#watchSearch').value = '';
+    renderWatchEditor();
+    if(!LIVE.dexes){ await LIVE.loadDexes(); renderWatchEditor(); }
+    $('#watchSearch').focus();
   }
 });
+$('#watchSearch').addEventListener('input', renderWatchEditor);
 $('#watchClose').addEventListener('click', () => $('#liveEditBox').classList.add('hide'));
-$('#watchSave').addEventListener('click', () => {
-  const list = $('#watchInput').value.split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
-  const uniq = Array.from(new Set(list)).slice(0, 24);
-  LIVE.setWatch(uniq.length ? uniq : DEFAULT_WATCH.slice());
-  const unknown = LIVE.universe.length ? uniq.filter(c => LIVE.universe.indexOf(c) < 0) : [];
-  $('#watchHint').innerHTML = unknown.length
-    ? '<span class="warn">Nicht gelistet bei Hyperliquid:</span> ' + esc(unknown.join(', ')) +
-      ' — diese bleiben leer.'
-    : '<span class="up">Gespeichert.</span>';
-  renderLive();
+$('#watchReset').addEventListener('click', () => {
+  LIVE.setWatch(DEFAULT_WATCH.slice());
+  renderWatchEditor(); renderLive();
 });
-$('#riskPct').addEventListener('input', () => { renderLab(filtered()); renderGrid(filtered()); });
-$('#excRun').addEventListener('click', async () => {
-  if(EXC.running) return;
-  $('#excRun').disabled = true; $('#excStop').classList.remove('hide');
-  const r = await EXC.runAll((d, tot, failed) => {
-    $('#excStatus').innerHTML = '<span class="spin"></span> ' + d + ' von ' + tot + ' vermessen' +
-      (failed ? ' · ' + failed + ' ohne Kursdaten' : '');
-  });
-  $('#excRun').disabled = false; $('#excStop').classList.add('hide');
-  $('#excStatus').innerHTML = '<span class="up">✓ Fertig</span> · ' + r.done + ' verarbeitet' +
-    (r.failed ? ', ' + r.failed + ' ohne Kursdaten' : '');
-  renderExcursion(filtered()); renderLab(filtered());
-});
-$('#excStop').addEventListener('click', () => { EXC.cancel = true; });
-$('#excClear').addEventListener('click', () => {
-  if(!confirm('Alle gemessenen Ausschläge löschen?')) return;
-  EXC.clear(); renderExcursion(filtered()); renderLab(filtered());
-});
-$('#walletBtn').addEventListener('click', openWallets);
-$('#wOpen2').addEventListener('click', openWallets);
-$('#wClose').addEventListener('click', closeWallets);
-$('#wModal').addEventListener('click', e => { if(e.target.id === 'wModal') closeWallets(); });
-$('#wAdd').addEventListener('click', () => {
-  const label = $('#wLabel').value.trim();
-  const addr = $('#wAddr').value.trim().toLowerCase();
-  if(!/^0x[a-fA-F0-9]{40}$/.test(addr)){
-    showErr('Das sieht nicht nach einer gültigen Adresse aus. Erwartet wird 0x + 40 Zeichen.');
-    return;
-  }
-  if(S.wallets.some(w => w.addr === addr)){
-    showErr('Diese Wallet ist schon in der Liste.');
-    return;
-  }
-  showErr('');
-  S.wallets.push({id:'w' + Date.now().toString(36), addr,
-    label: label || ('Wallet ' + (S.wallets.length + 1)), on:true});
-  saveWallets(S.wallets);
-  $('#wLabel').value = ''; $('#wAddr').value = '';
-  renderWalletList(); renderWalletBtn();
-});
-$('#wApply').addEventListener('click', () => {
-  if(!activeWallets().length){
-    showErr('Setz bei mindestens einer Wallet ein Häkchen.');
-    return;
-  }
-  closeWallets();
-  load(true);
-});
-$$('.tab[data-t]').forEach(el => el.addEventListener('click', () => switchTab(el.dataset.t)));
-['#fRange','#fCoin','#fTag','#fMarket','#fSort','#fResult'].forEach(s =>
-  $(s).addEventListener('change', renderAll));
-$$('[data-curve]').forEach(el => el.addEventListener('click', () => {
-  $$('[data-curve]').forEach(x => x.classList.remove('on'));
-  el.classList.add('on');
-  S.curve = el.dataset.curve;
-  renderEquity(filtered());
-}));
-function calStep(dir){
-  const yearly = S.calMode === 'pnl' && S.calScale === 'month';
-  S.calDate = yearly
-    ? new Date(S.calDate.getFullYear() + dir, 0, 1)
-    : new Date(S.calDate.getFullYear(), S.calDate.getMonth() + dir, 1);
-  renderCalendarTab();
-}
-$('#calPrev').addEventListener('click', () => calStep(-1));
-$('#calNext').addEventListener('click', () => calStep(1));
-$$('[data-scale]').forEach(el => el.addEventListener('click', () => {
-  $$('[data-scale]').forEach(x => x.classList.remove('on'));
-  el.classList.add('on');
-  S.calScale = el.dataset.scale;
-  renderCalendarTab();
-}));
-$('#mClose').addEventListener('click', closeModal);
-$('#modal').addEventListener('click', e => { if(e.target.id === 'modal') closeModal(); });
-$('#mImg').addEventListener('input', () => { mImgData = $('#mImg').value.trim(); drawMImg(); });
-$('#mImgPick').addEventListener('click', () => $('#mImgFile').click());
-$('#mImgFile').addEventListener('change', e => {
-  const f = e.target.files[0];
-  if(f) shrinkImage(f, d => { mImgData = d; $('#mImg').value = ''; drawMImg(); });
-});
-$('#mImgClear').addEventListener('click', () => { mImgData = ''; $('#mImg').value = ''; drawMImg(); });
-$('#mSave').addEventListener('click', () => {
-  if(!mCurrent) return;
-  const tags = chipValue('#mTags'), note = $('#mNote').value.trim(), rating = currentRating();
-  const img = mImgData || $('#mImg').value.trim();
-  if(!tags.length && !note && !rating && !img){
-    S.notes[mCurrent.id] = {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()};
-  }else{
-    S.notes[mCurrent.id] = {tag:packTags(tags), note:packNote(note, mImgData || $('#mImg').value.trim()),
-      rating, deleted:false, updatedAt:Date.now()};
-  }
-  saveNotes(); closeModal(); renderAll();
-});
-$('#mDel').addEventListener('click', () => {
-  if(!mCurrent) return;
-  // Als gelöscht markieren statt entfernen – sonst käme sie beim nächsten Sync zurück
-  S.notes[mCurrent.id] = {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()};
-  saveNotes(); closeModal(); renderAll();
-});
-$('#taxRun').addEventListener('click', runTax);
-$('#taxDlDeriv').addEventListener('click', () =>
-  download('steuer-termingeschaefte-' + taxSuffix(), csvDerivate(), 'text/csv'));
-$('#taxDlFunding').addEventListener('click', () =>
-  download('steuer-funding-' + taxSuffix(), csvFunding(), 'text/csv'));
-$('#taxDlSpot').addEventListener('click', () =>
-  download('steuer-spot-' + taxSuffix(), csvSpot(), 'text/csv'));
-$('#taxDlLedger').addEventListener('click', () =>
-  download('steuer-ein-auszahlungen-' + taxSuffix(), csvLedger(), 'text/csv'));
-$('#archExport').addEventListener('click', archiveExport);
-$('#archImport').addEventListener('click', () => $('#archFile').click());
-$('#archFile').addEventListener('change', e => { if(e.target.files[0]) archiveImport(e.target.files[0]); });
-$('#progWin').addEventListener('change', () => renderProgress(filtered()));
-$('#revPrev').addEventListener('click', () => {
-  S.revWeek = weekRange(S.revWeek || Date.now()).from - 7 * 86400000; renderReview();
-});
-$('#revNext').addEventListener('click', () => {
-  S.revWeek = weekRange(S.revWeek || Date.now()).from + 7 * 86400000; renderReview();
-});
-$('#revSave').addEventListener('click', () => {
-  const key = 'review:' + weekKey(S.revWeek || Date.now());
-  const d = {good:$('#revGood').value.trim(), bad:$('#revBad').value.trim(),
-             next:$('#revNext2').value.trim()};
-  if(!d.good && !d.bad && !d.next){
-    S.notes[key] = {tag:'', rating:0, note:'', deleted:true, updatedAt:Date.now()};
-  }else{
-    S.notes[key] = {tag:'', rating:0, note:JSON.stringify(d), deleted:false, updatedAt:Date.now()};
-  }
-  saveNotes(); renderReview();
-});
-$('#revDel').addEventListener('click', () => {
-  if(!confirm('Diesen Rückblick löschen?')) return;
-  const key = 'review:' + weekKey(S.revWeek || Date.now());
-  S.notes[key] = {tag:'', rating:0, note:'', deleted:true, updatedAt:Date.now()};
-  saveNotes(); renderReview();
-});
-$('#btnExport').addEventListener('click', exportNotes);
-$('#btnImport').addEventListener('click', () => $('#fileImport').click());
-$('#fileImport').addEventListener('change', e => { if(e.target.files[0]) importNotes(e.target.files[0]); });
-$('#btnCsv').addEventListener('click', () => exportCsv(filtered()));
-$('#btnResetTags').addEventListener('click', () => {
-  const add = DEFAULT_TAGS.filter(t => S.tags.indexOf(t) < 0);
-  if(!add.length){ alert('Die Vorschläge sind schon alle in deiner Liste.'); return; }
-  setTags(S.tags.concat(add));
-  renderAll(); syncSoon();
-});
-$('#btnSaveTags').addEventListener('click', () => {
-  const t = $('#tagEditor').value.split('\n').map(x => x.trim()).filter(Boolean);
-  setTags(t.length ? t : DEFAULT_TAGS.slice());
-  renderAll();
-  syncSoon();
-  alert('Setups gespeichert.');
-});
-$('#btnClearCache').addEventListener('click', () => {
-  if(S.addr) localStorage.removeItem(LS.cache(S.addr));
-  load(false);
-});
+
 document.addEventListener('keydown', e => {
   if(e.key !== 'Escape') return;
   closeModal(); closePlanModal(); closeEvModal(); closeWallets();
