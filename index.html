@@ -47,8 +47,12 @@ button:hover{border-color:var(--acc);color:var(--acc)}
 button.primary{background:var(--txt);border-color:var(--txt);color:#fff;font-weight:600}
 button.primary:hover{filter:brightness(1.35);color:#fff}
 button:disabled{opacity:.5;cursor:not-allowed}
-.tabs{display:flex;gap:6px;overflow-x:auto;padding:0 14px 10px;max-width:1240px;margin:0 auto;
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:0 14px 8px;max-width:1240px;margin:0 auto;
   scrollbar-width:none}
+#groups{padding-bottom:6px}
+#groups .tab{font-weight:600}
+#tabs .tab{font-size:12.5px;padding:5px 12px;background:transparent;border-color:transparent;color:var(--muted)}
+#tabs .tab.on{background:var(--panel2);border-color:var(--line);color:var(--txt)}
 .tabs::-webkit-scrollbar{display:none}
 .tab{padding:7px 14px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);
   cursor:pointer;white-space:nowrap;font-size:13px;color:var(--muted)}
@@ -184,18 +188,8 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     <button id="walletBtn" class="wsel">Wallet wählen <span class="chev">▾</span></button>
     <button id="btnRefresh" title="Neue Trades nachladen">↻</button>
   </div>
-  <div class="tabs" id="tabs">
-    <div class="tab on" data-t="overview">Übersicht</div>
-    <div class="tab" data-t="trades">Trades</div>
-    <div class="tab" data-t="longshort">Long / Short</div>
-    <div class="tab" data-t="setups">Setups</div>
-    <div class="tab" data-t="plans">Planung</div>
-    <div class="tab" data-t="calendar">Kalender</div>
-    <div class="tab" data-t="sim">Simulator</div>
-    <div class="tab" data-t="costs">Kosten</div>
-    <div class="tab" data-t="positions">Konto</div>
-    <div class="tab" data-t="settings">Daten</div>
-  </div>
+  <div class="tabs" id="groups"></div>
+  <div class="tabs" id="tabs"></div>
   <div id="status"></div>
 </header>
 
@@ -233,11 +227,6 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     <div class="panel">
       <h2>PnL pro Coin</h2>
       <div class="chartbox sm"><canvas id="chCoin"></canvas></div>
-    </div>
-    <div class="panel">
-      <h2>PnL nach Wochentag &amp; Tageszeit</h2>
-      <div class="chartbox sm"><canvas id="chDow"></canvas></div>
-      <div class="chartbox sm" style="margin-top:14px"><canvas id="chHour"></canvas></div>
     </div>
   </section>
 
@@ -286,6 +275,105 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         </table>
       </div>
       <div id="tradesEmpty" class="empty-state hide">Keine Trades im gewählten Filter.</div>
+    </div>
+  </section>
+
+  <!-- VERHALTEN -->
+  <section id="v-behavior" class="hide">
+    <div class="panel">
+      <h2>Nach einem Verlust</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Trades danach sortiert, wie viele Verluste unmittelbar davor lagen. Wenn die Zahlen mit der
+        Verlustserie schlechter werden, handelst du im Tilt.</p>
+      <div class="scroll"><table id="tblTilt">
+        <thead><tr><th>Vorher</th><th>Trades</th><th>Trefferquote</th><th>Netto</th><th>Ø je Trade</th><th>Ø Größe</th></tr></thead>
+        <tbody></tbody></table></div>
+    </div>
+    <div class="panel">
+      <h2>Positionsgröße</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Alle Trades in vier gleich große Gruppen nach Positionsgröße geteilt.</p>
+      <div class="scroll"><table id="tblSize">
+        <thead><tr><th>Gruppe</th><th>Größe</th><th>Trades</th><th>Trefferquote</th><th>Netto</th><th>Ø je Trade</th></tr></thead>
+        <tbody></tbody></table></div>
+    </div>
+    <div class="panel">
+      <h2>Haltedauer</h2>
+      <div class="scroll"><table id="tblHold">
+        <thead><tr><th>Dauer</th><th>Trades</th><th>Trefferquote</th><th>Netto</th><th>Ø je Trade</th></tr></thead>
+        <tbody></tbody></table></div>
+    </div>
+    <div class="panel">
+      <h2>Wochentag &amp; Tageszeit</h2>
+      <div class="chartbox sm"><canvas id="chDow"></canvas></div>
+      <div class="chartbox sm" style="margin-top:14px"><canvas id="chHour"></canvas></div>
+    </div>
+  </section>
+
+  <!-- AUSSCHLÄGE -->
+  <section id="v-excursion" class="hide">
+    <div class="panel">
+      <h2>Kursausschläge messen</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Wie weit lief jeder Trade zu deinen Gunsten, bevor du geschlossen hast, und wie weit gegen dich?
+        Dafür lade ich den Kursverlauf jedes Trades. Beim ersten Mal dauert das ein bis zwei Minuten,
+        danach liegt alles lokal.</p>
+      <div class="filters">
+        <button class="primary" id="excRun">Ausschläge messen</button>
+        <button id="excStop" class="hide">Abbrechen</button>
+        <button id="excClear">Messdaten löschen</button>
+      </div>
+      <div id="excStatus" style="font-size:12.5px"></div>
+    </div>
+    <div class="kpis" id="excKpis"></div>
+    <div class="panel" style="margin-top:14px" id="excVerdict"></div>
+    <div class="panel">
+      <h2>Erreichter Ausschlag gegen mitgenommenes Ergebnis</h2>
+      <div class="chartbox"><canvas id="chExc"></canvas></div>
+      <p class="mut" style="font-size:12.5px;margin-bottom:0">
+        Jeder Punkt ist ein Trade. Waagerecht: wie weit er im Plus war. Senkrecht: was du mitgenommen
+        hast. Punkte weit rechts unten sind Trades, die gelaufen sind, ohne dass du etwas davon hattest.</p>
+    </div>
+  </section>
+
+  <!-- LABOR: WIRKUNG -->
+  <section id="v-labimpact" class="hide">
+    <div class="panel">
+      <h2>Annahmen</h2>
+      <div class="simgrid">
+        <div class="f"><label>Risiko je Trade (R)</label>
+          <input type="number" id="riskPct" value="1" min="0.1" max="10" step="0.1">
+          <div class="mut" style="font-size:11.5px;margin-top:5px" id="riskInfo"></div></div>
+      </div>
+      <div class="err" style="margin-top:4px">
+        <b>Rechenmodell, keine Tatsachen.</b> Hier wird durchgespielt, was gewesen wäre. Kurse hätten
+        sich nicht anders verhalten, dein Verhalten aber schon — die Zahlen sind Anhaltspunkte,
+        keine Versprechen.
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Was hätte den größten Unterschied gemacht</h2>
+      <div id="impactList"></div>
+    </div>
+  </section>
+
+  <!-- LABOR: EXIT & STOP -->
+  <section id="v-labexit" class="hide">
+    <div class="panel">
+      <h2>Fester Ausstieg statt Bauchgefühl</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Jede Zelle zeigt, wie dein Ergebnis ausgesehen hätte, wenn du bei jedem Trade konsequent mit
+        diesem Gewinnziel und diesem Stop gearbeitet hättest. Grün heißt besser als dein tatsächliches
+        Ergebnis.</p>
+      <div id="gridStatus" class="mut" style="font-size:13px"></div>
+      <div class="scroll"><table id="tblGrid"><thead></thead><tbody></tbody></table></div>
+      <p class="mut" style="font-size:11.5px;line-height:1.6;margin-bottom:0">
+        Wird innerhalb desselben Kursabschnitts sowohl Ziel als auch Stop berührt, zählt der Stop —
+        die vorsichtigere Annahme.</p>
+    </div>
+    <div class="panel">
+      <h2>Bestes Ergebnis im Raster</h2>
+      <div id="gridBest"></div>
     </div>
   </section>
 
@@ -489,7 +577,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <!-- DATEN / EINSTELLUNGEN -->
-  <section id="v-settings" class="hide">
+  <section id="v-tax" class="hide">
     <div class="panel">
       <h2>Steuer-Export (Deutschland)</h2>
       <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
@@ -520,6 +608,9 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         ist, gehört vor die Abgabe mit einem Steuerberater geklärt.
       </div>
     </div>
+  </section>
+
+  <section id="v-settings" class="hide">
     <div class="panel">
       <h2>Synchronisation Handy ↔ PC</h2>
       <div id="syncStatus" style="font-size:13px;margin-bottom:12px"></div>
@@ -726,7 +817,7 @@ let S = {
   funding:[], ledger:[], notes:{}, tags:[], curve:'equity',
   spot:null, spotPrices:{USDC:1}, vaults:[], staking:null, totals:null,
   balOpts:{perp:false, spot:true, vault:true, stake:true}, subAccounts:[],
-  calDate:new Date(), calMode:'plan', calScale:'day', charts:{}, loading:false
+  calDate:new Date(), calMode:'plan', calScale:'day', tab:'overview', charts:{}, loading:false
 };
 
 /* ---------- Helpers ---------- */
@@ -1398,7 +1489,7 @@ async function loadOne(addr, incremental){
   fills.sort((x,y) => x.time - y.time);
   writeCache(addr, fills);
 
-  const [pos, port, fund, led, spot, vaults, stake, subs] = await Promise.all([
+  const [pos, port, fund, led, spot, vaults, stake, subs, fees] = await Promise.all([
     info({type:'clearinghouseState', user:addr}).catch(() => null),
     info({type:'portfolio', user:addr}).catch(() => null),
     info({type:'userFunding', user:addr, startTime:0}).catch(() => []),
@@ -1406,7 +1497,8 @@ async function loadOne(addr, incremental){
     info({type:'spotClearinghouseState', user:addr}).catch(() => null),
     info({type:'userVaultEquities', user:addr}).catch(() => []),
     info({type:'delegatorSummary', user:addr}).catch(() => null),
-    info({type:'subAccounts', user:addr}).catch(() => null)
+    info({type:'subAccounts', user:addr}).catch(() => null),
+    info({type:'userFees', user:addr}).catch(() => null)
   ]);
   // Wichtig: Positionen sind kontobezogen, deshalb wird je Wallet einzeln gerechnet
   const r = buildTrades(fills);
@@ -1417,7 +1509,7 @@ async function loadOne(addr, incremental){
     funding:(Array.isArray(fund) ? fund : []).map(x => Object.assign({wallet:addr}, x)),
     ledger:(Array.isArray(led) ? led : []).map(x => Object.assign({wallet:addr}, x)),
     spot, vaults:Array.isArray(vaults) ? vaults : [], staking:stake,
-    subAccounts:Array.isArray(subs) ? subs : []};
+    subAccounts:Array.isArray(subs) ? subs : [], fees};
 }
 
 function acctHistoryOf(port){
@@ -1478,6 +1570,9 @@ async function load(incremental){
     S.vaults  = [].concat.apply([], data.map(d => d.vaults));
     S.subAccounts = [].concat.apply([], data.map(d => d.subAccounts));
 
+    const fr = data.find(d => d.fees);
+    S.feeRates = fr ? {cross:num(fr.fees.userCrossRate) || 0.00045,
+                       add:num(fr.fees.userAddRate) || 0.00015} : null;
     S.positions = mergePositions(data);
     S.spot = mergeSpot(data);
     S.staking = mergeStaking(data);
@@ -3284,14 +3379,470 @@ function exportCsv(tr){
     '﻿' + head.join(';') + '\n' + rows.join('\n'), 'text/csv');
 }
 
+/* ---------- Kursausschläge (MAE / MFE) ---------- */
+const EXC = {
+  data: null,
+  running: false,
+  cancel: false,
+  load(){
+    if(this.data) return this.data;
+    try{ this.data = JSON.parse(localStorage.getItem('hlj_exc') || '{}'); }
+    catch(e){ this.data = {}; }
+    return this.data;
+  },
+  save(){ try{ localStorage.setItem('hlj_exc', JSON.stringify(this.data)); }catch(e){} },
+  clear(){ this.data = {}; try{ localStorage.removeItem('hlj_exc'); }catch(e){} },
+  get(id){ return this.load()[id] || null; },
+
+  /* Kerzenintervall so wählen, dass ein Trade auf 30–300 Kerzen kommt */
+  interval(ms){
+    const opts = [['1m',60e3],['3m',18e4],['5m',3e5],['15m',9e5],['30m',18e5],
+                  ['1h',36e5],['4h',144e5],['1d',864e5]];
+    for(const [name, len] of opts){ if(ms / len <= 300) return [name, len]; }
+    return ['1d', 864e5];
+  },
+
+  async measure(trade){
+    if(trade.spot) return null;
+    const span = Math.max(60e3, trade.closeTime - trade.openTime);
+    const [iv] = this.interval(span);
+    const res = await info({type:'candleSnapshot', req:{
+      coin: trade.coin, interval: iv,
+      startTime: trade.openTime - 60e3, endTime: trade.closeTime + 60e3}});
+    if(!Array.isArray(res) || !res.length) return null;
+
+    const long = trade.side === 'long';
+    const entry = trade.avgEntry;
+    const size = trade.entrySize || 0;
+    if(!(entry > 0) || !(size > 0)) return null;
+
+    const inRange = res.filter(c => num(c.T) >= trade.openTime && num(c.t) <= trade.closeTime);
+    const rows = inRange.length ? inRange : res;
+
+    let mfe = 0, mae = 0;
+    const favs = [], advs = [];
+    for(const c of rows){
+      const hi = num(c.h), lo = num(c.l);
+      const fav = (long ? hi - entry : entry - lo) * size;
+      const adv = (long ? entry - lo : hi - entry) * size;
+      favs.push(Math.max(0, fav));
+      advs.push(Math.max(0, adv));
+      if(fav > mfe) mfe = fav;
+      if(adv > mae) mae = adv;
+    }
+    // Auf höchstens 60 Abschnitte eindampfen, damit der Speicher klein bleibt
+    const N = Math.min(60, rows.length);
+    const fav = new Array(N).fill(0), adv = new Array(N).fill(0);
+    for(let i = 0; i < rows.length; i++){
+      const b = Math.min(N - 1, Math.floor(i / rows.length * N));
+      if(favs[i] > fav[b]) fav[b] = favs[i];
+      if(advs[i] > adv[b]) adv[b] = advs[i];
+    }
+    const r4 = a => a.map(v => +v.toFixed(4));
+    return {mfe:+mfe.toFixed(4), mae:+mae.toFixed(4), iv, n:rows.length,
+      fav:r4(fav), adv:r4(adv)};
+  },
+
+  async runAll(onProgress){
+    this.load();
+    this.running = true; this.cancel = false;
+    const todo = S.trades.filter(t => !t.spot && !this.data[t.id]);
+    let done = 0, failed = 0;
+    for(const t of todo){
+      if(this.cancel) break;
+      try{
+        const m = await this.measure(t);
+        if(m) this.data[t.id] = m; else failed++;
+      }catch(e){ failed++; }
+      done++;
+      if(done % 5 === 0) this.save();
+      if(onProgress) onProgress(done, todo.length, failed);
+      await sleep(60);
+    }
+    this.save();
+    this.running = false;
+    return {done, total:todo.length, failed};
+  }
+};
+
+function excStats(tr){
+  const list = [];
+  for(const t of tr){
+    const e = EXC.get(t.id);
+    if(e) list.push({t, e});
+  }
+  if(!list.length) return null;
+  const wins = list.filter(x => x.t.net > 0), losses = list.filter(x => x.t.net <= 0);
+  const avg = (a, f) => a.length ? a.reduce((s,x) => s + f(x), 0) / a.length : 0;
+  // Ausschöpfung nur über Gewinner – bei Verlierern ergäbe der Anteil keinen Sinn
+  const capture = wins.filter(x => x.e.mfe > 0).map(x => x.t.net / x.e.mfe);
+  return {
+    n:list.length, list,
+    mfeAll: avg(list, x => x.e.mfe),
+    maeAll: avg(list, x => x.e.mae),
+    mfeWin: avg(wins, x => x.e.mfe),
+    netWin: avg(wins, x => x.t.net),
+    mfeLoss: avg(losses, x => x.e.mfe),
+    maeWin: avg(wins, x => x.e.mae),
+    maeLoss: avg(losses, x => x.e.mae),
+    capture: capture.length ? capture.reduce((a,b) => a+b, 0) / capture.length : 0,
+    neverGreen: list.filter(x => x.e.mfe < Math.abs(x.t.net) * 0.25).length
+  };
+}
+
+function renderExcursion(tr){
+  const done = Object.keys(EXC.load()).length;
+  const perp = tr.filter(t => !t.spot);
+  $('#excStatus').innerHTML = EXC.running ? $('#excStatus').innerHTML :
+    (done ? '<span class="up">' + done + ' Trades vermessen</span>' +
+      (perp.length > done ? ' · <span class="mut">' + (perp.length - done) + ' noch offen</span>' : '')
+     : '<span class="mut">Noch nichts gemessen.</span>');
+
+  const st = excStats(perp);
+  if(!st){
+    $('#excKpis').innerHTML = '';
+    $('#excVerdict').innerHTML = '<div class="empty-state">Noch keine Messdaten. ' +
+      'Tipp oben auf „Ausschläge messen“.</div>';
+    if(S.charts.chExc){ S.charts.chExc.destroy(); S.charts.chExc = null; }
+    return;
+  }
+  const items = [
+    ['Ø größter Gewinn im Trade', usd(st.mfeAll, 2), 'bevor du geschlossen hast', 'up'],
+    ['Ø größter Rücksetzer', usd(st.maeAll, 2), 'gegen dich gelaufen', 'down'],
+    ['Ø bei Gewinnern erreicht', usd(st.mfeWin, 2), 'mitgenommen: ' + usd(st.netWin, 2), 'up'],
+    ['Ausschöpfung', (st.capture * 100).toFixed(0) + '%', 'vom Möglichen bei Gewinnern', ''],
+    ['Ø Plus bei Verlierern', usd(st.mfeLoss, 2), 'waren sie zwischendurch vorn', ''],
+    ['Ø Minus bei Gewinnern', usd(st.maeWin, 2), 'mussten sie aushalten', 'down'],
+    ['Nie nennenswert im Plus', st.neverGreen, 'von ' + st.n + ' Trades', '']
+  ];
+  $('#excKpis').innerHTML = items.map(([k,v,sub,c]) =>
+    '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
+    '<div class="s">' + sub + '</div></div>').join('');
+
+  // Diagnose in Worten
+  let verdict = '', why = '';
+  const ratio = st.mfeWin > 0 ? st.netWin / st.mfeWin : 0;
+  if(st.capture < 0.5 && st.mfeWin > st.netWin * 1.6){
+    verdict = 'Du schneidest deine Gewinner ab.';
+    why = 'Deine Gewinn-Trades liefen im Schnitt bis ' + usd(st.mfeWin, 2) +
+      ', mitgenommen hast du ' + usd(st.netWin, 2) + ' — also ' + (ratio*100).toFixed(0) +
+      ' %. Die Einstiege funktionieren, der Ausstieg kostet dich das Geld. ' +
+      'Schau dir im Labor unter „Exit & Stop“ an, was ein festes Ziel gebracht hätte.';
+  }else if(st.mfeLoss < st.maeLoss * 0.3){
+    verdict = 'Deine Verlierer waren nie wirklich im Plus.';
+    why = 'Im Schnitt liefen sie nur ' + usd(st.mfeLoss, 2) + ' zu deinen Gunsten, ' +
+      'bevor sie ' + usd(st.maeLoss, 2) + ' gegen dich liefen. Das Problem liegt beim Einstieg ' +
+      'oder beim Zeitpunkt, nicht beim Ausstieg.';
+  }else if(st.maeWin > st.netWin){
+    verdict = 'Du sitzt Verluste aus.';
+    why = 'Deine Gewinner lagen im Schnitt ' + usd(st.maeWin, 2) + ' hinten, bevor sie drehten — ' +
+      'mehr als du am Ende verdient hast. Das geht eine Weile gut und dann einmal richtig schief.';
+  }else{
+    verdict = 'Ein- und Ausstieg wirken ausgewogen.';
+    why = 'Bei deinen Gewinnern nimmst du ' + (st.capture*100).toFixed(0) +
+      ' % der Bewegung mit, die dir zur Verfügung stand.';
+  }
+  $('#excVerdict').innerHTML = '<h2>Was die Zahlen sagen</h2>' +
+    '<div style="font-size:16px;font-weight:600;margin-bottom:6px">' + esc(verdict) + '</div>' +
+    '<div style="font-size:14px;line-height:1.65;color:var(--muted)">' + why + '</div>';
+
+  mkChart('chExc', {
+    type:'scatter',
+    data:{datasets:[
+      {label:'Gewinner', data:st.list.filter(x => x.t.net > 0).map(x => ({x:x.e.mfe, y:x.t.net})),
+       backgroundColor:'rgba(15,138,95,.65)', pointRadius:4},
+      {label:'Verlierer', data:st.list.filter(x => x.t.net <= 0).map(x => ({x:x.e.mfe, y:x.t.net})),
+       backgroundColor:'rgba(201,53,74,.65)', pointRadius:4}
+    ]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:true, labels:{color:'#6b7280', boxWidth:12, font:{size:11}}}},
+      scales:{
+        x:Object.assign({}, AXIS, {title:{display:true, text:'War im Plus bis ($)',
+          color:'#6b7280', font:{size:10}}}),
+        y:Object.assign({}, AXIS, {title:{display:true, text:'Tatsächliches Ergebnis ($)',
+          color:'#6b7280', font:{size:10}}})}}
+  });
+}
+
+/* ---------- Verhalten ---------- */
+function bucketTable(sel, rows){
+  $(sel + ' tbody').innerHTML = rows.length ? rows.join('')
+    : '<tr><td colspan="6" class="mut">Zu wenig Daten.</td></tr>';
+}
+function renderBehavior(tr){
+  const sorted = tr.slice().sort((a,b) => a.closeTime - b.closeTime);
+
+  // Wie viele Verluste lagen unmittelbar davor?
+  const groups = {0:[], 1:[], 2:[], 3:[]};
+  let streak = 0;
+  for(const t of sorted){
+    const key = Math.min(3, streak);
+    groups[key].push(t);
+    if(t.net < 0) streak++; else streak = 0;
+  }
+  const lbl = {0:'kein Verlust davor', 1:'1 Verlust davor', 2:'2 Verluste davor', 3:'3+ Verluste davor'};
+  bucketTable('#tblTilt', [0,1,2,3].filter(k => groups[k].length).map(k => {
+    const m = metrics(groups[k]);
+    const avgSize = groups[k].reduce((s,t) => s + (t.maxNotional || t.entryNotional), 0) / groups[k].length;
+    return '<tr><td><b>' + lbl[k] + '</b></td><td>' + m.n + '</td>' +
+      '<td class="' + (m.winrate >= 50 ? 'up' : 'down') + '">' + m.winrate.toFixed(0) + '%</td>' +
+      '<td class="' + cls(m.net) + '">' + sgn(m.net, 2) + '</td>' +
+      '<td class="' + cls(m.net/m.n) + '">' + sgn(m.net/m.n, 2) + '</td>' +
+      '<td class="mut">' + usd(avgSize, 0) + '</td></tr>';
+  }));
+
+  // Positionsgröße in Vierteln
+  const bySize = tr.slice().sort((a,b) =>
+    (a.maxNotional || a.entryNotional) - (b.maxNotional || b.entryNotional));
+  const q = Math.ceil(bySize.length / 4);
+  const qn = ['Kleinste 25 %','Zweites Viertel','Drittes Viertel','Größte 25 %'];
+  bucketTable('#tblSize', bySize.length < 8 ? [] : [0,1,2,3].map(i => {
+    const g = bySize.slice(i*q, (i+1)*q);
+    if(!g.length) return '';
+    const m = metrics(g);
+    const lo = g[0].maxNotional || g[0].entryNotional;
+    const hi = g[g.length-1].maxNotional || g[g.length-1].entryNotional;
+    return '<tr><td><b>' + qn[i] + '</b></td><td class="mut">' + usd(lo,0) + ' – ' + usd(hi,0) + '</td>' +
+      '<td>' + m.n + '</td>' +
+      '<td class="' + (m.winrate >= 50 ? 'up' : 'down') + '">' + m.winrate.toFixed(0) + '%</td>' +
+      '<td class="' + cls(m.net) + '">' + sgn(m.net, 2) + '</td>' +
+      '<td class="' + cls(m.net/m.n) + '">' + sgn(m.net/m.n, 2) + '</td></tr>';
+  }).filter(Boolean));
+
+  // Haltedauer
+  const hb = [[0, 5*60e3, 'unter 5 min'], [5*60e3, 3600e3, '5 min – 1 h'],
+              [3600e3, 6*3600e3, '1 – 6 h'], [6*3600e3, 864e5, '6 – 24 h'],
+              [864e5, Infinity, 'über 1 Tag']];
+  bucketTable('#tblHold', hb.map(([lo,hi,name]) => {
+    const g = tr.filter(t => t.durationMs >= lo && t.durationMs < hi);
+    if(!g.length) return '';
+    const m = metrics(g);
+    return '<tr><td><b>' + name + '</b></td><td>' + m.n + '</td>' +
+      '<td class="' + (m.winrate >= 50 ? 'up' : 'down') + '">' + m.winrate.toFixed(0) + '%</td>' +
+      '<td class="' + cls(m.net) + '">' + sgn(m.net, 2) + '</td>' +
+      '<td class="' + cls(m.net/m.n) + '">' + sgn(m.net/m.n, 2) + '</td></tr>';
+  }).filter(Boolean));
+}
+
+/* ---------- Labor ---------- */
+function riskUnit(){
+  const pct = Math.max(0.05, num($('#riskPct').value) || 1);
+  const acct = (S.totals && S.totals.total) || 0;
+  return {pct, R: acct * pct / 100, acct};
+}
+
+/* Ein Trade unter festem Ziel und Stop, entlang des gemessenen Kursverlaufs */
+function replay(t, tpR, slR, R){
+  const e = EXC.get(t.id);
+  if(!e || !e.fav) return null;
+  const tp = tpR > 0 ? tpR * R : Infinity;
+  const sl = slR > 0 ? slR * R : Infinity;
+  for(let i = 0; i < e.fav.length; i++){
+    // Vorsichtige Annahme: im selben Abschnitt zählt der Stop zuerst
+    if(e.adv[i] >= sl) return -sl - t.fees;
+    if(e.fav[i] >= tp) return tp - t.fees;
+  }
+  return t.net;
+}
+
+function scenarios(tr){
+  const {R} = riskUnit();
+  const actual = tr.reduce((s,t) => s + t.net, 0);
+  const measured = tr.filter(t => EXC.get(t.id));
+  const out = [];
+  const add = (name, net, note, need) =>
+    out.push({name, net, delta:net - actual, note, need});
+
+  // Ziel und Stop
+  if(measured.length >= 10){
+    for(const [tp, sl] of [[2,1],[3,1],[1.5,1],[2,1.5]]){
+      const net = tr.reduce((s,t) => {
+        const r = replay(t, tp, sl, R);
+        return s + (r === null ? t.net : r);
+      }, 0);
+      add('Ziel ' + tp + 'R, Stop ' + sl + 'R', net,
+        'auf ' + measured.length + ' vermessenen Trades', false);
+    }
+    // Nur Stop, Ausstieg sonst wie gehabt
+    const netStop = tr.reduce((s,t) => {
+      const r = replay(t, 0, 1, R);
+      return s + (r === null ? t.net : r);
+    }, 0);
+    add('Nur fester Stop bei 1R', netStop, 'Gewinnseite unverändert', false);
+  }else{
+    add('Ziel und Stop durchrechnen', actual, 'braucht die Ausschlagsmessung', true);
+  }
+
+  // Nur Maker statt Taker
+  const rates = S.feeRates || {cross:0.00045, add:0.00015};
+  let saved = 0, takerFills = 0;
+  for(const t of tr) for(const f of t.fills){
+    if(f.crossed === true){
+      takerFills++;
+      saved += num(f.fee) - num(f.px) * num(f.sz) * rates.add;
+    }
+  }
+  if(takerFills) add('Nur Limit-Orders statt Market', actual + saved,
+    takerFills + ' von ' + tr.reduce((s,t) => s + t.fills.length, 0) + ' Ausführungen waren Taker', false);
+
+  // Schlechteste Setups weglassen
+  const byTag = {};
+  for(const t of tr){
+    const n = noteOf(t.id);
+    const tag = (n && n.tag) || null;
+    if(!tag) continue;
+    (byTag[tag] = byTag[tag] || []).push(t);
+  }
+  const tags = Object.keys(byTag).filter(k => byTag[k].length >= 5)
+    .map(k => ({k, net:byTag[k].reduce((s,t) => s + t.net, 0)}))
+    .sort((a,b) => a.net - b.net);
+  if(tags.length >= 2){
+    const worst = tags.slice(0, Math.min(3, tags.length - 1));
+    const drop = new Set();
+    worst.forEach(w => byTag[w.k].forEach(t => drop.add(t.id)));
+    add('Ohne die Setups ' + worst.map(w => '„' + w.k + '“').join(', '),
+      tr.filter(t => !drop.has(t.id)).reduce((s,t) => s + t.net, 0),
+      drop.size + ' Trades entfallen', false);
+  }else{
+    add('Schwächste Setups weglassen', actual,
+      'braucht Setup-Tags an mindestens zwei Gruppen mit je 5 Trades', true);
+  }
+
+  // Keine Trades nach zwei Verlusten
+  const chron = tr.slice().sort((a,b) => a.closeTime - b.closeTime);
+  let streak = 0; const skip = new Set();
+  for(const t of chron){
+    if(streak >= 2) skip.add(t.id);
+    if(t.net < 0) streak++; else streak = 0;
+  }
+  if(skip.size) add('Pause nach zwei Verlusten in Folge',
+    tr.filter(t => !skip.has(t.id)).reduce((s,t) => s + t.net, 0),
+    skip.size + ' Trades entfallen', false);
+
+  // Einheitliche Positionsgröße
+  const sizes = tr.map(t => t.maxNotional || t.entryNotional).filter(v => v > 0).sort((a,b) => a-b);
+  if(sizes.length >= 8){
+    const med = sizes[Math.floor(sizes.length/2)];
+    const net = tr.reduce((s,t) => {
+      const sz = t.maxNotional || t.entryNotional;
+      return s + (sz > 0 ? t.net * (med / sz) : t.net);
+    }, 0);
+    add('Immer gleich große Positionen', net,
+      'alle auf ' + usd(med, 0) + ' normiert', false);
+  }
+  return {actual, list:out.sort((a,b) => b.delta - a.delta)};
+}
+
+function renderLab(tr){
+  const {pct, R, acct} = riskUnit();
+  $('#riskInfo').innerHTML = R > 0
+    ? '1 R = <b>' + usd(R, 2) + '</b> · ' + pct + ' % von ' + usd(acct, 0)
+    : 'Kein Kontostand geladen – R kann nicht berechnet werden.';
+
+  const sc = scenarios(tr);
+  const max = Math.max.apply(null, sc.list.map(x => Math.abs(x.delta)).concat([1]));
+  $('#impactList').innerHTML =
+    '<div class="dl"><span><b>Tatsächliches Ergebnis</b></span><span class="' +
+      cls(sc.actual) + '"><b>' + sgn(sc.actual, 2) + '</b></span></div>' +
+    sc.list.map(x => {
+      const w = Math.min(100, Math.abs(x.delta) / max * 100);
+      return '<div style="padding:11px 0;border-bottom:1px solid var(--line)">' +
+        '<div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline">' +
+        '<span style="font-size:14px' + (x.need ? ';color:var(--muted)' : '') + '">' + esc(x.name) + '</span>' +
+        '<span style="white-space:nowrap"><b class="' + cls(x.delta) + '">' +
+          (x.need ? '–' : (x.delta >= 0 ? '+' : '') + usd(Math.abs(x.delta), 0).replace('$','') + ' $') +
+        '</b> <span class="mut">→ ' + sgn(x.net, 0) + '</span></span></div>' +
+        '<div class="bar" style="margin-top:6px"><i style="width:' + w.toFixed(0) + '%;background:' +
+          (x.delta >= 0 ? 'var(--up)' : 'var(--down)') + '"></i></div>' +
+        '<div class="mut" style="font-size:11.5px;margin-top:4px">' + esc(x.note) + '</div></div>';
+    }).join('');
+}
+
+function renderGrid(tr){
+  const {R} = riskUnit();
+  const measured = tr.filter(t => EXC.get(t.id));
+  if(measured.length < 10 || !(R > 0)){
+    $('#gridStatus').textContent = 'Dafür brauche ich die Ausschlagsmessung (Fakten → Ausschläge) ' +
+      'und einen geladenen Kontostand.';
+    $('#tblGrid thead').innerHTML = ''; $('#tblGrid tbody').innerHTML = '';
+    $('#gridBest').innerHTML = '';
+    return;
+  }
+  $('#gridStatus').textContent = measured.length + ' vermessene Trades · 1 R = ' + usd(R, 2);
+  const tps = [1, 1.5, 2, 2.5, 3, 4];
+  const sls = [0.5, 0.75, 1, 1.5, 2];
+  const actual = tr.reduce((s,t) => s + t.net, 0);
+
+  $('#tblGrid thead').innerHTML = '<tr><th>Stop ↓ / Ziel →</th>' +
+    tps.map(x => '<th>' + x + 'R</th>').join('') + '</tr>';
+  let best = null;
+  const body = sls.map(sl => '<tr><th>' + sl + 'R</th>' + tps.map(tp => {
+    const net = tr.reduce((s,t) => {
+      const r = replay(t, tp, sl, R);
+      return s + (r === null ? t.net : r);
+    }, 0);
+    if(!best || net > best.net) best = {net, tp, sl};
+    const d = net - actual;
+    const a = Math.min(.5, Math.abs(d) / (Math.abs(actual) + Math.abs(d) + 1) * .9);
+    return '<td style="background:rgba(' + (d >= 0 ? '15,138,95,' : '201,53,74,') + a.toFixed(2) +
+      ')"><b class="' + cls(net) + '">' + sgn(net, 0) + '</b></td>';
+  }).join('') + '</tr>').join('');
+  $('#tblGrid tbody').innerHTML = body;
+
+  $('#gridBest').innerHTML = best
+    ? '<div class="dl"><span>Bestes Raster-Ergebnis</span><span class="' + cls(best.net) +
+        '"><b>' + sgn(best.net, 2) + '</b></span></div>' +
+      '<div class="dl"><span>Dazugehörige Regel</span><span>Ziel ' + best.tp +
+        'R, Stop ' + best.sl + 'R</span></div>' +
+      '<div class="dl"><span>Unterschied zu heute</span><span class="' + cls(best.net - actual) +
+        '">' + sgn(best.net - actual, 2) + '</span></div>' +
+      '<div class="mut" style="font-size:12.5px;line-height:1.6;margin-top:10px">' +
+        'Das beste Feld eines Rasters ist immer auch ein Stück Zufall. Nimm es als Richtung, ' +
+        'nicht als Rezept — und schau, ob die Nachbarfelder ähnlich aussehen. Tun sie das nicht, ' +
+        'ist der Wert nicht stabil.</div>'
+    : '';
+}
+
 /* ---------- Tabs / Render ---------- */
+const GROUPS = [
+  {id:'facts', label:'Fakten', tabs:[['overview','Übersicht'],['trades','Trades'],
+    ['longshort','Long / Short'],['setups','Setups'],['behavior','Verhalten'],['excursion','Ausschläge']]},
+  {id:'lab', label:'Labor', tabs:[['labimpact','Wirkung'],['labexit','Exit & Stop'],['sim','Simulator']]},
+  {id:'plan', label:'Planung', tabs:[['plans','Pläne'],['calendar','Kalender']]},
+  {id:'acct', label:'Konto', tabs:[['positions','Guthaben'],['costs','Gebühren & Funding'],
+    ['tax','Steuer'],['settings','Daten']]}
+];
+const ALL_TABS = GROUPS.reduce((a,g) => a.concat(g.tabs.map(t => t[0])), []);
+function groupOf(tab){ return GROUPS.find(g => g.tabs.some(t => t[0] === tab)) || GROUPS[0]; }
+
+function renderNav(){
+  const g = groupOf(S.tab);
+  $('#groups').innerHTML = GROUPS.map(x =>
+    '<div class="tab' + (x.id === g.id ? ' on' : '') + '" data-g="' + x.id + '">' +
+    esc(x.label) + '</div>').join('');
+  $('#tabs').innerHTML = g.tabs.map(([id,label]) =>
+    '<div class="tab' + (id === S.tab ? ' on' : '') + '" data-t="' + id + '">' +
+    esc(label) + '</div>').join('');
+  $$('#groups [data-g]').forEach(el => el.addEventListener('click', () => {
+    const grp = GROUPS.find(x => x.id === el.dataset.g);
+    switchTab(grp.tabs[0][0]);
+  }));
+  $$('#tabs [data-t]').forEach(el =>
+    el.addEventListener('click', () => switchTab(el.dataset.t)));
+}
+
 function switchTab(t){
-  $$('.tab[data-t]').forEach(el => el.classList.toggle('on', el.dataset.t === t));
-  ['overview','trades','longshort','setups','plans','calendar','sim','costs','positions','settings'].forEach(v =>
-    $('#v-' + v).classList.toggle('hide', v !== t));
+  if(ALL_TABS.indexOf(t) < 0) t = 'overview';
+  S.tab = t;
+  renderNav();
+  ALL_TABS.forEach(v => {
+    const el = document.getElementById('v-' + v);
+    if(el) el.classList.toggle('hide', v !== t);
+  });
   $('#globalFilters').classList.toggle('hide',
-    ['settings','positions','plans','calendar','sim'].indexOf(t) >= 0);
+    ['settings','tax','positions','plans','calendar','sim'].indexOf(t) >= 0);
   if(t === 'sim' && !S.simDone){ S.simDone = true; renderSim(); }
+  if(t === 'labexit') renderGrid(filtered());
   window.scrollTo(0, 0);
 }
 
@@ -3310,6 +3861,10 @@ function renderAll(){
   const tr = filtered();
   renderKpis(tr);
   renderCharts(tr);
+  renderBehavior(tr);
+  renderExcursion(tr);
+  renderLab(tr);
+  if(S.tab === 'labexit') renderGrid(tr);
   renderOpen();
   renderTrades(tr);
   renderSetups(tr);
@@ -3323,6 +3878,24 @@ function renderAll(){
 
 /* ---------- Events ---------- */
 $('#btnRefresh').addEventListener('click', () => load(true));
+$('#riskPct').addEventListener('input', () => { renderLab(filtered()); renderGrid(filtered()); });
+$('#excRun').addEventListener('click', async () => {
+  if(EXC.running) return;
+  $('#excRun').disabled = true; $('#excStop').classList.remove('hide');
+  const r = await EXC.runAll((d, tot, failed) => {
+    $('#excStatus').innerHTML = '<span class="spin"></span> ' + d + ' von ' + tot + ' vermessen' +
+      (failed ? ' · ' + failed + ' ohne Kursdaten' : '');
+  });
+  $('#excRun').disabled = false; $('#excStop').classList.add('hide');
+  $('#excStatus').innerHTML = '<span class="up">✓ Fertig</span> · ' + r.done + ' verarbeitet' +
+    (r.failed ? ', ' + r.failed + ' ohne Kursdaten' : '');
+  renderExcursion(filtered()); renderLab(filtered());
+});
+$('#excStop').addEventListener('click', () => { EXC.cancel = true; });
+$('#excClear').addEventListener('click', () => {
+  if(!confirm('Alle gemessenen Ausschläge löschen?')) return;
+  EXC.clear(); renderExcursion(filtered()); renderLab(filtered());
+});
 $('#walletBtn').addEventListener('click', openWallets);
 $('#wOpen2').addEventListener('click', openWallets);
 $('#wClose').addEventListener('click', closeWallets);
@@ -3497,6 +4070,7 @@ try{
 S.wallets = loadWallets();
 S.notes = loadNotes();
 renderWalletBtn();
+renderNav();
 if(activeWallets().length){
   load(true);
 }else{
