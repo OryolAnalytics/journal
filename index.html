@@ -159,9 +159,10 @@ tbody tr:hover{background:var(--panel2)}
 .resrow b{font-weight:650}
 .resmk{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 7px}
 .chip .x{margin-left:7px;opacity:.6}
-#livePanel{margin-bottom:26px}
+#livePanel{margin-bottom:24px}
 #liveWatch{margin-bottom:2px}
-#kpis{margin-top:2px}
+#kpis,#dashTop{margin-bottom:22px}
+#dashTop{margin-top:2px}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(126px,1fr));gap:9px}
 .tile{cursor:pointer;transition:.12s}
 .tile:hover{border-color:var(--txt)}
@@ -179,6 +180,10 @@ tbody tr:hover{background:var(--panel2)}
 .lpos .lr b{font-size:16px;display:block}
 .flash{animation:fl .6s ease-out}
 @keyframes fl{from{background:rgba(13,125,111,.16)}to{background:transparent}}
+.stat{display:flex;gap:5px;flex:0 0 auto}
+.stat button{padding:4px 10px;font-size:11.5px;border-radius:999px;line-height:1.4}
+.stat button.on{background:var(--txt);border-color:var(--txt);color:#fff;font-weight:600}
+.stat button:hover{border-color:var(--txt)}
 .chips{display:flex;flex-wrap:wrap;gap:7px}
 .chip{padding:7px 13px;border:1px solid var(--line);border-radius:999px;background:var(--panel2);
   cursor:pointer;font-size:13px;user-select:none;transition:.12s}
@@ -277,7 +282,6 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   <!-- DASHBOARD -->
   <section id="v-dashboard">
     <div class="kpis" id="dashTop"></div>
-    <div id="dashReview"></div>
     <div class="panel" id="livePanel">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
         <h2 style="margin:0">Live <span id="liveDot" class="dot" style="display:inline-block;
@@ -896,7 +900,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 12.08.2026, 11:36</span><br>
+    <span class="build">Fassung 12.08.2026, 13:09</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1091,7 +1095,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Datenquelle: https://api.hyperliquid.xyz/info (öffentlich, kostenlos)
    ============================================================ */
 
-const BUILD = '12.08.2026, 11:36';
+const BUILD = '12.08.2026, 13:09';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -1105,7 +1109,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 12.08.2026, 11:36';
+      ' · Fassung 12.08.2026, 13:09';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -2823,6 +2827,38 @@ function imgUrl(u){
   return u;
 }
 
+/* Status eines Plans mit einem Klick setzen – aus jeder Ansicht heraus */
+function setPlanStatus(id, status){
+  const p = planEntries().find(x => x.id === id);
+  if(!p) return;
+  const neu = Object.assign({}, p);
+  delete neu.id; delete neu.updatedAt;
+  neu.status = (p.status || 'open') === status ? 'open' : status;
+  saveEntry(id, neu);
+  renderPlans();
+  renderDashboard();
+  renderCalendarTab();
+}
+/* Die drei Knöpfe, überall gleich */
+function statusButtons(p){
+  const st = p.status || 'open';
+  const b = (val, label, title) =>
+    '<button class="' + (st === val ? 'on' : '') + '" data-setstatus="' + esc(p.id) +
+    '" data-val="' + val + '" title="' + title + '">' + label + '</button>';
+  return '<span class="stat" onclick="event.stopPropagation()">' +
+    b('open', 'geplant', 'Wieder auf geplant setzen') +
+    b('done', '✓ umgesetzt', 'Als umgesetzt markieren') +
+    b('dropped', '✕ verworfen', 'Als verworfen markieren') +
+    '</span>';
+}
+function bindStatusButtons(root){
+  $$(root + ' [data-setstatus]').forEach(el => el.addEventListener('click', ev => {
+    ev.stopPropagation();
+    ev.preventDefault();
+    setPlanStatus(el.dataset.setstatus, el.dataset.val);
+  }));
+}
+
 function renderPlans(){
   const mode = $('#planFilter').value, sort = $('#planSort').value;
   let list = planEntries().filter(p => {
@@ -2869,11 +2905,13 @@ function renderPlans(){
         '</div>' +
       '</div>' +
       (p.note ? '<div class="txt">' + esc(p.note) + '</div>' : '') +
+      '<div style="margin-top:9px">' + statusButtons(p) + '</div>' +
       '</div>';
   }).join('');
   $('#planEmpty').classList.toggle('hide', list.length > 0);
   $$('#planList .plan').forEach(el =>
     el.addEventListener('click', () => openPlan(el.dataset.id)));
+  bindStatusButtons('#planList');
 }
 function planRR(p){
   const e = parseFloat(String(p.entry).replace(',','.'));
@@ -5366,47 +5404,9 @@ function renderDashTop(){
     (sub ? '<div class="s">' + sub + '</div>' : '') + '</div>').join('');
 }
 
-/* Fehlt der Rückblick auf die vergangene Woche?
-   Nur erinnern, wenn in der Woche tatsächlich gehandelt wurde – sonst ist es Lärm. */
-function reviewReminder(){
-  const lastWeek = Date.now() - 7 * 86400000;
-  const key = 'review:' + weekKey(lastWeek);
-  const n = S.notes[key];
-  if(n && !n.deleted) return null;
-  const {from, to} = weekRange(lastWeek);
-  const g = S.trades.filter(t => t.closeTime >= from && t.closeTime < to && !t.spot);
-  if(!g.length) return null;
-  const m = metrics(g);
-  return {when:lastWeek, kw:weekKey(lastWeek).slice(-2), n:m.n, net:m.net,
-    von:deDate(new Date(from).toISOString().slice(0,10)),
-    bis:deDate(new Date(to - 86400000).toISOString().slice(0,10))};
-}
-
 /* Der Rest des Dashboards – ändert sich nur, wenn Trades oder Pläne wechseln */
 function renderDashboard(){
   renderDashTop();
-
-  const rem = reviewReminder();
-  const rbox = $('#dashReview');
-  if(rbox){
-    rbox.innerHTML = rem
-      ? '<div class="panel" style="border-color:var(--txt)">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">' +
-        '<div><div style="font-weight:650;font-size:15px;margin-bottom:3px">' +
-          'Dein Rückblick auf KW ' + esc(rem.kw) + ' fehlt noch</div>' +
-        '<div class="mut" style="font-size:13px">' + rem.von + ' – ' + rem.bis + ' · ' +
-          rem.n + ' Trade' + (rem.n > 1 ? 's' : '') + ' · ' +
-          '<span class="' + cls(rem.net) + '">' + sgn(rem.net, 2) + '</span></div></div>' +
-        '<button class="primary" id="dashRevGo">Jetzt schreiben</button>' +
-        '</div></div>'
-      : '';
-    const go = document.getElementById('dashRevGo');
-    if(go) go.addEventListener('click', () => {
-      S.revWeek = rem.when;
-      renderReview();
-      switchTab('review');
-    });
-  }
 
   // Anstehendes aus Planung und Kalender
   const today = new Date().toISOString().slice(0,10);
@@ -5443,8 +5443,9 @@ function renderDashboard(){
           (p.entry ? 'Einstieg ' + esc(p.entry) + ' · ' : '') +
           (p.stop ? 'Stop ' + esc(p.stop) + ' · ' : '') +
           (rr ? 'CRV ' + rr + ' : 1' : '') + '</span>' +
-        '<span class="lr"><span class="' + (x.sort === 0 ? 'down' : x.sort === 1 ? 'up' : 'mut') + '">' +
-          esc(x.status) + '</span></span></div>';
+        '<span class="lr" style="display:flex;align-items:center;gap:10px">' +
+          '<span class="' + (x.sort === 0 ? 'down' : x.sort === 1 ? 'up' : 'mut') + '">' +
+          esc(x.status) + '</span>' + statusButtons(p) + '</span></div>';
     }
     const e = x.obj;
     return '<div class="lpos" data-event="' + esc(e.id) + '">' +
@@ -5457,6 +5458,7 @@ function renderDashboard(){
 
   $$('#dashNext [data-plan]').forEach(el =>
     el.addEventListener('click', () => openPlan(el.dataset.plan)));
+  bindStatusButtons('#dashNext');
   $$('#dashNext [data-event]').forEach(el =>
     el.addEventListener('click', () => openEvent(el.dataset.event)));
 
