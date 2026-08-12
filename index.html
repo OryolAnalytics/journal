@@ -303,6 +303,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         </div>
       </div>
     </div>
+    <div id="coverWarn"></div>
     <div class="kpis" id="kpis"></div>
     <div class="panel" style="margin-top:14px">
       <h2>Verlauf</h2>
@@ -851,9 +852,9 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     <div class="panel">
       <h2>Archiv — schützt deine Historie</h2>
       <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
-        Hyperliquid gibt über die Schnittstelle nur die letzten 10.000 Ausführungen heraus. Ältere
-        fallen irgendwann hinten raus. Sichere dein Archiv ab und zu als Datei — beim Einlesen
-        werden alte und neue Daten zusammengeführt, nichts geht verloren und nichts doppelt sich.
+        Hyperliquid gibt über die Schnittstelle nur die letzten 10.000 Ausführungen heraus. Alles,
+        was du schon geladen hast, bleibt aber lokal gespeichert — deine Historie wächst also
+        darüber hinaus weiter. Ein Archiv als Datei schützt zusätzlich bei Gerätewechsel.
       </p>
       <div id="archInfo" style="font-size:13px;margin-bottom:12px"></div>
       <div class="filters">
@@ -874,7 +875,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 11.08.2026, 20:13</span><br>
+    <span class="build">Fassung 12.08.2026, 11:21</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1069,7 +1070,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Datenquelle: https://api.hyperliquid.xyz/info (öffentlich, kostenlos)
    ============================================================ */
 
-const BUILD = '11.08.2026, 20:13';
+const BUILD = '12.08.2026, 11:21';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -1083,7 +1084,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 11.08.2026, 20:13';
+      ' · Fassung 12.08.2026, 11:21';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -1793,19 +1794,213 @@ function randomKey(){
   return Array.from(a).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
+/* Zwei Listen von Ausführungen ohne Doppelte zusammenführen */
+function mergeFills(a, b){
+  const seen = new Set(), out = [];
+  for(const f of (a || []).concat(b || [])){
+    const k = (f.tid != null ? f.tid : (f.hash + '|' + f.oid + '|' + f.time + '|' + f.px + '|' + f.sz));
+    if(!seen.has(k)){ seen.add(k); out.push(f); }
+  }
+  out.sort((x,y) => x.time - y.time);
+  return out;
+}
+
+/* ---------- Großer Browserspeicher (IndexedDB) ----------
+   localStorage fasst rund 5 MB. IndexedDB bekommt vom Browser einen Anteil des
+   freien Festplattenplatzes – in der Praxis Hunderte MB bis mehrere GB.
+   Fällt IndexedDB aus, arbeitet alles wie bisher mit localStorage weiter.      */
+const CACHE = {
+  db:null, ready:null, mode:'localStorage', info:{},
+
+  open(){
+    if(this.ready) return this.ready;
+    this.ready = new Promise(resolve => {
+      const idb = (typeof indexedDB !== 'undefined') ? indexedDB : null;
+      if(!idb){ this.mode = 'localStorage'; return resolve(false); }
+      let req;
+      try{ req = idb.open('oryol', 1); }
+      catch(e){ this.mode = 'localStorage'; return resolve(false); }
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if(!db.objectStoreNames.contains('fills')) db.createObjectStore('fills', {keyPath:'addr'});
+      };
+      req.onsuccess = () => {
+        this.db = req.result;
+        this.mode = 'indexedDB';
+        this.migrate().then(() => resolve(true)).catch(() => resolve(true));
+      };
+      req.onerror = () => { this.mode = 'localStorage'; resolve(false); };
+      setTimeout(() => { if(!this.db){ this.mode = 'localStorage'; resolve(false); } }, 3000);
+    });
+    return this.ready;
+  },
+  tx(mode){
+    return this.db.transaction('fills', mode).objectStore('fills');
+  },
+  /* Bestand aus dem alten Speicher einmalig übernehmen */
+  async migrate(){
+    const keys = [];
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && k.indexOf('hlj_cache_') === 0) keys.push(k);
+    }
+    for(const k of keys){
+      const addr = k.slice('hlj_cache_'.length);
+      try{
+        const c = JSON.parse(localStorage.getItem(k) || 'null');
+        if(c && Array.isArray(c.fills) && c.fills.length){
+          const alt = await this.getRaw(addr);
+          const merged = alt ? mergeFills(alt.fills, c.fills) : c.fills;
+          await this.put(addr, merged);
+          // Erst löschen, wenn die Übernahme nachweislich geklappt hat
+          const check = await this.getRaw(addr);
+          if(!check || check.fills.length < c.fills.length) continue;
+        }
+        localStorage.removeItem(k);
+      }catch(e){}
+    }
+  },
+  /* Nur der große Speicher, ohne Rückfall – für die Übernahme wichtig,
+     sonst vergliche sie den alten Bestand mit sich selbst. */
+  getRaw(addr){
+    if(this.mode !== 'indexedDB' || !this.db) return Promise.resolve(null);
+    return new Promise(resolve => {
+      try{
+        const r = this.tx('readonly').get(addr);
+        r.onsuccess = () => resolve((r.result && Array.isArray(r.result.fills)) ? r.result : null);
+        r.onerror = () => resolve(null);
+      }catch(e){ resolve(null); }
+    });
+  },
+  get(addr){
+    if(this.mode !== 'indexedDB' || !this.db) return Promise.resolve(readCacheLS(addr));
+    return new Promise(resolve => {
+      try{
+        const r = this.tx('readonly').get(addr);
+        r.onsuccess = () => {
+          const v = (r.result && Array.isArray(r.result.fills)) ? r.result : null;
+          // Falls früher auf den kleinen Speicher ausgewichen wurde, dort nachsehen
+          resolve(v || readCacheLS(addr));
+        };
+        r.onerror = () => resolve(readCacheLS(addr));
+      }catch(e){ resolve(readCacheLS(addr)); }
+    });
+  },
+  put(addr, fills){
+    S.cacheState = S.cacheState || {};
+    if(this.mode !== 'indexedDB' || !this.db){
+      writeCacheLS(addr, fills);
+      return Promise.resolve();
+    }
+    return new Promise(resolve => {
+      try{
+        const r = this.tx('readwrite').put({addr, t:Date.now(), fills});
+        r.onsuccess = () => {
+          S.cacheState[addr] = {stored:fills.length, wanted:fills.length, trimmed:false, ok:true};
+          resolve();
+        };
+        r.onerror = () => {
+          // Kein Platz mehr – auf den kleinen Speicher ausweichen
+          writeCacheLS(addr, fills);
+          resolve();
+        };
+      }catch(e){ writeCacheLS(addr, fills); resolve(); }
+    });
+  },
+  del(addr){
+    if(this.mode !== 'indexedDB' || !this.db){
+      try{ localStorage.removeItem(LS.cache(addr)); }catch(e){}
+      return Promise.resolve();
+    }
+    return new Promise(resolve => {
+      try{ const r = this.tx('readwrite').delete(addr); r.onsuccess = r.onerror = () => resolve(); }
+      catch(e){ resolve(); }
+    });
+  },
+  /* Belegung für die Anzeige – wird nach dem Laden aufgefrischt */
+  async refreshInfo(){
+    const out = {mode:this.mode, wallets:{}, fills:0, bytes:0};
+    for(const w of S.wallets){
+      const c = await this.get(w.addr);
+      const n = c ? c.fills.length : 0;
+      out.wallets[w.addr] = n;
+      out.fills += n;
+      if(n) out.bytes += JSON.stringify(c.fills).length;
+    }
+    let other = 0;
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && k.indexOf('hlj_') === 0) other += (localStorage.getItem(k) || '').length;
+    }
+    out.other = other;
+    // Echtes Kontingent des Browsers, wenn verfügbar
+    try{
+      if(navigator.storage && navigator.storage.estimate){
+        const est = await navigator.storage.estimate();
+        out.quota = est.quota; out.usage = est.usage;
+      }
+    }catch(e){}
+    try{
+      if(navigator.storage && navigator.storage.persisted){
+        out.persisted = await navigator.storage.persisted();
+      }
+    }catch(e){}
+    this.info = out;
+    return out;
+  },
+  async requestPersist(){
+    try{
+      if(navigator.storage && navigator.storage.persist) return await navigator.storage.persist();
+    }catch(e){}
+    return false;
+  }
+};
+
 /* ---------- Cache ---------- */
-function readCache(a){
+function readCacheLS(a){
   try{
     const c = JSON.parse(localStorage.getItem(LS.cache(a)) || 'null');
     if(c && Array.isArray(c.fills)) return c;
   }catch(e){}
   return null;
 }
-function writeCache(a, fills){
-  try{
-    const trimmed = fills.slice(-25000);
-    localStorage.setItem(LS.cache(a), JSON.stringify({t:Date.now(), fills:trimmed}));
-  }catch(e){ /* Quota – nicht schlimm, dann eben immer frisch laden */ }
+/* Speichert die Ausführungen lokal. Läuft der Browserspeicher voll, wird
+   schrittweise gekürzt – und das Ergebnis festgehalten, statt es zu verschweigen. */
+function writeCacheLS(a, fills){
+  // Erst alles versuchen, dann halbieren, bis es in den Speicher passt
+  const stufen = [Math.min(fills.length, 25000)];
+  while(stufen[stufen.length-1] > 100) stufen.push(Math.floor(stufen[stufen.length-1] / 2));
+  for(const n of stufen){
+    const part = fills.slice(-n);
+    try{
+      localStorage.setItem(LS.cache(a), JSON.stringify({t:Date.now(), fills:part}));
+      S.cacheState = S.cacheState || {};
+      S.cacheState[a] = {stored:part.length, wanted:fills.length,
+        trimmed:part.length < fills.length, ok:true};
+      return;
+    }catch(e){ /* zu groß – nächstkleinere Menge versuchen */ }
+  }
+  S.cacheState = S.cacheState || {};
+  S.cacheState[a] = {stored:0, wanted:fills.length, trimmed:true, ok:false};
+}
+/* Wie viel Platz belegt der Zwischenspeicher? */
+function cacheSizeLS(){
+  let bytes = 0, fills = 0;
+  for(const w of S.wallets){
+    const raw = localStorage.getItem(LS.cache(w.addr));
+    if(!raw) continue;
+    bytes += raw.length;
+    const c = readCache(w.addr);
+    if(c) fills += c.fills.length;
+  }
+  let other = 0;
+  for(let i = 0; i < localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(k && k.indexOf('hlj_') === 0 && k.indexOf('hlj_cache_') !== 0){
+      other += (localStorage.getItem(k) || '').length;
+    }
+  }
+  return {bytes, fills, other, total:bytes + other};
 }
 
 /* ---------- Wallet-Verwaltung ---------- */
@@ -1843,7 +2038,7 @@ function renderWalletBtn(){
 
 /* ---------- Laden (eine oder mehrere Wallets) ---------- */
 async function loadOne(addr, incremental){
-  const cache = incremental ? readCache(addr) : null;
+  const cache = incremental ? await CACHE.get(addr) : null;
   let base = cache ? cache.fills : [];
   let from = 0;
   if(base.length){
@@ -1859,7 +2054,7 @@ async function loadOne(addr, incremental){
     if(!seen.has(k)){ seen.add(k); fills.push(f); }
   }
   fills.sort((x,y) => x.time - y.time);
-  writeCache(addr, fills);
+  await CACHE.put(addr, fills);
 
   const [pos, port, fund, led, spot, vaults, stake, subs, fees] = await Promise.all([
     info({type:'clearinghouseState', user:addr}).catch(() => null),
@@ -1922,6 +2117,7 @@ async function load(incremental){
   S.notes = loadNotes();
 
   try{
+    await CACHE.open();
     setStatus('<span class="spin"></span> Lade Kursdaten…');
     const sMeta = await info({type:'spotMetaAndAssetCtxs'}).catch(() => null);
     S.spotPrices = buildSpotPrices(sMeta);
@@ -1937,6 +2133,7 @@ async function load(incremental){
 
     // Zusammenführen
     S.fills   = [].concat.apply([], data.map(d => d.fills));
+    S.oldestFill = S.fills.length ? Math.min.apply(null, S.fills.map(f => num(f.time))) : null;
     S.trades  = [].concat.apply([], data.map(d => d.trades)).sort((a,b) => a.closeTime - b.closeTime);
     S.openTrades = [].concat.apply([], data.map(d => d.openTrades));
     S.funding = [].concat.apply([], data.map(d => d.funding));
@@ -1953,6 +2150,7 @@ async function load(incremental){
     S.portfolio = [['allTime', {accountValueHistory: mergeHistories(data.map(d => acctHistoryOf(d.portfolio))),
       pnlHistory:[]}]];
     S.totals = computeTotals();
+    await CACHE.refreshInfo();
 
     fillCoinFilter();
     renderWalletBtn();
@@ -1966,7 +2164,9 @@ async function load(incremental){
     if(SYNC.active()) SYNC.run({});
     LIVE.start();
     const act2 = activeWallets();
-    setStatus(S.fills.length + ' Fills · ' + S.trades.length + ' abgeschlossene Trades · ' +
+    const cov0 = historyCoverage();
+    setStatus((cov0.incomplete ? '<span class="warn">⚠ Historie unvollständig</span> · ' : '') +
+      S.fills.length + ' Fills · ' + S.trades.length + ' abgeschlossene Trades · ' +
       (act2.length === 1 ? esc(act2[0].label) : act2.length + ' Wallets zusammengefasst') +
       ' · Stand ' + new Date().toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}));
   }catch(e){
@@ -2032,9 +2232,31 @@ function renderKpis(tr){
     ? (srcs.length === 1 ? 'Quelle: ' + srcs[0].label
         : srcs.map(x => x.label + ' ' + usd(x.v, 0)).join(' · '))
     : 'kein Bereich aktiviert';
+  const cov = historyCoverage();
+  const warnBox = $('#coverWarn');
+  if(warnBox){
+    warnBox.innerHTML = cov.incomplete
+      ? '<div class="err"><b>Die Trade-Historie ist unvollständig.</b> ' +
+        (cov.nearLimit
+          ? 'Hyperliquid gibt über die Schnittstelle nur die letzten ' +
+            FILL_LIMIT.toLocaleString('de-DE') + ' Ausführungen heraus — bei diesem Konto ist die ' +
+            'Grenze erreicht. '
+          : 'Der Kontoverlauf beginnt rund ' + Math.round(cov.gapDays) + ' Tage vor der ältesten ' +
+            'geladenen Ausführung. ') +
+        'Alle Auswertungen unten beziehen sich deshalb <b>nur auf die geladenen ' +
+        S.trades.length + ' Trades</b>, nicht auf die gesamte Kontohistorie. ' +
+        'Das Gesamtergebnis des Kontos steht daneben als eigene Kachel.</div>'
+      : '';
+  }
+
   const items = [
     ['Account Value', T ? usd(T.total, 2) : '–', sub, ''],
-    ['Realisierter PnL', sgn(m.net), 'netto nach Gebühren und Funding', cls(m.net)],
+    ['Realisierter PnL', sgn(m.net),
+      cov.incomplete ? 'nur aus den geladenen Trades' : 'netto nach Gebühren und Funding',
+      cls(m.net)],
+    (cov.totalPnl !== null && cov.incomplete
+      ? ['PnL laut Hyperliquid', sgn(cov.totalPnl), 'gesamtes Konto, alle Zeiten', cls(cov.totalPnl)]
+      : null),
     ['Ergebnis in R', R > 0 ? fmtR(m.net / R) : '–',
       R > 0 ? '1 R = ' + usd(R, 0) : 'Kontostand fehlt', cls(m.net)],
     ['Trades', m.n, m.wins + ' W / ' + m.losses + ' L', ''],
@@ -2054,9 +2276,28 @@ function renderKpis(tr){
     ['Beste Serie', m.streakW + ' Gewinne', '', 'up'],
     ['Schlechteste Serie', m.streakL + ' Verluste', '', 'down']
   ];
-  $('#kpis').innerHTML = items.map(([k, v, s, c]) =>
+  $('#kpis').innerHTML = items.filter(Boolean).map(([k, v, s, c]) =>
     '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
     (s ? '<div class="s">' + s + '</div>' : '') + '</div>').join('');
+}
+
+/* Wie vollständig ist unsere Trade-Historie überhaupt?
+   Hyperliquid gibt nur die letzten 10.000 Ausführungen heraus.        */
+const FILL_LIMIT = 10000;
+function historyCoverage(){
+  const h = portfolioHistory();
+  const acct = h.acct || [];
+  const pnl = h.pnl || [];
+  const firstFill = S.fills.length ? num(S.fills[0].time) : null;
+  const firstAcct = acct.length ? num(acct[0][0]) : null;
+  // Gesamtergebnis laut Hyperliquid: letzter Wert der PnL-Reihe
+  const totalPnl = pnl.length ? num(pnl[pnl.length - 1][1]) : null;
+  const nearLimit = S.fills.length >= FILL_LIMIT - 200;
+  // Beginnt der Kontoverlauf deutlich früher als unsere erste Ausführung?
+  const gapDays = (firstFill && firstAcct && firstFill > firstAcct)
+    ? (firstFill - firstAcct) / 86400000 : 0;
+  return {firstFill, firstAcct, totalPnl, nearLimit, gapDays,
+    incomplete: nearLimit || gapDays > 2};
 }
 
 function portfolioHistory(){
@@ -5095,39 +5336,81 @@ function packNote(text, img){
 
 /* ---------- Archiv ---------- */
 function archiveStats(){
-  let fills = 0, oldest = Infinity;
-  for(const w of S.wallets){
-    const c = readCache(w.addr);
-    if(!c || !c.fills.length) continue;
-    fills += c.fills.length;
-    if(c.fills[0].time < oldest) oldest = c.fills[0].time;
-  }
-  return {fills, oldest:isFinite(oldest) ? oldest : null,
+  const info = CACHE.info || {};
+  return {fills:info.fills || 0, oldest:S.oldestFill || null,
     notes:Object.keys(S.notes).length};
 }
 function renderArchive(){
   const a = archiveStats();
   const box = $('#archInfo');
   if(!box) return;
+  const i = CACHE.info || {};
+  const mb = v => v == null ? '–' : (v / 1048576).toFixed(v > 10485760 ? 0 : 2).replace('.', ',') + ' MB';
+  const gb = v => v == null ? '–' : (v / 1073741824).toFixed(1).replace('.', ',') + ' GB';
+  const gross = i.mode === 'indexedDB';
+  const bad = Object.values(S.cacheState || {}).filter(x => !x.ok);
+  const cut = Object.values(S.cacheState || {}).filter(x => x.ok && x.trimmed);
+  const platz = i.quota ? (i.quota - (i.usage || 0)) : null;
+
   box.innerHTML =
     '<div class="dl"><span>Gespeicherte Ausführungen</span><span><b>' +
-      a.fills.toLocaleString('de-DE') + '</b></span></div>' +
-    '<div class="dl"><span>Älteste davon</span><span>' +
-      (a.oldest ? dt(a.oldest) : '–') + '</span></div>' +
+      (a.fills || 0).toLocaleString('de-DE') + '</b></span></div>' +
+    '<div class="dl"><span>Älteste davon</span><span>' + (a.oldest ? dt(a.oldest) : '–') + '</span></div>' +
     '<div class="dl"><span>Notizen, Pläne, Termine</span><span>' + a.notes + '</span></div>' +
-    (a.fills > 8000
-      ? '<div class="err" style="margin-top:10px">Du näherst dich der Grenze von 10.000 ' +
-        'Ausführungen, ab der Hyperliquid ältere Daten nicht mehr herausgibt. Sichere dein ' +
-        'Archiv jetzt.</div>'
+    '<div class="dl"><span>Speicherart</span><span>' +
+      (gross ? '<span class="up">großer Browserspeicher</span>' :
+       '<span class="warn">kleiner Speicher (max. ca. 5 MB)</span>') + '</span></div>' +
+    '<div class="dl"><span>Belegt durch Oryol</span><span>' + mb(i.bytes) +
+      ' <span class="mut">Trades</span> · ' + mb(i.other) + ' <span class="mut">Rest</span></span></div>' +
+    (i.quota
+      ? '<div class="dl"><span>Vom Browser freigegeben</span><span>' +
+        (i.quota > 1073741824 ? gb(i.quota) : mb(i.quota)) +
+        ' <span class="mut">· noch frei ' +
+        (platz > 1073741824 ? gb(platz) : mb(platz)) + '</span></span></div>'
+      : '') +
+    (i.persisted === false
+      ? '<div class="dl"><span>Dauerhaft geschützt</span><span><a href="#" id="persistAsk">' +
+        'jetzt anfordern</a></span></div>'
+      : i.persisted === true
+      ? '<div class="dl"><span>Dauerhaft geschützt</span><span class="up">ja</span></div>'
+      : '') +
+
+    (bad.length
+      ? '<div class="err" style="margin-top:10px"><b>Der Speicher ist voll.</b> Neue Ausführungen ' +
+        'konnten nicht abgelegt werden. Sichere jetzt dein Archiv als Datei.</div>'
+      : cut.length
+      ? '<div class="err" style="margin-top:10px"><b>Der Bestand wurde gekürzt.</b> Es passen nicht ' +
+        'alle Ausführungen in den Speicher; die ältesten wurden weggelassen. Sichere dein Archiv.</div>'
+      : !gross && a.fills > 8000
+      ? '<div class="err" style="margin-top:10px">Du näherst dich der Grenze des kleinen Speichers. ' +
+        'Lade die Seite neu — dann wird auf den großen umgestellt.</div>'
+      : gross
+      ? '<div class="mut" style="font-size:12.5px;margin-top:10px">Deine Historie liegt im großen ' +
+        'Browserspeicher. Der Platz reicht für weit über hunderttausend Ausführungen. Ein Archiv ' +
+        'als Datei schützt zusätzlich bei Gerätewechsel und wenn du Browserdaten löschst.</div>'
       : '');
+
+  const pa = document.getElementById('persistAsk');
+  if(pa) pa.addEventListener('click', async ev => {
+    ev.preventDefault();
+    const okp = await CACHE.requestPersist();
+    await CACHE.refreshInfo();
+    renderArchive();
+    $('#archStatus').innerHTML = okp
+      ? '<span class="up">✓</span> Der Browser schützt deine Daten jetzt vor automatischem Löschen.'
+      : '<span class="warn">Der Browser hat den Schutz nicht gewährt.</span> Das ist normal, ' +
+        'wenn die Seite selten benutzt wird — sichere dann lieber regelmäßig dein Archiv.';
+  });
 }
-function archiveExport(){
+
+async function archiveExport(){
+  const wl = [];
+  for(const w of S.wallets){
+    const c = await CACHE.get(w.addr);
+    wl.push({addr:w.addr, label:w.label, fills:(c && c.fills) || []});
+  }
   const payload = {app:'oryol-journal', kind:'archiv', version:1,
-    exportedAt:new Date().toISOString(),
-    wallets:S.wallets.map(w => {
-      const c = readCache(w.addr);
-      return {addr:w.addr, label:w.label, fills:(c && c.fills) || []};
-    }),
+    exportedAt:new Date().toISOString(), wallets:wl,
     notes:S.notes, tags:S.tags};
   const n = payload.wallets.reduce((s,w) => s + w.fills.length, 0);
   download('oryol-archiv-' + new Date().toISOString().slice(0,10) + '.json',
@@ -5137,7 +5420,7 @@ function archiveExport(){
 }
 function archiveImport(file){
   const r = new FileReader();
-  r.onload = () => {
+  r.onload = async () => {
     try{
       const d = JSON.parse(r.result);
       if(!d || !Array.isArray(d.wallets)) throw new Error('Das ist keine Archivdatei.');
@@ -5149,7 +5432,7 @@ function archiveImport(file){
           S.wallets.push({id:'w' + Date.now().toString(36) + S.wallets.length,
             addr, label:w.label || ('Wallet ' + (S.wallets.length + 1)), on:false});
         }
-        const cur = readCache(addr);
+        const cur = await CACHE.get(addr);
         const seen = new Set(), merged = [];
         for(const f of ((cur && cur.fills) || []).concat(w.fills || [])){
           const k = (f.tid != null ? f.tid : (f.hash + '|' + f.oid + '|' + f.time + '|' + f.px + '|' + f.sz));
@@ -5157,7 +5440,7 @@ function archiveImport(file){
         }
         merged.sort((x,y) => x.time - y.time);
         added += merged.length - (((cur && cur.fills) || []).length);
-        writeCache(addr, merged);
+        await CACHE.put(addr, merged);
       }
       for(const k in (d.notes || {})){
         const inc = d.notes[k], ex = S.notes[k];
@@ -5795,6 +6078,8 @@ $('#btnSaveTags').addEventListener('click', () => {
 });
 
 /* Steuer, Sicherung, Archiv, Cache */
+$('#taxRun').addEventListener('click', runTax);
+
 function taxDownload(name, build){
   if(!S.taxResult){
     $('#taxStatus').innerHTML = '<span class="warn">Bitte zuerst auf ' +
@@ -5813,8 +6098,8 @@ $('#fileImport').addEventListener('change', e => { if(e.target.files[0]) importN
 $('#archExport').addEventListener('click', archiveExport);
 $('#archImport').addEventListener('click', () => $('#archFile').click());
 $('#archFile').addEventListener('change', e => { if(e.target.files[0]) archiveImport(e.target.files[0]); });
-$('#btnClearCache').addEventListener('click', () => {
-  if(S.addr) localStorage.removeItem(LS.cache(S.addr));
+$('#btnClearCache').addEventListener('click', async () => {
+  for(const w of S.wallets) await CACHE.del(w.addr);
   load(false);
 });
 ['#simCap','#simRisk','#simWin','#simRR','#simN','#simRuns','#simCompound'].forEach(sel =>
