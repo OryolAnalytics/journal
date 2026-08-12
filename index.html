@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#ffffff" id="themeColor">
 <title>Oryol</title>
 <link rel="icon" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -22,7 +22,25 @@
   --up:#0f8a5f; --down:#c9354a; --warn:#b45309;
   --upBg:rgba(15,138,95,.10); --downBg:rgba(201,53,74,.10);
   --shadow:0 1px 2px rgba(16,24,40,.05);
+  --onTxt:#fff;                 /* Schrift auf dunklem Knopf */
+  --headBg:rgba(255,255,255,.92);
+  --errBg:#fdeaec; --errTxt:#8e1f30; --errLine:rgba(201,53,74,.35);
+  --logoInvert:0;
   --r:12px;
+}
+
+/* Dunkle Ansicht – wird nur aktiv, wenn sie in den Einstellungen gewählt ist.
+   Die helle Ansicht bleibt davon vollständig unberührt.                      */
+:root[data-theme="dark"]{
+  --bg:#0f1216; --panel:#171b21; --panel2:#1e232b; --line:#2b323c;
+  --txt:#e8ecf1; --muted:#9aa5b4; --acc:#3ec9b4; --acc2:#5b9bff;
+  --up:#3ecf8e; --down:#f2606f; --warn:#e0a84a;
+  --upBg:rgba(62,207,142,.13); --downBg:rgba(242,96,111,.13);
+  --shadow:0 1px 2px rgba(0,0,0,.35);
+  --onTxt:#0f1216;
+  --headBg:rgba(15,18,22,.92);
+  --errBg:#2a1a1e; --errTxt:#ffb3bd; --errLine:rgba(242,96,111,.35);
+  --logoInvert:1;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
@@ -30,18 +48,19 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
   -webkit-text-size-adjust:100%}
 body{padding-bottom:60px}
 a{color:var(--acc)}
-.crash{position:sticky;top:0;z-index:300;background:#fdeaec;border-bottom:1px solid rgba(201,53,74,.35);
-  color:#8e1f30;font-size:13.5px}
+.crash{position:sticky;top:0;z-index:300;background:var(--errBg);border-bottom:1px solid var(--errLine);
+  color:var(--errTxt);font-size:13.5px}
 .crashin{max-width:1240px;margin:0 auto;padding:11px 14px;display:flex;gap:12px;
   align-items:center;justify-content:space-between;flex-wrap:wrap}
 .crashact{display:flex;gap:7px}
-.crashact button{padding:5px 11px;font-size:12.5px;background:#fff}
+.crashact button{padding:5px 11px;font-size:12.5px;background:var(--panel)}
 .build{color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
 .wrap{max-width:1240px;margin:0 auto;padding:14px}
-header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);
+header{position:sticky;top:0;z-index:50;background:var(--headBg);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--line)}
 .hd{display:flex;gap:10px;align-items:center;padding:12px 14px 8px;max-width:1240px;margin:0 auto}
-.logo{height:22px;width:auto;display:block;flex:0 0 auto;opacity:.95}
+.logo{height:22px;width:auto;display:block;flex:0 0 auto;opacity:.95;
+  filter:invert(var(--logoInvert))}
 .navrow{display:flex;align-items:center;gap:12px;max-width:1240px;margin:0 auto;padding:0 14px 8px}
 .navrow #groups{flex:1;min-width:0;padding:0;margin:0}
 .hdright{display:flex;gap:8px;align-items:center;flex:0 0 auto}
@@ -53,8 +72,8 @@ input[type=text]:focus,select:focus,textarea:focus{border-color:var(--acc)}
 button{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:10px;
   padding:9px 14px;cursor:pointer;transition:.15s}
 button:hover{border-color:var(--acc);color:var(--acc)}
-button.primary{background:var(--txt);border-color:var(--txt);color:#fff;font-weight:600}
-button.primary:hover{filter:brightness(1.35);color:#fff}
+button.primary{background:var(--txt);border-color:var(--txt);color:var(--onTxt);font-weight:600}
+button.primary:hover{filter:brightness(1.35);color:var(--onTxt)}
 button:disabled{opacity:.5;cursor:not-allowed}
 .tabs{display:flex;gap:6px;overflow-x:auto;padding:0 14px 8px;max-width:1240px;margin:0 auto;
   scrollbar-width:none}
@@ -65,7 +84,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .tabs::-webkit-scrollbar{display:none}
 .tab{padding:7px 14px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);
   cursor:pointer;white-space:nowrap;font-size:13px;color:var(--muted)}
-.tab.on{background:var(--txt);border-color:var(--txt);color:#fff;font-weight:600}
+.tab.on{background:var(--txt);border-color:var(--txt);color:var(--onTxt);font-weight:600}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
 .panel h2{margin:0 0 12px;font-size:14px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px}
@@ -91,7 +110,7 @@ tbody tr:hover{background:var(--panel2)}
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
 .cal .dow{text-align:center;font-size:10px;color:var(--muted);padding:3px 0;text-transform:uppercase}
-.cell{aspect-ratio:1;border-radius:8px;background:#fff;border:1px solid var(--line);
+.cell{aspect-ratio:1;border-radius:8px;background:var(--panel);border:1px solid var(--line);
   padding:4px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
 .cell .d{font-size:10px;color:var(--muted);font-weight:600}
 .cell .p{font-size:10px;font-weight:700;line-height:1.1;word-break:break-all}
@@ -113,12 +132,12 @@ tbody tr:hover{background:var(--panel2)}
 .stars{display:flex;gap:6px}
 .star{flex:1;padding:8px;text-align:center;border:1px solid var(--line);border-radius:9px;
   background:var(--panel2);cursor:pointer;font-size:14px}
-.star.on{background:var(--txt);color:#fff;border-color:var(--txt);font-weight:600}
+.star.on{background:var(--txt);color:var(--onTxt);border-color:var(--txt);font-weight:600}
 .bar{height:7px;background:var(--panel2);border-radius:4px;overflow:hidden}
 .bar i{display:block;height:100%;border-radius:4px}
 #status{font-size:12px;color:var(--muted);padding:0 14px 8px;max-width:1240px;margin:0 auto}
 .empty-state{text-align:center;padding:40px 16px;color:var(--muted);font-size:14px;line-height:1.6}
-.err{background:var(--downBg);border:1px solid rgba(201,53,74,.3);color:#8e1f30;
+.err{background:var(--errBg);border:1px solid var(--errLine);color:var(--errTxt);
   padding:12px 14px;border-radius:11px;font-size:13px;line-height:1.5;margin-bottom:12px}
 .hide{display:none!important}
 .spin{display:inline-block;width:11px;height:11px;border:2px solid var(--line);
@@ -143,7 +162,7 @@ tbody tr:hover{background:var(--panel2)}
 .wact{display:flex;gap:5px;flex:0 0 auto}
 .wact button{padding:5px 9px;font-size:12px}
 .mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:9px}
-.mcell{border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:#fff}
+.mcell{border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:var(--panel)}
 .mcell .mn{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:4px}
 .mcell .mv{font-size:17px;font-weight:650;letter-spacing:-.2px}
 .mcell .ms{font-size:11px;color:var(--muted);margin-top:2px}
@@ -182,13 +201,13 @@ tbody tr:hover{background:var(--panel2)}
 @keyframes fl{from{background:rgba(13,125,111,.16)}to{background:transparent}}
 .stat{display:flex;gap:5px;flex:0 0 auto}
 .stat button{padding:4px 10px;font-size:11.5px;border-radius:999px;line-height:1.4}
-.stat button.on{background:var(--txt);border-color:var(--txt);color:#fff;font-weight:600}
+.stat button.on{background:var(--txt);border-color:var(--txt);color:var(--onTxt);font-weight:600}
 .stat button:hover{border-color:var(--txt)}
 .chips{display:flex;flex-wrap:wrap;gap:7px}
 .chip{padding:7px 13px;border:1px solid var(--line);border-radius:999px;background:var(--panel2);
   cursor:pointer;font-size:13px;user-select:none;transition:.12s}
 .chip:hover{border-color:var(--txt)}
-.chip.on{background:var(--txt);border-color:var(--txt);color:#fff;font-weight:600}
+.chip.on{background:var(--txt);border-color:var(--txt);color:var(--onTxt);font-weight:600}
 .chipsempty{font-size:13px;color:var(--muted)}
 .simgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
 .plan{border:1px solid var(--line);border-radius:11px;padding:13px 14px;margin-bottom:10px;
@@ -855,6 +874,15 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
 
   <section id="v-settings" class="hide">
     <div class="panel">
+      <h2>Darstellung</h2>
+      <div class="filters">
+        <button class="tab" data-theme-set="light">Hell</button>
+        <button class="tab" data-theme-set="dark">Dunkel</button>
+        <button class="tab" data-theme-set="auto">Wie das System</button>
+      </div>
+      <div class="mut" style="font-size:12.5px" id="themeHint"></div>
+    </div>
+    <div class="panel">
       <h2>Synchronisation Handy ↔ PC</h2>
       <div id="syncStatus" style="font-size:13px;margin-bottom:12px"></div>
       <div id="syncBox"></div>
@@ -900,7 +928,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 12.08.2026, 13:09</span><br>
+    <span class="build">Fassung 12.08.2026, 14:08</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1095,7 +1123,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Datenquelle: https://api.hyperliquid.xyz/info (öffentlich, kostenlos)
    ============================================================ */
 
-const BUILD = '12.08.2026, 13:09';
+const BUILD = '12.08.2026, 14:08';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -1109,7 +1137,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 12.08.2026, 13:09';
+      ' · Fassung 12.08.2026, 14:08';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -2344,10 +2372,29 @@ function mkChart(id, cfg){
   if(!el) return;
   S.charts[id] = new Chart(el.getContext('2d'), cfg);
 }
+/* Diagrammfarben – werden beim Umschalten der Ansicht angepasst */
+const C = {up:'#0f8a5f', down:'#c9354a', upFill:'rgba(15,138,95,.10)',
+  downFill:'rgba(201,53,74,.10)', acc:'#0d7d6f', grid:'#eef0f3', tick:'#6b7280',
+  faint:'#9ca3af', warn:'#b45309'};
 const AXIS = {
-  grid:{color:'#eef0f3'},
-  ticks:{color:'#6b7280', font:{size:10}}
+  grid:{color:C.grid},
+  ticks:{color:C.tick, font:{size:10}}
 };
+function applyChartColors(dark){
+  if(dark){
+    C.up='#3ecf8e'; C.down='#f2606f';
+    C.upFill='rgba(62,207,142,.14)'; C.downFill='rgba(242,96,111,.14)';
+    C.acc='#3ec9b4'; C.grid='#252c35'; C.tick='#9aa5b4'; C.faint='#6b7683';
+    C.warn='#e0a84a';
+  }else{
+    C.up='#0f8a5f'; C.down='#c9354a';
+    C.upFill='rgba(15,138,95,.10)'; C.downFill='rgba(201,53,74,.10)';
+    C.acc='#0d7d6f'; C.grid='#eef0f3'; C.tick='#6b7280'; C.faint='#9ca3af';
+    C.warn='#b45309';
+  }
+  AXIS.grid.color = C.grid;
+  AXIS.ticks.color = C.tick;
+}
 const NOLEG = {legend:{display:false}};
 
 function renderEquity(tr){
@@ -2368,8 +2415,8 @@ function renderEquity(tr){
   mkChart('chEquity', {
     type:'line',
     data:{labels, datasets:[{
-      label, data, borderColor: pos ? '#0f8a5f' : '#c9354a',
-      backgroundColor: pos ? 'rgba(15,138,95,.10)' : 'rgba(201,53,74,.10)',
+      label, data, borderColor: pos ? C.up : C.down,
+      backgroundColor: pos ? C.upFill : C.downFill,
       fill:true, borderWidth:2, pointRadius:0, tension:.25
     }]},
     options:{responsive:true, maintainAspectRatio:false,
@@ -2393,7 +2440,7 @@ function barChart(id, labels, values, horizontal){
     type:'bar',
     data:{labels, datasets:[{
       data:values,
-      backgroundColor: values.map(v => v >= 0 ? 'rgba(15,138,95,.8)' : 'rgba(201,53,74,.8)'),
+      backgroundColor: values.map(v => v >= 0 ? C.up : C.down),
       borderRadius:5
     }]},
     options:{responsive:true, maintainAspectRatio:false,
@@ -2728,17 +2775,17 @@ function renderLongShort(tr){
   if(el) S.charts.chLS = new Chart(el.getContext('2d'), {
     type:'line',
     data:{datasets:[
-      {label:'Long', data:curve(L), borderColor:'#0f8a5f', backgroundColor:'rgba(15,138,95,.08)',
+      {label:'Long', data:curve(L), borderColor:C.up, backgroundColor:'rgba(15,138,95,.08)',
        borderWidth:2, pointRadius:0, tension:.2, fill:true},
-      {label:'Short', data:curve(S_), borderColor:'#c9354a', backgroundColor:'rgba(201,53,74,.08)',
+      {label:'Short', data:curve(S_), borderColor:C.down, backgroundColor:'rgba(201,53,74,.08)',
        borderWidth:2, pointRadius:0, tension:.2, fill:true}
     ]},
     options:{responsive:true, maintainAspectRatio:false,
       interaction:{mode:'index', intersect:false},
-      plugins:{legend:{display:true, labels:{color:'#6b7280', boxWidth:12, font:{size:11}}}},
+      plugins:{legend:{display:true, labels:{color:C.tick, boxWidth:12, font:{size:11}}}},
       scales:{
         x:Object.assign({}, AXIS, {type:'linear', title:{display:true, text:'Trades in zeitlicher Reihenfolge',
-          color:'#6b7280', font:{size:10}}, ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:8})}),
+          color:C.tick, font:{size:10}}, ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:8})}),
         y:AXIS}}
   });
   // Verteilung
@@ -2757,11 +2804,11 @@ function renderLongShort(tr){
   mkChart('chLSdist', {
     type:'bar',
     data:{labels, datasets:[
-      {label:'Long', data:cnt(L), backgroundColor:'rgba(15,138,95,.75)', borderRadius:4},
-      {label:'Short', data:cnt(S_), backgroundColor:'rgba(201,53,74,.75)', borderRadius:4}
+      {label:'Long', data:cnt(L), backgroundColor:C.up, borderRadius:4},
+      {label:'Short', data:cnt(S_), backgroundColor:C.down, borderRadius:4}
     ]},
     options:{responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:true, labels:{color:'#6b7280', boxWidth:12, font:{size:11}}}},
+      plugins:{legend:{display:true, labels:{color:C.tick, boxWidth:12, font:{size:11}}}},
       scales:{x:AXIS, y:AXIS}}
   });
 
@@ -2774,7 +2821,7 @@ function renderLongShort(tr){
         '</span><span class="' + cls(g[k]) + '">' + sgn(g[k], 2) + '</span></div>').join('')
         : '<div class="mut" style="font-size:13px">Keine Trades.</div>') + '</div>';
   };
-  $('#lsCoins').innerHTML = coinBox('Long', L, '#0f8a5f') + coinBox('Short', S_, '#c9354a');
+  $('#lsCoins').innerHTML = coinBox('Long', L, C.up) + coinBox('Short', S_, C.down);
 }
 
 /* ---------- Pläne & Termine (teilen sich die Sync-Tabelle) ---------- */
@@ -2993,7 +3040,7 @@ function renderCalendar(tr){
 }
 
 /* ---------- Planungskalender ---------- */
-const EVCOL = {acc:'#0d7d6f', up:'#0f8a5f', down:'#c9354a', warn:'#b45309'};
+const EVCOL = {acc:C.acc, up:C.up, down:C.down, warn:'#b45309'};
 
 function calItems(){
   const map = {};
@@ -3237,23 +3284,23 @@ function renderSim(){
   const sample = [];
   const step = Math.max(1, Math.floor(r.paths.length / 12));
   for(let i = 0; i < r.paths.length && sample.length < 12; i += step){
-    sample.push({data:r.paths[i], borderColor:'rgba(107,114,128,.30)', borderWidth:1,
+    sample.push({data:r.paths[i], borderColor:C.faint, borderWidth:1,
       pointRadius:0, fill:false, tension:0});
   }
   mkChart('chSim', {
     type:'line',
     data:{labels, datasets: sample.concat([
       {label:'Mittlerer Verlauf', data:r.median,
-       borderColor: posExp ? '#0f8a5f' : '#c9354a', borderWidth:2.5, pointRadius:0,
+       borderColor: posExp ? C.up : C.down, borderWidth:2.5, pointRadius:0,
        tension:.1, fill:false},
       {label:'Startkapital', data:labels.map(() => cfg.cap),
-       borderColor:'#9ca3af', borderWidth:1, borderDash:[5,5], pointRadius:0, fill:false}
+       borderColor:C.faint, borderWidth:1, borderDash:[5,5], pointRadius:0, fill:false}
     ])},
     options:{responsive:true, maintainAspectRatio:false,
       interaction:{mode:'index', intersect:false},
       plugins:{legend:{display:false}, tooltip:{filter:it => it.datasetIndex >= sample.length}},
       scales:{
-        x:Object.assign({}, AXIS, {title:{display:true, text:'Trades', color:'#6b7280', font:{size:10}},
+        x:Object.assign({}, AXIS, {title:{display:true, text:'Trades', color:C.tick, font:{size:10}},
           ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:10})}),
         y:AXIS}}
   });
@@ -4660,17 +4707,17 @@ function renderExcursion(tr){
     type:'scatter',
     data:{datasets:[
       {label:'Gewinner', data:st.list.filter(x => x.t.net > 0).map(x => ({x:x.e.mfe, y:x.t.net})),
-       backgroundColor:'rgba(15,138,95,.65)', pointRadius:4},
+       backgroundColor:C.up, pointRadius:4},
       {label:'Verlierer', data:st.list.filter(x => x.t.net <= 0).map(x => ({x:x.e.mfe, y:x.t.net})),
-       backgroundColor:'rgba(201,53,74,.65)', pointRadius:4}
+       backgroundColor:C.down, pointRadius:4}
     ]},
     options:{responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:true, labels:{color:'#6b7280', boxWidth:12, font:{size:11}}}},
+      plugins:{legend:{display:true, labels:{color:C.tick, boxWidth:12, font:{size:11}}}},
       scales:{
         x:Object.assign({}, AXIS, {title:{display:true, text:'War im Plus bis ($)',
-          color:'#6b7280', font:{size:10}}}),
+          color:C.tick, font:{size:10}}}),
         y:Object.assign({}, AXIS, {title:{display:true, text:'Tatsächliches Ergebnis ($)',
-          color:'#6b7280', font:{size:10}}})}}
+          color:C.tick, font:{size:10}}})}}
   });
 }
 
@@ -5267,8 +5314,8 @@ function openCoin(coin){
     mkChart('chCoin1', {
       type:'line',
       data:{labels:chron.map((t,i) => i + 1), datasets:[{
-        data, borderColor: cum >= 0 ? '#0f8a5f' : '#c9354a',
-        backgroundColor: cum >= 0 ? 'rgba(15,138,95,.10)' : 'rgba(201,53,74,.10)',
+        data, borderColor: cum >= 0 ? C.up : C.down,
+        backgroundColor: cum >= 0 ? C.upFill : C.downFill,
         borderWidth:2, pointRadius:0, tension:.2, fill:true}]},
       options:{responsive:true, maintainAspectRatio:false, plugins:NOLEG,
         scales:{x:Object.assign({}, AXIS, {ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:8})}),
@@ -5488,10 +5535,10 @@ function renderDashboard(){
     type:'line',
     data:{labels, datasets:[{
       label:'Kumuliert', data:pts.map(p => p.y),
-      borderColor: pos ? '#0f8a5f' : '#c9354a',
-      backgroundColor: pos ? 'rgba(15,138,95,.10)' : 'rgba(201,53,74,.10)',
+      borderColor: pos ? C.up : C.down,
+      backgroundColor: pos ? C.upFill : C.downFill,
       borderWidth:2, pointRadius:0, tension:.2, fill:true},
-      {label:'Null', data:labels.map(() => 0), borderColor:'#9ca3af', borderWidth:1,
+      {label:'Null', data:labels.map(() => 0), borderColor:C.faint, borderWidth:1,
        borderDash:[5,5], pointRadius:0, fill:false}]},
     options:{responsive:true, maintainAspectRatio:false,
       interaction:{mode:'index', intersect:false}, plugins:NOLEG,
@@ -5782,24 +5829,24 @@ function renderProgress(tr){
     mkChart('chRoll', {
       type:'line',
       data:{labels, datasets:[
-        {label:'Erwartungswert (R)', data:vals, borderColor:'#0d7d6f', borderWidth:2.5,
+        {label:'Erwartungswert (R)', data:vals, borderColor:C.acc, borderWidth:2.5,
          pointRadius:0, tension:.25, fill:false, yAxisID:'y'},
-        {label:'Nulllinie', data:labels.map(() => 0), borderColor:'#9ca3af', borderWidth:1,
+        {label:'Nulllinie', data:labels.map(() => 0), borderColor:C.faint, borderWidth:1,
          borderDash:[5,5], pointRadius:0, fill:false, yAxisID:'y'},
-        {label:'Trefferquote (%)', data:wr, borderColor:'rgba(107,114,128,.5)', borderWidth:1.5,
+        {label:'Trefferquote (%)', data:wr, borderColor:C.faint, borderWidth:1.5,
          pointRadius:0, tension:.25, fill:false, yAxisID:'y1'}
       ]},
       options:{responsive:true, maintainAspectRatio:false,
         interaction:{mode:'index', intersect:false},
-        plugins:{legend:{display:true, labels:{color:'#6b7280', boxWidth:12, font:{size:11},
+        plugins:{legend:{display:true, labels:{color:C.tick, boxWidth:12, font:{size:11},
           filter:it => it.text !== 'Nulllinie'}}},
         scales:{
           x:Object.assign({}, AXIS, {title:{display:true, text:'Trade-Nummer',
-            color:'#6b7280', font:{size:10}}, ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:10})}),
+            color:C.tick, font:{size:10}}, ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:10})}),
           y:Object.assign({}, AXIS, {position:'left',
-            title:{display:true, text:'R je Trade', color:'#6b7280', font:{size:10}}}),
+            title:{display:true, text:'R je Trade', color:C.tick, font:{size:10}}}),
           y1:{position:'right', grid:{display:false},
-            ticks:{color:'#9ca3af', font:{size:10}}, min:0, max:100}}}
+            ticks:{color:C.faint, font:{size:10}}, min:0, max:100}}}
     });
   }else{
     if(S.charts.chRoll){ S.charts.chRoll.destroy(); S.charts.chRoll = null; }
@@ -5926,6 +5973,47 @@ function renderReview(){
   }));
 }
 
+/* ---------- Helle und dunkle Ansicht ---------- */
+function themeSetting(){
+  try{ return localStorage.getItem('hlj_theme') || 'light'; }catch(e){ return 'light'; }
+}
+function systemDark(){
+  try{ return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; }
+  catch(e){ return false; }
+}
+function darkActive(){
+  const t = themeSetting();
+  return t === 'dark' || (t === 'auto' && systemDark());
+}
+function applyTheme(){
+  const dark = darkActive();
+  const root = document.documentElement;
+  if(root){
+    if(dark) root.setAttribute('data-theme', 'dark');
+    else root.removeAttribute('data-theme');
+  }
+  const meta = document.getElementById('themeColor');
+  if(meta) meta.setAttribute('content', dark ? '#0f1216' : '#ffffff');
+  applyChartColors(dark);
+}
+function setTheme(t){
+  try{ localStorage.setItem('hlj_theme', t); }catch(e){}
+  applyTheme();
+  renderTheme();
+  // Diagramme neu zeichnen, damit sie die neuen Farben bekommen
+  try{ renderAll(); }catch(e){}
+}
+function renderTheme(){
+  const t = themeSetting();
+  $$('[data-theme-set]').forEach(el =>
+    el.classList.toggle('on', el.dataset.themeSet === t));
+  const hint = $('#themeHint');
+  if(hint) hint.innerHTML = t === 'auto'
+    ? 'Folgt der Einstellung deines Geräts — aktuell ' +
+      (systemDark() ? '<b>dunkel</b>' : '<b>hell</b>') + '.'
+    : (t === 'dark' ? 'Dunkle Ansicht.' : 'Helle Ansicht.');
+}
+
 /* ---------- Tabs / Render ---------- */
 const GROUPS = [
   {id:'facts', label:'Fakten', tabs:[['dashboard','Dashboard'],['overview','Übersicht'],['trades','Trades'],
@@ -6005,6 +6093,7 @@ function renderAll(){
   renderSettings();
   renderArchive();
   renderLive();
+  renderTheme();
 }
 
 /* ---------- Events ---------- */
@@ -6015,6 +6104,8 @@ $$('[data-dash]').forEach(el => el.addEventListener('click', () => {
   S.dashWin = parseInt(el.dataset.dash, 10) || 30;
   renderDashboard();
 }));
+$$('[data-theme-set]').forEach(el =>
+  el.addEventListener('click', () => setTheme(el.dataset.themeSet)));
 $('#crashHide').addEventListener('click', () => $('#crash').classList.add('hide'));
 $('#crashReload').addEventListener('click', () => location.reload());
 $('#btnRefresh').addEventListener('click', () => load(true));
@@ -6300,6 +6391,7 @@ $('#btnClearCache').addEventListener('click', async () => {
   $(sel).addEventListener('change', renderSim));
 
 /* ---------- Start ---------- */
+applyTheme();
 S.tags = loadTags();
 try{
   const bo = JSON.parse(localStorage.getItem(LS.balOpts) || 'null');
