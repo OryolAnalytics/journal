@@ -356,6 +356,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         <button class="tab" data-curve="cum">Kumulierter PnL (Trades)</button>
       </div>
       <div class="chartbox"><canvas id="chEquity"></canvas></div>
+      <p class="mut" style="font-size:12.5px;line-height:1.6;margin-bottom:0" id="equityNote"></p>
     </div>
     <div class="panel">
       <h2>PnL pro Coin</h2>
@@ -928,7 +929,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 12.08.2026, 14:08</span><br>
+    <span class="build">Fassung 12.08.2026, 16:43</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1123,7 +1124,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Datenquelle: https://api.hyperliquid.xyz/info (öffentlich, kostenlos)
    ============================================================ */
 
-const BUILD = '12.08.2026, 14:08';
+const BUILD = '12.08.2026, 16:43';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -1137,7 +1138,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 12.08.2026, 14:08';
+      ' · Fassung 12.08.2026, 16:43';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -2274,9 +2275,19 @@ function filtered(){
 }
 
 /* ---------- Render: Übersicht ---------- */
+/* Summe der laufenden Gewinne und Verluste – noch nicht fix, deshalb überall
+   getrennt ausgewiesen und in Diagrammen gestrichelt.                        */
+function unrealized(){
+  const mkt = $('#fMarket') ? $('#fMarket').value : 'perp';
+  if(mkt === 'spot') return {sum:0, n:0};
+  const rows = ((S.positions || {}).assetPositions || []).map(livePos).filter(Boolean);
+  return {sum:rows.reduce((s,r) => s + r.uPnl, 0), n:rows.length};
+}
+
 function renderKpis(tr){
   const m = metrics(tr);
   const {R} = riskUnit();
+  const U = unrealized();
   const T = S.totals;
   const hist = portfolioHistory();
   const hdd = ddFromHistory(hist.acct);
@@ -2304,9 +2315,15 @@ function renderKpis(tr){
 
   const items = [
     ['Account Value', T ? usd(T.total, 2) : '–', sub, ''],
-    ['Realisierter PnL', sgn(m.net),
-      cov.incomplete ? 'nur aus den geladenen Trades' : 'netto nach Gebühren und Funding',
+    ['Realisierter PnL', sgn(m.net) +
+      (U.n ? ' <span class="mut" style="font-size:13px;font-weight:500">' +
+        (U.sum >= 0 ? '+' : '−') + usd(Math.abs(U.sum), 2).replace('$','') + ' $ offen</span>' : ''),
+      cov.incomplete ? 'nur aus den geladenen Trades'
+        : (U.n ? 'abgeschlossen · daneben ' + U.n + ' laufende Position' + (U.n > 1 ? 'en' : '')
+               : 'netto nach Gebühren und Funding'),
       cls(m.net)],
+    (U.n ? ['Ergebnis inkl. offen', sgn(m.net + U.sum),
+      'wenn du jetzt alles schließt', cls(m.net + U.sum)] : null),
     (cov.totalPnl !== null && cov.incomplete
       ? ['PnL laut Hyperliquid', sgn(cov.totalPnl), 'gesamtes Konto, alle Zeiten', cls(cov.totalPnl)]
       : null),
@@ -2399,6 +2416,7 @@ const NOLEG = {legend:{display:false}};
 
 function renderEquity(tr){
   let labels = [], data = [], label = '';
+  const U = unrealized();
   if(S.curve === 'equity'){
     const h = portfolioHistory().acct;
     labels = h.map(p => new Date(num(p[0])).toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'}));
@@ -2412,18 +2430,44 @@ function renderEquity(tr){
     label = 'Kumulierter Netto-PnL ($)';
   }
   const pos = data.length ? data[data.length - 1] >= (data[0] || 0) : true;
+  // Der Kontostand von Hyperliquid enthält laufende Gewinne bereits – dort keine
+  // Verlängerung. Bei der Trade-Kurve wird sie gestrichelt angehängt.
+  const zeigeOffen = S.curve !== 'equity' && U.n && data.length;
+  const sets = [{
+    label, data: zeigeOffen ? data.concat([null]) : data,
+    borderColor: pos ? C.up : C.down,
+    backgroundColor: pos ? C.upFill : C.downFill,
+    fill:true, borderWidth:2, pointRadius:0, tension:.25
+  }];
+  if(zeigeOffen){
+    const last = data[data.length - 1];
+    labels = labels.concat(['jetzt']);
+    sets.push({
+      label:'inklusive offener Positionen',
+      data: new Array(data.length - 1).fill(null).concat([last, last + U.sum]),
+      borderColor: U.sum >= 0 ? C.up : C.down,
+      borderDash:[6,4], borderWidth:2, pointRadius:[0,3], fill:false, tension:0
+    });
+  }
   mkChart('chEquity', {
     type:'line',
-    data:{labels, datasets:[{
-      label, data, borderColor: pos ? C.up : C.down,
-      backgroundColor: pos ? C.upFill : C.downFill,
-      fill:true, borderWidth:2, pointRadius:0, tension:.25
-    }]},
+    data:{labels, datasets:sets},
     options:{responsive:true, maintainAspectRatio:false,
       interaction:{mode:'index', intersect:false},
       plugins:NOLEG,
       scales:{x:Object.assign({}, AXIS, {ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:8})}), y:AXIS}}
   });
+
+  const cap = $('#equityNote');
+  if(cap) cap.innerHTML = S.curve === 'equity'
+    ? 'Der Kontostand von Hyperliquid ist zum aktuellen Kurs bewertet — laufende Gewinne ' +
+      'und Verluste stecken also bereits darin.'
+    : (U.n
+      ? 'Die durchgezogene Linie zeigt abgeschlossene Trades. Die <b>gestrichelte</b> ' +
+        'Verlängerung rechnet deine ' + U.n + ' laufende' + (U.n > 1 ? 'n' : '') +
+        ' Position' + (U.n > 1 ? 'en' : '') + ' dazu — die schwankt, solange sie offen ist.'
+      : 'Nur abgeschlossene Trades. Sobald etwas offen ist, wird der laufende Stand ' +
+        'gestrichelt angehängt.');
 }
 
 function groupSum(tr, keyFn){
@@ -5516,8 +5560,10 @@ function renderDashboard(){
     .sort((a,b) => a.closeTime - b.closeTime);
   const m = metrics(win);
   const {R} = riskUnit();
+  const Ud = unrealized();
   const stat = [
-    ['Ergebnis', win.length ? sgn(m.net, 2) : '–', 'letzte ' + days + ' Tage', cls(m.net)],
+    ['Ergebnis', win.length ? sgn(m.net, 2) : '–',
+      Ud.n ? 'abgeschlossen · offen ' + sgn(Ud.sum, 2) : 'letzte ' + days + ' Tage', cls(m.net)],
     ['Trades', m.n, m.n ? m.wins + ' W / ' + m.losses + ' L' : '', ''],
     ['Trefferquote', m.n ? pctn(m.winrate, 1) : '–', '', m.n ? (m.winrate >= 50 ? 'up' : 'down') : ''],
     ['In R', (R > 0 && m.n) ? fmtR(m.net / R) : '–', R > 0 ? '1 R = ' + usd(R, 0) : '', cls(m.net)]
@@ -5527,19 +5573,29 @@ function renderDashboard(){
     (sub ? '<div class="s">' + sub + '</div>' : '') + '</div>').join('');
 
   let cum = 0;
-  const pts = win.map(t => ({x:t.closeTime, y:(cum += t.net)}));
-  const labels = win.map(t => new Date(t.closeTime).toLocaleDateString('de-DE',
+  const ser = win.map(t => (cum += t.net));
+  let labels = win.map(t => new Date(t.closeTime).toLocaleDateString('de-DE',
     {day:'2-digit', month:'2-digit'}));
   const pos = cum >= 0;
+  const U = unrealized();
+  const zeigeOffen = U.n && ser.length;
+  const sets = [{
+    label:'Kumuliert', data: zeigeOffen ? ser.concat([null]) : ser,
+    borderColor: pos ? C.up : C.down,
+    backgroundColor: pos ? C.upFill : C.downFill,
+    borderWidth:2, pointRadius:0, tension:.2, fill:true}];
+  if(zeigeOffen){
+    const last = ser[ser.length - 1];
+    labels = labels.concat(['jetzt']);
+    sets.push({label:'offen', data:new Array(ser.length - 1).fill(null).concat([last, last + U.sum]),
+      borderColor: U.sum >= 0 ? C.up : C.down, borderDash:[6,4], borderWidth:2,
+      pointRadius:[0,3], fill:false, tension:0});
+  }
+  sets.push({label:'Null', data:labels.map(() => 0), borderColor:C.faint, borderWidth:1,
+    borderDash:[5,5], pointRadius:0, fill:false});
   mkChart('chDash', {
     type:'line',
-    data:{labels, datasets:[{
-      label:'Kumuliert', data:pts.map(p => p.y),
-      borderColor: pos ? C.up : C.down,
-      backgroundColor: pos ? C.upFill : C.downFill,
-      borderWidth:2, pointRadius:0, tension:.2, fill:true},
-      {label:'Null', data:labels.map(() => 0), borderColor:C.faint, borderWidth:1,
-       borderDash:[5,5], pointRadius:0, fill:false}]},
+    data:{labels, datasets:sets},
     options:{responsive:true, maintainAspectRatio:false,
       interaction:{mode:'index', intersect:false}, plugins:NOLEG,
       scales:{x:Object.assign({}, AXIS, {ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:8})}),
