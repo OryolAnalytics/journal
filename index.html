@@ -274,8 +274,10 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     </select>
   </div>
 
-  <!-- ÜBERSICHT -->
-  <section id="v-overview">
+  <!-- DASHBOARD -->
+  <section id="v-dashboard">
+    <div class="kpis" id="dashTop"></div>
+    <div id="dashReview"></div>
     <div class="panel" id="livePanel">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
         <h2 style="margin:0">Live <span id="liveDot" class="dot" style="display:inline-block;
@@ -303,6 +305,25 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         </div>
       </div>
     </div>
+    <div class="panel">
+      <h2>Was ansteht</h2>
+      <div id="dashNext"></div>
+    </div>
+    <div class="panel">
+      <h2>Verlauf</h2>
+      <div class="filters">
+        <button class="tab" data-dash="7">7 Tage</button>
+        <button class="tab on" data-dash="30">30 Tage</button>
+        <button class="tab" data-dash="90">90 Tage</button>
+        <button class="tab" data-dash="365">1 Jahr</button>
+      </div>
+      <div class="kpis" id="dashStats" style="margin-bottom:12px"></div>
+      <div class="chartbox"><canvas id="chDash"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ÜBERSICHT -->
+  <section id="v-overview" class="hide">
     <div id="coverWarn"></div>
     <div class="kpis" id="kpis"></div>
     <div class="panel" style="margin-top:14px">
@@ -875,7 +896,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 12.08.2026, 11:21</span><br>
+    <span class="build">Fassung 12.08.2026, 11:36</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1070,7 +1091,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Datenquelle: https://api.hyperliquid.xyz/info (öffentlich, kostenlos)
    ============================================================ */
 
-const BUILD = '12.08.2026, 11:21';
+const BUILD = '12.08.2026, 11:36';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -1084,7 +1105,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 12.08.2026, 11:21';
+      ' · Fassung 12.08.2026, 11:36';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -1112,7 +1133,7 @@ let S = {
   funding:[], ledger:[], notes:{}, tags:[], curve:'equity',
   spot:null, spotPrices:{USDC:1}, vaults:[], staking:null, totals:null,
   balOpts:{perp:false, spot:true, vault:true, stake:true}, subAccounts:[], riskPct:1,
-  calDate:new Date(), calMode:'plan', calScale:'day', tab:'overview', charts:{}, loading:false
+  calDate:new Date(), calMode:'plan', calScale:'day', tab:'dashboard', dashWin:30, charts:{}, loading:false
 };
 
 /* ---------- Helpers ---------- */
@@ -5119,7 +5140,11 @@ function renderLive(){
   // Kacheln und offene Positionen öffnen die Statistik zu diesem Markt
   $$('#livePos [data-coin], #liveWatch [data-coin]').forEach(el =>
     el.addEventListener('click', () => openCoin(el.dataset.coin)));
+  // Die Kacheln oben im Dashboard hängen an denselben Zahlen
+  try{ renderDashTop(); }catch(e){}
 }
+
+
 
 /* ---------- Statistik zu einem einzelnen Markt ---------- */
 let coCurrent = null;
@@ -5311,6 +5336,166 @@ function renderWatchEditor(){
     renderWatchEditor(); renderLive();
     LIVE.pull();
   }));
+}
+
+/* ---------- Dashboard ---------- */
+/* Nur die vier Kacheln oben – die hängen an den Live-Kursen und
+   werden deshalb im 10-Sekunden-Takt aufgefrischt.                */
+function renderDashTop(){
+  const box = document.getElementById('dashTop');
+  if(!box) return;
+  const T = S.totals || computeTotals();
+  const aps = ((S.positions || {}).assetPositions || []);
+  const rows = aps.map(livePos).filter(Boolean);
+  const uPnl = rows.reduce((s,r) => s + r.uPnl, 0);
+  const margin = rows.reduce((s,r) => s + r.margin, 0);
+  const heute = S.trades.filter(t => dayKey(t.closeTime) === dayKey(Date.now()));
+  const heuteNet = heute.reduce((s,t) => s + t.net, 0);
+
+  const top = [
+    ['Kontostand', usd(T.total, 2), rows.length ? rows.length + ' offen' : 'nichts offen', ''],
+    ['Unrealisiert', rows.length ? sgn(uPnl, 2) : '–', 'laufende Positionen', cls(uPnl)],
+    ['Heute realisiert', heute.length ? sgn(heuteNet, 2) : '–',
+      heute.length ? heute.length + ' Trade' + (heute.length > 1 ? 's' : '') : 'noch kein Trade',
+      heute.length ? cls(heuteNet) : ''],
+    ['Gebundene Margin', usd(margin, 2),
+      T.total > 0 ? pctn(margin / T.total * 100, 0) + ' vom Konto' : '', margin > T.total * 0.5 ? 'warn' : '']
+  ];
+  box.innerHTML = top.map(([k,v,sub,c]) =>
+    '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
+    (sub ? '<div class="s">' + sub + '</div>' : '') + '</div>').join('');
+}
+
+/* Fehlt der Rückblick auf die vergangene Woche?
+   Nur erinnern, wenn in der Woche tatsächlich gehandelt wurde – sonst ist es Lärm. */
+function reviewReminder(){
+  const lastWeek = Date.now() - 7 * 86400000;
+  const key = 'review:' + weekKey(lastWeek);
+  const n = S.notes[key];
+  if(n && !n.deleted) return null;
+  const {from, to} = weekRange(lastWeek);
+  const g = S.trades.filter(t => t.closeTime >= from && t.closeTime < to && !t.spot);
+  if(!g.length) return null;
+  const m = metrics(g);
+  return {when:lastWeek, kw:weekKey(lastWeek).slice(-2), n:m.n, net:m.net,
+    von:deDate(new Date(from).toISOString().slice(0,10)),
+    bis:deDate(new Date(to - 86400000).toISOString().slice(0,10))};
+}
+
+/* Der Rest des Dashboards – ändert sich nur, wenn Trades oder Pläne wechseln */
+function renderDashboard(){
+  renderDashTop();
+
+  const rem = reviewReminder();
+  const rbox = $('#dashReview');
+  if(rbox){
+    rbox.innerHTML = rem
+      ? '<div class="panel" style="border-color:var(--txt)">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">' +
+        '<div><div style="font-weight:650;font-size:15px;margin-bottom:3px">' +
+          'Dein Rückblick auf KW ' + esc(rem.kw) + ' fehlt noch</div>' +
+        '<div class="mut" style="font-size:13px">' + rem.von + ' – ' + rem.bis + ' · ' +
+          rem.n + ' Trade' + (rem.n > 1 ? 's' : '') + ' · ' +
+          '<span class="' + cls(rem.net) + '">' + sgn(rem.net, 2) + '</span></div></div>' +
+        '<button class="primary" id="dashRevGo">Jetzt schreiben</button>' +
+        '</div></div>'
+      : '';
+    const go = document.getElementById('dashRevGo');
+    if(go) go.addEventListener('click', () => {
+      S.revWeek = rem.when;
+      renderReview();
+      switchTab('review');
+    });
+  }
+
+  // Anstehendes aus Planung und Kalender
+  const today = new Date().toISOString().slice(0,10);
+  const inTwoWeeks = new Date(Date.now() + 14 * 86400000).toISOString().slice(0,10);
+  const items = [];
+  for(const p of planEntries()){
+    if((p.status || 'open') !== 'open' || !p.from) continue;
+    const bis = p.to || p.from;
+    const laeuft = p.from <= today && bis >= today;
+    const spaeter = p.from > today && p.from <= inTwoWeeks;
+    const vorbei = bis < today;
+    if(!laeuft && !spaeter && !vorbei) continue;
+    items.push({kind:'plan', day:p.from, obj:p, sort:vorbei ? 0 : (laeuft ? 1 : 2),
+      status: vorbei ? 'überfällig' : (laeuft ? 'jetzt im Fenster' : 'ab ' + deDate(p.from))});
+  }
+  for(const e of eventEntries()){
+    if(!e.date || e.date < today || e.date > inTwoWeeks) continue;
+    items.push({kind:'event', day:e.date, obj:e, sort:e.date === today ? 1 : 2,
+      status: e.date === today ? 'heute' : deDate(e.date)});
+  }
+  items.sort((a,b) => a.sort - b.sort || (a.day < b.day ? -1 : 1));
+
+  $('#dashNext').innerHTML = items.length ? items.slice(0, 8).map(x => {
+    if(x.kind === 'plan'){
+      const p = x.obj;
+      const setups = (p.setups || (p.setup ? [p.setup] : [])).join(' + ');
+      const rr = planRR(p);
+      return '<div class="lpos" data-plan="' + esc(p.id) + '">' +
+        '<span class="lc">' + esc(p.ticker) + '</span>' +
+        '<span class="pill ' + (p.side === 'short' ? 'short' : 'long') + '">' +
+          (p.side === 'short' ? 'SHORT' : 'LONG') + '</span>' +
+        (setups ? '<span class="pill tag">' + esc(setups) + '</span>' : '') +
+        '<span class="lm">' +
+          (p.entry ? 'Einstieg ' + esc(p.entry) + ' · ' : '') +
+          (p.stop ? 'Stop ' + esc(p.stop) + ' · ' : '') +
+          (rr ? 'CRV ' + rr + ' : 1' : '') + '</span>' +
+        '<span class="lr"><span class="' + (x.sort === 0 ? 'down' : x.sort === 1 ? 'up' : 'mut') + '">' +
+          esc(x.status) + '</span></span></div>';
+    }
+    const e = x.obj;
+    return '<div class="lpos" data-event="' + esc(e.id) + '">' +
+      '<span class="dot" style="background:' + (EVCOL[e.color] || EVCOL.acc) + '"></span>' +
+      '<span style="font-weight:600">' + esc(e.text) + '</span>' +
+      (e.note ? '<span class="lm">' + esc(e.note) + '</span>' : '') +
+      '<span class="lr mut">' + esc(x.status) + '</span></div>';
+  }).join('') : '<div class="mut" style="font-size:13.5px">Nichts geplant. ' +
+    'Unter Planung → Pläne legst du Trades an, sie erscheinen dann hier.</div>';
+
+  $$('#dashNext [data-plan]').forEach(el =>
+    el.addEventListener('click', () => openPlan(el.dataset.plan)));
+  $$('#dashNext [data-event]').forEach(el =>
+    el.addEventListener('click', () => openEvent(el.dataset.event)));
+
+  // Verlauf im gewählten Zeitraum
+  const days = S.dashWin || 30;
+  const from = Date.now() - days * 86400000;
+  const win = S.trades.filter(t => t.closeTime >= from && !t.spot)
+    .sort((a,b) => a.closeTime - b.closeTime);
+  const m = metrics(win);
+  const {R} = riskUnit();
+  const stat = [
+    ['Ergebnis', win.length ? sgn(m.net, 2) : '–', 'letzte ' + days + ' Tage', cls(m.net)],
+    ['Trades', m.n, m.n ? m.wins + ' W / ' + m.losses + ' L' : '', ''],
+    ['Trefferquote', m.n ? pctn(m.winrate, 1) : '–', '', m.n ? (m.winrate >= 50 ? 'up' : 'down') : ''],
+    ['In R', (R > 0 && m.n) ? fmtR(m.net / R) : '–', R > 0 ? '1 R = ' + usd(R, 0) : '', cls(m.net)]
+  ];
+  $('#dashStats').innerHTML = stat.map(([k,v,sub,c]) =>
+    '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
+    (sub ? '<div class="s">' + sub + '</div>' : '') + '</div>').join('');
+
+  let cum = 0;
+  const pts = win.map(t => ({x:t.closeTime, y:(cum += t.net)}));
+  const labels = win.map(t => new Date(t.closeTime).toLocaleDateString('de-DE',
+    {day:'2-digit', month:'2-digit'}));
+  const pos = cum >= 0;
+  mkChart('chDash', {
+    type:'line',
+    data:{labels, datasets:[{
+      label:'Kumuliert', data:pts.map(p => p.y),
+      borderColor: pos ? '#0f8a5f' : '#c9354a',
+      backgroundColor: pos ? 'rgba(15,138,95,.10)' : 'rgba(201,53,74,.10)',
+      borderWidth:2, pointRadius:0, tension:.2, fill:true},
+      {label:'Null', data:labels.map(() => 0), borderColor:'#9ca3af', borderWidth:1,
+       borderDash:[5,5], pointRadius:0, fill:false}]},
+    options:{responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false}, plugins:NOLEG,
+      scales:{x:Object.assign({}, AXIS, {ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:8})}),
+        y:AXIS}}
+  });
 }
 
 /* ---------- Notiztext und Bild ---------- */
@@ -5741,7 +5926,7 @@ function renderReview(){
 
 /* ---------- Tabs / Render ---------- */
 const GROUPS = [
-  {id:'facts', label:'Fakten', tabs:[['overview','Übersicht'],['trades','Trades'],
+  {id:'facts', label:'Fakten', tabs:[['dashboard','Dashboard'],['overview','Übersicht'],['trades','Trades'],
     ['longshort','Long / Short'],['setups','Setups'],['behavior','Verhalten'],
     ['excursion','Ausschläge'],['progress','Fortschritt']]},
   {id:'plan', label:'Planung', tabs:[['plans','Pläne'],['calendar','Kalender'],['review','Rückblick']]},
@@ -5769,7 +5954,7 @@ function renderNav(){
 }
 
 function switchTab(t){
-  if(ALL_TABS.indexOf(t) < 0) t = 'overview';
+  if(ALL_TABS.indexOf(t) < 0) t = 'dashboard';
   S.tab = t;
   renderNav();
   ALL_TABS.forEach(v => {
@@ -5777,7 +5962,7 @@ function switchTab(t){
     if(el) el.classList.toggle('hide', v !== t);
   });
   $('#globalFilters').classList.toggle('hide',
-    ['settings','tax','positions','plans','calendar','sim'].indexOf(t) >= 0);
+    ['settings','tax','positions','plans','calendar','sim','dashboard'].indexOf(t) >= 0);
   if(t === 'sim' && !S.simDone){ S.simDone = true; renderSim(); }
   if(t === 'labexit') renderGrid(filtered());
   window.scrollTo(0, 0);
@@ -5798,6 +5983,7 @@ function renderAll(){
   const tr = filtered();
   renderKpis(tr);
   renderCharts(tr);
+  renderDashboard();
   renderBehavior(tr);
   renderPlanned(tr);
   renderProgress(tr);
@@ -5821,6 +6007,12 @@ function renderAll(){
 
 /* ---------- Events ---------- */
 setInterval(() => { if(!document.hidden && LIVE.at) renderLive(); }, 5000);
+$$('[data-dash]').forEach(el => el.addEventListener('click', () => {
+  $$('[data-dash]').forEach(x => x.classList.remove('on'));
+  el.classList.add('on');
+  S.dashWin = parseInt(el.dataset.dash, 10) || 30;
+  renderDashboard();
+}));
 $('#crashHide').addEventListener('click', () => $('#crash').classList.add('hide'));
 $('#crashReload').addEventListener('click', () => location.reload());
 $('#btnRefresh').addEventListener('click', () => load(true));
