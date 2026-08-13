@@ -26,6 +26,7 @@
   --headBg:rgba(255,255,255,.92);
   --errBg:#fdeaec; --errTxt:#8e1f30; --errLine:rgba(201,53,74,.35);
   --logoInvert:0;
+  --winBg:rgba(15,138,95,.07); --winLine:rgba(15,138,95,.32);
   --r:12px;
 }
 
@@ -41,6 +42,7 @@
   --headBg:rgba(15,18,22,.92);
   --errBg:#2a1a1e; --errTxt:#ffb3bd; --errLine:rgba(242,96,111,.35);
   --logoInvert:1;
+  --winBg:rgba(62,207,142,.10); --winLine:rgba(62,207,142,.34);
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
@@ -197,6 +199,9 @@ tbody tr:hover{background:var(--panel2)}
 .lpos .lc{font-weight:650;font-size:15px;min-width:58px}
 .lpos .lm{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .lpos .lr{margin-left:auto;text-align:right;font-variant-numeric:tabular-nums}
+/* Plan liegt gerade in seinem Zeitfenster */
+.lpos.now{background:var(--winBg);border-color:var(--winLine)}
+.lpos.now:hover{border-color:var(--up)}
 .lpos .lr b{font-size:16px;display:block}
 .flash{animation:fl .6s ease-out}
 @keyframes fl{from{background:rgba(13,125,111,.16)}to{background:transparent}}
@@ -214,6 +219,8 @@ tbody tr:hover{background:var(--panel2)}
 .plan{border:1px solid var(--line);border-radius:11px;padding:13px 14px;margin-bottom:10px;
   background:var(--panel);cursor:pointer;transition:.12s}
 .plan:hover{border-color:var(--txt)}
+.plan.now{background:var(--winBg);border-color:var(--winLine)}
+.pill.jetzt{background:var(--winBg);border-color:var(--winLine);color:var(--up)}
 .plan.done{opacity:.6}
 .plan.dropped{opacity:.45}
 .plan .ph{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:5px}
@@ -720,6 +727,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
           <option value="ticker">Nach Ticker</option>
         </select>
       </div>
+      <div id="planHint" class="mut" style="font-size:12.5px;margin:10px 0 2px"></div>
       <div id="planList"></div>
       <div id="planEmpty" class="empty-state hide">
         Noch keine Pläne. Leg mit „+ Neuer Plan“ deinen ersten an.
@@ -953,7 +961,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 13.08.2026, 13:07</span><br>
+    <span class="build">Fassung 13.08.2026, 18:06</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1050,6 +1058,8 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         <option value="done">Umgesetzt</option>
         <option value="dropped">Verworfen</option></select></div>
     </div>
+    <div class="f" id="pTradesBox"><label>Daraus geworden</label>
+      <div id="pTrades"></div></div>
     <div class="f"><label>Plan &amp; Begründung</label>
       <textarea id="pNote" placeholder="Worauf warte ich? Woran erkenne ich den Einstieg? Was macht den Plan ungültig?"></textarea></div>
     <div class="f"><label>Chartbild</label>
@@ -1159,6 +1169,24 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Vorteil: neue Texte funktionieren sofort weiter, nur eben zunächst deutsch.  */
 let LANG = 'de';
 const EN = {
+  "überfällig": "overdue",
+  "im Fenster": "in the window",
+  "geplant": "planned",
+  "Noch kein Trade zugeordnet. Sobald ein Trade zu Ticker, Richtung und Zeitfenster passt, erscheint er hier — oder du ordnest ihn im Trade-Detail von Hand zu.": "No trade linked yet. As soon as a trade matches ticker, direction and time window it appears here — or you link one by hand in the trade detail.",
+  "über den Filter oben erreichbar. Gelöscht wird nichts: verknüpfte Trades bleiben in der Auswertung.": "reachable through the filter above. Nothing is deleted: linked trades stay in the analysis.",
+  ". Die Verknüpfung bleibt bestehen, auch wenn der Plan umgesetzt oder verworfen ist.": ". The link stays in place even when the plan is marked executed or dropped.",
+  "{0} Trades aus diesem Plan · zusammen": "{0} trades from this plan · together",
+  "{0} Trade aus diesem Plan · zusammen": "{0} trade from this plan · together",
+  "Offen & anstehend ({0})": "Open & upcoming ({0})",
+  "Daraus geworden": "What came of it",
+  "Umgesetzt ({0})": "Executed ({0})",
+  "Verworfen ({0})": "Dropped ({0})",
+  "{0} Trade · {1}": "{0} trade · {1}",
+  "Ausgeblendet:": "Hidden:",
+  "Alle ({0})": "All ({0})",
+  "umgesetzt": "executed",
+  "verworfen": "dropped",
+  "offen": "open",
   "wird": "becomes",
   "— dieselben Dollar können nicht in beiden liegen. Wenn eine Perp-Position offen ist, wurde deren Margin vorher von Spot ins Perps-Konto überwiesen; sie fehlt dann im Spot-Guthaben und wird hier korrekt dazugezählt. Häkchen weg = Bereich zählt nicht in die Summe. Die Einstellung wird gespeichert.": "— the same dollars cannot sit in both. When a perp position is open, its margin was moved from spot into the perps account beforehand; it is then missing from the spot balance and is correctly added back here. Unticking means the area is not counted in the total. The setting is saved.",
   "Hyperliquid gibt über die Schnittstelle nur die letzten 10.000 Ausführungen heraus. Alles, was du schon geladen hast, bleibt aber lokal gespeichert — deine Historie wächst also darüber hinaus weiter. Ein Archiv als Datei schützt zusätzlich bei Gerätewechsel.": "Hyperliquid only serves the most recent 10,000 fills through its interface. Everything you have already loaded stays stored locally though — so your history keeps growing beyond that. A file archive protects you additionally when switching devices.",
@@ -2348,7 +2376,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '13.08.2026, 13:07';
+const BUILD = '13.08.2026, 18:06';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -2362,7 +2390,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 13.08.2026, 13:07';
+      ' · Fassung 13.08.2026, 18:06';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -4302,9 +4330,53 @@ function bindStatusButtons(root){
   }));
 }
 
+/* Welche abgeschlossenen Trades hängen an welchem Plan?
+   Gilt unabhängig vom Status – ein umgesetzter Plan behält seine Trades. */
+function tradesByPlan(){
+  const all = S.trades || [];
+  const map = linkPlans(all);
+  const out = {};
+  for(const t of all){
+    const pid = map[t.id];
+    if(pid) (out[pid] = out[pid] || []).push(t);
+  }
+  for(const k in out) out[k].sort((a,b) => a.closeTime - b.closeTime);
+  return out;
+}
+/* Kurzes Ergebnis eines Plans: wie viele Trades, was kam heraus */
+function planResult(list){
+  if(!list || !list.length) return null;
+  const net = list.reduce((s,t) => s + t.net, 0);
+  return {n:list.length, net};
+}
+
 function renderPlans(){
   const mode = $('#planFilter').value, sort = $('#planSort').value;
-  let list = planEntries().filter(p => {
+  const alle = planEntries();
+  const zahl = {open:0, done:0, dropped:0};
+  alle.forEach(p => { const st = p.status || 'open'; if(zahl[st] !== undefined) zahl[st]++; });
+  // Anzahl direkt in die Auswahl schreiben, damit nichts unauffindbar wirkt
+  const beschriftung = {
+    open: 'Offen & anstehend', all: 'Alle', done: 'Umgesetzt', dropped: 'Verworfen'
+  };
+  $$('#planFilter option').forEach(o => {
+    const n = o.value === 'all' ? alle.length : zahl[o.value];
+    o.textContent = beschriftung[o.value] + ' (' + n + ')';
+  });
+  const versteckt = [];
+  if(mode !== 'all'){
+    if(mode !== 'done' && zahl.done) versteckt.push(zahl.done + ' ' + t('umgesetzt'));
+    if(mode !== 'dropped' && zahl.dropped) versteckt.push(zahl.dropped + ' ' + t('verworfen'));
+    if(mode !== 'open' && zahl.open) versteckt.push(zahl.open + ' ' + t('offen'));
+  }
+  $('#planHint').innerHTML = versteckt.length
+    ? t('Ausgeblendet:') + ' ' + versteckt.join(', ') + ' — ' +
+      t('über den Filter oben erreichbar. Gelöscht wird nichts: ' +
+        'verknüpfte Trades bleiben in der Auswertung.')
+    : '';
+
+  const byPlan = tradesByPlan();
+  let list = alle.filter(p => {
     const st = p.status || 'open';
     if(mode === 'all') return true;
     if(mode === 'open') return st === 'open';
@@ -4324,9 +4396,19 @@ function renderPlans(){
     const src = imgUrl(p.img);
     let when = p.from ? deDate(p.from) : 'ohne Datum';
     if(p.to && p.to !== p.from) when += ' – ' + deDate(p.to);
-    const soon = st === 'open' && p.from && p.from < today ? ' <span class="pill liq">überfällig</span>' : '';
+    // Überfällig ist ein Plan erst, wenn auch sein Endtermin vorbei ist
+    const bis = p.to || p.from;
+    const imFenster = st === 'open' && p.from && p.from <= today && bis >= today;
+    const soon = st === 'open' && bis && bis < today
+      ? ' <span class="pill liq">überfällig</span>'
+      : (imFenster ? ' <span class="pill jetzt">im Fenster</span>' : '');
     const rr = planRR(p);
-    return '<div class="plan ' + st + '" data-id="' + esc(p.id) + '">' +
+    const res = planResult(byPlan[p.id]);
+    const erg = res
+      ? '<span class="pill ' + (res.net >= 0 ? 'long' : 'short') + '">' +
+        res.n + ' Trade' + (res.n > 1 ? 's' : '') + ' · ' + sgn(res.net, 2) + '</span>'
+      : '';
+    return '<div class="plan ' + st + (imFenster ? ' now' : '') + '" data-id="' + esc(p.id) + '">' +
       '<div class="ph">' +
         (src ? '<img class="thumb" src="' + esc(src) + '" alt="" onerror="this.remove()">' : '') +
         '<div style="flex:1;min-width:0">' +
@@ -4337,7 +4419,7 @@ function renderPlans(){
             (p.setups || (p.setup ? [p.setup] : [])).map(t =>
               '<span class="pill tag">' + esc(t) + '</span>').join(' ') +
             (st === 'done' ? '<span class="pill tag">umgesetzt</span>' : '') +
-            (st === 'dropped' ? '<span class="pill">verworfen</span>' : '') + soon +
+            (st === 'dropped' ? '<span class="pill">verworfen</span>' : '') + soon + erg +
           '</div>' +
           '<div class="meta"><span>' + when + '</span>' +
             (p.entry ? '<span>Einstieg ' + esc(p.entry) + '</span>' : '') +
@@ -4367,7 +4449,8 @@ function planRR(p){
 }
 function deDate(iso){
   if(!iso) return '';
-  const [y,m,d] = iso.split('-');
+  const [y,m,d] = String(iso).split('-');
+  if(LANG === 'en') return (+m) + '/' + (+d) + '/' + y;
   return d + '.' + m + '.' + y;
 }
 
@@ -5351,9 +5434,42 @@ function openPlan(id, presetDay){
   $('#coinList').innerHTML = coins.map(c => '<option value="' + esc(c) + '">').join('');
 
   $('#pDel').classList.toggle('hide', !p);
+  renderPlanTrades(p);
   drawImgPreview();
   $('#planModal').classList.add('on');
   document.body.style.overflow = 'hidden';
+}
+/* Was ist aus diesem Plan geworden? Zeigt die verknüpften Trades im Dialog. */
+function renderPlanTrades(p){
+  const box = $('#pTrades'), wrap = $('#pTradesBox');
+  if(!box || !wrap) return;
+  if(!p){ wrap.classList.add('hide'); box.innerHTML = ''; return; }
+  wrap.classList.remove('hide');
+  const list = tradesByPlan()[p.id] || [];
+  if(!list.length){
+    box.innerHTML = '<div class="mut" style="font-size:12.5px">Noch kein Trade zugeordnet. ' +
+      'Sobald ein Trade zu Ticker, Richtung und Zeitfenster passt, erscheint er hier — ' +
+      'oder du ordnest ihn im Trade-Detail von Hand zu.</div>';
+    return;
+  }
+  const res = planResult(list);
+  box.innerHTML = list.map(t =>
+    '<div class="lpos" data-tr="' + esc(t.id) + '" style="margin-bottom:7px">' +
+      '<span class="lc">' + esc(coinName(t.coin)) + '</span>' +
+      '<span class="pill ' + (t.side === 'short' ? 'short' : 'long') + '">' +
+        (t.side === 'short' ? 'SHORT' : 'LONG') + '</span>' +
+      '<span class="lm">' + dt(t.openTime) + ' · ' + dur(t.durationMs) + '</span>' +
+      '<span class="lr"><b class="' + cls(t.net) + '">' + sgn(t.net, 2) + '</b></span>' +
+    '</div>').join('') +
+    '<div class="mut" style="font-size:12.5px;margin-top:2px">' +
+      res.n + ' Trade' + (res.n > 1 ? 's' : '') + ' aus diesem Plan · zusammen ' +
+      '<b class="' + cls(res.net) + '">' + sgn(res.net, 2) + '</b>. ' +
+      'Die Verknüpfung bleibt bestehen, auch wenn der Plan umgesetzt oder verworfen ist.' +
+    '</div>';
+  $$('#pTrades [data-tr]').forEach(el => el.addEventListener('click', () => {
+    closePlanModal();
+    openTrade(el.dataset.tr);
+  }));
 }
 function drawImgPreview(){
   const raw = pImgData || $('#pImg').value;
@@ -5614,8 +5730,10 @@ function computeTax(year){
 }
 
 /* ---------- Steuer-Export: Anzeige und Dateien ---------- */
-const de = (v, dec) => (isFinite(v) ? v : 0).toFixed(dec === undefined ? 2 : dec).replace('.', LANG === 'en' ? '.' : ',');
-const deDT = ms => new Date(ms).toLocaleString(loc(),
+/* Diese beiden bleiben bewusst immer deutsch: die Dateien gehen ans Finanzamt,
+   nicht an die Oberfläche. Sonst stünden im CSV plötzlich US-Datum und Punkt. */
+const de = (v, dec) => (isFinite(v) ? v : 0).toFixed(dec === undefined ? 2 : dec).replace('.', ',');
+const deDT = ms => new Date(ms).toLocaleString('de-DE',
   {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
 
 function csv(head, rows){
@@ -6901,7 +7019,7 @@ function renderDashboard(){
       const p = x.obj;
       const setups = (p.setups || (p.setup ? [p.setup] : [])).join(' + ');
       const rr = planRR(p);
-      return '<div class="lpos" data-plan="' + esc(p.id) + '">' +
+      return '<div class="lpos' + (x.sort === 1 ? ' now' : '') + '" data-plan="' + esc(p.id) + '">' +
         '<span class="lc">' + esc(p.ticker) + '</span>' +
         '<span class="pill ' + (p.side === 'short' ? 'short' : 'long') + '">' +
           (p.side === 'short' ? 'SHORT' : 'LONG') + '</span>' +
