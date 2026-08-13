@@ -961,7 +961,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 13.08.2026, 18:06</span><br>
+    <span class="build">Fassung 13.08.2026, 18:54</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1169,6 +1169,9 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Vorteil: neue Texte funktionieren sofort weiter, nur eben zunächst deutsch.  */
 let LANG = 'de';
 const EN = {
+  "{0} neu geladen": "{0} newly loaded",
+  "nichts Neues": "nothing new",
+  "{0}: {1} Funding…": "{0}: {1} funding…",
   "überfällig": "overdue",
   "im Fenster": "in the window",
   "geplant": "planned",
@@ -2376,7 +2379,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '13.08.2026, 18:06';
+const BUILD = '13.08.2026, 18:54';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -2390,7 +2393,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 13.08.2026, 18:06';
+      ' · Fassung 13.08.2026, 18:54';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -2525,6 +2528,48 @@ async function fetchFills(user, startTime, onProgress){
     await sleep(150);
   }
   out.sort((a,b) => a.time - b.time);
+  return out;
+}
+
+/* Funding und Ein-/Auszahlungen kommen ebenfalls seitenweise.
+   Ohne Blättern liefert die Schnittstelle nur den ersten Schwung – und ohne
+   Zwischenspeicher würde bei jedem Aktualisieren die ganze Historie neu laufen. */
+function ledgerKey(e){
+  const d = e.delta || {};
+  return (e.hash || '') + '|' + e.time + '|' + (d.coin || d.type || '') + '|' +
+         (d.usdc != null ? d.usdc : (d.amount != null ? d.amount : ''));
+}
+async function fetchLedgerPages(type, user, startTime, onProgress){
+  const out = [], seen = new Set();
+  let cursor = Math.max(0, startTime || 0);
+  for(let page = 0; page < 60; page++){
+    let batch;
+    try{ batch = await info({type, user, startTime:cursor}); }
+    catch(e){ if(page === 0) throw e; break; }
+    if(!Array.isArray(batch) || !batch.length) break;
+    let added = 0;
+    for(const e of batch){
+      const k = ledgerKey(e);
+      if(!seen.has(k)){ seen.add(k); out.push(e); added++; }
+    }
+    if(onProgress) onProgress(out.length);
+    const last = num(batch[batch.length - 1].time);
+    // Nichts Neues mehr oder die Zeit läuft nicht weiter: fertig
+    if(!added || last <= cursor) break;
+    cursor = last;
+    await sleep(120);
+  }
+  out.sort((a,b) => num(a.time) - num(b.time));
+  return out;
+}
+/* Zwischenstand und frisch Geholtes zusammenführen, Doppelte fliegen raus */
+function mergeLedger(alt, neu){
+  const seen = new Set(), out = [];
+  for(const e of (alt || []).concat(neu || [])){
+    const k = ledgerKey(e);
+    if(!seen.has(k)){ seen.add(k); out.push(e); }
+  }
+  out.sort((a,b) => num(a.time) - num(b.time));
   return out;
 }
 
@@ -2817,6 +2862,7 @@ function buildTrades(fills){
   const openTrades = Object.values(open).map(t => {
     const c = Object.assign({}, t);
     c.avgEntry = c.entrySize > 0 ? c.entryNotional / c.entrySize : 0;
+    c.open = true;          // läuft noch – für Funding gibt es kein Ende
     return c;
   });
   return {trades, openTrades};
@@ -2831,16 +2877,24 @@ function attachFunding(trades, funding){
     (byCoin[t.coin] = byCoin[t.coin] || []).push(t);
   }
   for(const k in byCoin) byCoin[k].sort((a,b) => a.openTime - b.openTime);
+  // Eine laufende Position hat noch kein Ende – ihr Funding läuft weiter
+  const ende = t => t.open ? Infinity : t.closeTime;
+  const zeiger = {};
+  const list = (funding || []).slice().sort((a,b) => num(a.time) - num(b.time));
   let hit = 0, miss = 0;
-  for(const f of (funding || [])){
+  for(const f of list){
     const d = f.delta || {};
     const usd = num(d.usdc);
     if(!usd) continue;
     const t0 = num(f.time);
-    const list = byCoin[d.coin];
-    if(!list){ miss++; continue; }
-    // Die Zahlung gehört zu der Position, die zu diesem Zeitpunkt offen war
-    const t = list.find(x => t0 >= x.openTime && t0 <= x.closeTime);
+    const arr = byCoin[d.coin];
+    if(!arr){ miss++; continue; }
+    // Die Zahlung gehört zu der Position, die zu diesem Zeitpunkt offen war.
+    // Der Zeiger läuft nur vorwärts – sonst wird das bei langer Historie zäh.
+    let i = zeiger[d.coin] || 0;
+    while(i < arr.length && ende(arr[i]) < t0) i++;
+    zeiger[d.coin] = i;
+    const t = (i < arr.length && t0 >= arr[i].openTime) ? arr[i] : null;
     if(t){ t.funding += usd; hit++; } else miss++;
   }
   for(const t of trades) t.net = t.closedPnl - t.fees + t.funding;
@@ -3207,15 +3261,24 @@ const CACHE = {
       }catch(e){ resolve(readCacheLS(addr)); }
     });
   },
-  put(addr, fills){
+  async put(addr, fills, extra){
     S.cacheState = S.cacheState || {};
     if(this.mode !== 'indexedDB' || !this.db){
+      // Der kleine Speicher bekommt nur die Fills – für mehr ist dort kein Platz
       writeCacheLS(addr, fills);
-      return Promise.resolve();
+      return;
     }
+    // Ohne ausdrückliche Angabe bleiben Funding und Zahlungen erhalten
+    // (sonst würde z.B. das Einlesen eines Archivs sie stillschweigend löschen)
+    if(!extra){
+      const alt = await this.getRaw(addr);
+      if(alt) extra = {funding:alt.funding || [], ledger:alt.ledger || [],
+                       fundUntil:alt.fundUntil, ledgerUntil:alt.ledgerUntil};
+    }
+    const rec = Object.assign({addr, t:Date.now(), fills}, extra || {});
     return new Promise(resolve => {
       try{
-        const r = this.tx('readwrite').put({addr, t:Date.now(), fills});
+        const r = this.tx('readwrite').put(rec);
         r.onsuccess = () => {
           S.cacheState[addr] = {stored:fills.length, wanted:fills.length, trimmed:false, ok:true};
           resolve();
@@ -3375,13 +3438,27 @@ async function loadOne(addr, incremental){
     if(!seen.has(k)){ seen.add(k); fills.push(f); }
   }
   fills.sort((x,y) => x.time - y.time);
-  await CACHE.put(addr, fills);
 
-  const [pos, port, fund, led, spot, vaults, stake, subs, fees, orders] = await Promise.all([
+  /* Funding und Zahlungen genauso: nur der Teil ab dem letzten Stand.
+     Der Zeitstempel steht im Zwischenspeicher, damit ein Konto ohne Funding
+     nicht bei jedem Mal wieder die ganze Historie anfragt. */
+  const altFund = (cache && Array.isArray(cache.funding)) ? cache.funding : [];
+  const altLed  = (cache && Array.isArray(cache.ledger))  ? cache.ledger  : [];
+  const seit = (liste, gemerkt) => {
+    if(!incremental) return 0;
+    const t = num(gemerkt) || (liste.length ? num(liste[liste.length - 1].time) : 0);
+    return t ? Math.max(0, t - 60000) : 0;
+  };
+  const fundFrom = seit(altFund, cache && cache.fundUntil);
+  const ledFrom  = seit(altLed,  cache && cache.ledgerUntil);
+
+  const [pos, port, fundNeu, ledNeu, spot, vaults, stake, subs, fees, orders] = await Promise.all([
     info({type:'clearinghouseState', user:addr}).catch(() => null),
     info({type:'portfolio', user:addr}).catch(() => null),
-    info({type:'userFunding', user:addr, startTime:0}).catch(() => []),
-    info({type:'userNonFundingLedgerUpdates', user:addr, startTime:0}).catch(() => []),
+    fetchLedgerPages('userFunding', addr, fundFrom,
+      n => setStatus('<span class="spin"></span> ' + walletLabel(addr) + ': ' + n + ' Funding…'))
+      .catch(() => []),
+    fetchLedgerPages('userNonFundingLedgerUpdates', addr, ledFrom).catch(() => []),
     info({type:'spotClearinghouseState', user:addr}).catch(() => null),
     info({type:'userVaultEquities', user:addr}).catch(() => []),
     info({type:'delegatorSummary', user:addr}).catch(() => null),
@@ -3389,6 +3466,14 @@ async function loadOne(addr, incremental){
     info({type:'userFees', user:addr}).catch(() => null),
     info({type:'frontendOpenOrders', user:addr}).catch(() => [])
   ]);
+  const fund = mergeLedger(incremental ? altFund : [], fundNeu);
+  const led  = mergeLedger(incremental ? altLed  : [], ledNeu);
+  S.geholt = S.geholt || {};
+  S.geholt[addr] = {fills:fresh.length, funding:fundNeu.length, ledger:ledNeu.length};
+
+  await CACHE.put(addr, fills, {funding:fund, ledger:led,
+    fundUntil: fund.length ? num(fund[fund.length - 1].time) : (num(cache && cache.fundUntil) || Date.now()),
+    ledgerUntil: led.length ? num(led[led.length - 1].time) : (num(cache && cache.ledgerUntil) || Date.now())});
   // Wichtig: Positionen sind kontobezogen, deshalb wird je Wallet einzeln gerechnet
   const r = buildTrades(fills);
   const fundList = (Array.isArray(fund) ? fund : []);
@@ -3489,10 +3574,14 @@ async function load(incremental){
     LIVE.start();
     const act2 = activeWallets();
     const cov0 = historyCoverage();
+    // Wie viel musste diesmal wirklich über die Leitung?
+    let neu = 0;
+    for(const w of act2) neu += ((S.geholt || {})[w.addr] || {}).fills || 0;
     setStatus((cov0.incomplete ? '<span class="warn">⚠ Historie unvollständig</span> · ' : '') +
       S.fills.length + ' Fills · ' + S.trades.length + ' abgeschlossene Trades · ' +
       (act2.length === 1 ? esc(act2[0].label) : act2.length + ' Wallets zusammengefasst') +
-      ' · Stand ' + new Date().toLocaleTimeString(loc(), {hour:'2-digit', minute:'2-digit'}));
+      ' · Stand ' + new Date().toLocaleTimeString(loc(), {hour:'2-digit', minute:'2-digit'}) +
+      (incremental ? ' · ' + (neu ? neu + ' neu geladen' : 'nichts Neues') : ''));
   }catch(e){
     setStatus('');
     showErr('<b>Daten konnten nicht geladen werden.</b><br>' + esc(e.message) +
