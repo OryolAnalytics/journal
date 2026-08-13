@@ -382,6 +382,18 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         </table>
       </div>
     </div>
+    <div class="panel" id="orderPanel">
+      <h2>Offene Orders <span class="mut" id="orderCount"></span></h2>
+      <div class="scroll">
+        <table id="tblOrders">
+          <thead><tr>
+            <th>Aufgegeben</th><th class="wcol">Wallet</th><th>Markt</th><th>Art</th><th>Seite</th>
+            <th>Preis</th><th>Menge</th><th>Wert</th><th>Abstand</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
     <div class="panel">
       <h2>Abgeschlossene Trades <span class="mut" id="tradeCount"></span></h2>
       <div class="filters">
@@ -878,12 +890,22 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   <section id="v-settings" class="hide">
     <div class="panel">
       <h2>Darstellung</h2>
+      <div class="filters" style="margin-bottom:14px">
+        <button class="tab" id="anonBtn">Beträge verdecken</button>
+        <span class="mut" style="font-size:12.5px" id="anonHint"></span>
+      </div>
       <div class="filters">
         <button class="tab" data-theme-set="light">Hell</button>
         <button class="tab" data-theme-set="dark">Dunkel</button>
         <button class="tab" data-theme-set="auto">Wie das System</button>
       </div>
       <div class="mut" style="font-size:12.5px" id="themeHint"></div>
+      <h2 style="margin-top:22px">Sprache</h2>
+      <div class="filters">
+        <button class="tab" data-lang-set="de">Deutsch</button>
+        <button class="tab" data-lang-set="en">English</button>
+      </div>
+      <div class="mut" style="font-size:12.5px" id="langHint"></div>
     </div>
     <div class="panel">
       <h2>Synchronisation Handy ↔ PC</h2>
@@ -931,7 +953,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 12.08.2026, 19:34</span><br>
+    <span class="build">Fassung 13.08.2026, 13:07</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1089,6 +1111,11 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <div class="chips" id="mTags"></div>
     </div>
     <div class="f">
+      <label>Gehört zu welcher Idee?</label>
+      <select id="mPlan"></select>
+      <div class="mut" style="font-size:11.5px;margin-top:5px" id="mPlanHint"></div>
+    </div>
+    <div class="f">
       <label>Bewertung der Ausführung</label>
       <div class="stars" id="mStars"></div>
     </div>
@@ -1126,7 +1153,1202 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Datenquelle: https://api.hyperliquid.xyz/info (öffentlich, kostenlos)
    ============================================================ */
 
-const BUILD = '12.08.2026, 19:34';
+/* ---------- Sprache ----------
+   Die Oberfläche ist auf Deutsch geschrieben. Für Englisch liegt eine Tabelle
+   bereit, die nach dem Zeichnen über die Seite läuft und bekannte Texte tauscht.
+   Vorteil: neue Texte funktionieren sofort weiter, nur eben zunächst deutsch.  */
+let LANG = 'de';
+const EN = {
+  "wird": "becomes",
+  "— dieselben Dollar können nicht in beiden liegen. Wenn eine Perp-Position offen ist, wurde deren Margin vorher von Spot ins Perps-Konto überwiesen; sie fehlt dann im Spot-Guthaben und wird hier korrekt dazugezählt. Häkchen weg = Bereich zählt nicht in die Summe. Die Einstellung wird gespeichert.": "— the same dollars cannot sit in both. When a perp position is open, its margin was moved from spot into the perps account beforehand; it is then missing from the spot balance and is correctly added back here. Unticking means the area is not counted in the total. The setting is saved.",
+  "Hyperliquid gibt über die Schnittstelle nur die letzten 10.000 Ausführungen heraus. Alles, was du schon geladen hast, bleibt aber lokal gespeichert — deine Historie wächst also darüber hinaus weiter. Ein Archiv als Datei schützt zusätzlich bei Gerätewechsel.": "Hyperliquid only serves the most recent 10,000 fills through its interface. Everything you have already loaded stays stored locally though — so your history keeps growing beyond that. A file archive protects you additionally when switching devices.",
+  "Häufigste Ursachen: keine Internetverbindung, oder der Browser blockiert die Anfrage. Falls du die Datei per Doppelklick geöffnet hast und es hier scheitert, lege sie auf GitHub Pages (Anleitung in der beiliegenden Textdatei) – dann läuft es zuverlässig.": "Most common causes: no internet connection, or the browser is blocking the request. If you opened the file by double-clicking and it fails here, put it on GitHub Pages (see the enclosed instructions) — then it runs reliably.",
+  "Die Summen passen nicht zusammen. Mögliche Gründe: dein Gebührensatz hat sich im Zeitraum geändert (Staking-Rabatt, Volumenstufe, Empfehlungscode), oder es sind Builder-Gebühren enthalten. Bei einer Abweichung über 10 % sag mir Bescheid.": "The totals don't match. Possible reasons: your fee rate changed during the period (staking discount, volume tier, referral code), or builder fees are included. If the deviation exceeds 10%, let me know.",
+  "liegt deutlich mehr USDC als im Perps-Konto. Wenn du eigentlich nur Perps handelst und dein ganzes Guthaben dort sein sollte, gehört diese Adresse vermutlich zu einem anderen Konto als gedacht — schau in die Sub-Account-Liste unten.": "far more USDC than in the perps account. If you only trade perps and expect your whole balance to sit there, this address probably belongs to a different account than you think — check the sub-account list below.",
+  "Deine Gewinn-Trades liefen im Schnitt bis {0}, mitgenommen hast du {1} — also {2} %. Die Einstiege funktionieren, der Ausstieg kostet dich das Geld. Schau dir im Labor unter „Exit & Stop“ an, was ein festes Ziel gebracht hätte.": "Your winning trades ran to {0} on average, you took {1} — that is {2}%. The entries work, the exit is what costs you money. Look at “Exit & stop” in the Lab to see what a fixed target would have done.",
+  "Ein Setup pro Zeile. Diese Liste erscheint überall zur Auswahl — im Trade-Detail und bei der Trade-Planung. Umbenennen wirkt sich nicht rückwirkend aus: Trades behalten den Namen, unter dem du sie eingetragen hast.": "One setup per line. This list appears everywhere for selection — in the trade detail and in trade planning. Renaming is not retroactive: trades keep the name you filed them under.",
+  "Diese Auswertung ist eine Rechenhilfe. Ob Krypto-Perpetuals bei dir als Termingeschäfte gelten und ob dein Handelsumfang noch privat oder schon gewerblich ist, gehört vor die Abgabe mit einem Steuerberater geklärt.": "This breakdown is a calculation aid. Whether crypto perpetuals count as derivatives in your case, and whether your trading volume is still private or already commercial, should be settled with a tax adviser before you file.",
+  "Jeder Punkt ist der Erwartungswert der jeweils letzten Trades bis dahin, in Risikoeinheiten. Über null heißt: In diesem Abschnitt hattest du einen Vorteil. Die Linie reagiert früher als der Zeitraumvergleich oben.": "Each point is the expectancy of the most recent trades up to that moment, in risk units. Above zero means you had an edge in that stretch. The line reacts sooner than the period comparison above.",
+  "Deine Historie liegt im großen Browserspeicher. Der Platz reicht für weit über hunderttausend Ausführungen. Ein Archiv als Datei schützt zusätzlich bei Gerätewechsel und wenn du Browserdaten löschst.": "Your history lives in the large browser storage. There is room for well over a hundred thousand fills. A file archive additionally protects you when switching devices or clearing browser data.",
+  "Das beste Feld eines Rasters ist immer auch ein Stück Zufall. Nimm es als Richtung, nicht als Rezept — und schau, ob die Nachbarfelder ähnlich aussehen. Tun sie das nicht, ist der Wert nicht stabil.": "The best cell in a grid is always partly luck. Take it as a direction, not a recipe — and check whether the neighbouring cells look similar. If they don't, the value isn't stable.",
+  "Jede Zelle zeigt, wie dein Ergebnis ausgesehen hätte, wenn du bei jedem Trade konsequent mit diesem Gewinnziel und diesem Stop gearbeitet hättest. Grün heißt besser als dein tatsächliches Ergebnis.": "Each cell shows what your result would have looked like had you consistently used this target and this stop on every trade. Green means better than your actual result.",
+  "Gegenprobe: Die addierten Gebühren werden durch den gehandelten Umsatz geteilt und mit dem Satz verglichen, den Hyperliquid für dein Konto ansetzt. Stimmen beide überein, ist die Summe belastbar.": "Cross-check: the summed fees are divided by traded volume and compared with the rate Hyperliquid applies to your account. If both match, the total is reliable.",
+  ". Solange sie fehlt, liegen deine Notizen nur in diesem Browser — dann ist der Export der einzige Weg, sie auf ein anderes Gerät zu bringen. Bequemer wird es über die Synchronisation weiter oben.": ". Until it is, your notes live only in this browser — then the export is the only way to move them to another device. Syncing above is far more convenient.",
+  "Die kräftige Linie ist der mittlere Verlauf. Die dünnen Linien sind einzelne Durchläufe mit derselben Trefferquote — sie zeigen, wie unterschiedlich es trotz identischer Statistik laufen kann.": "The bold line is the median path. The thin lines are individual runs with the same win rate — they show how differently things can turn out despite identical statistics.",
+  "Jeder Punkt ist ein Trade. Waagerecht: wie weit er im Plus war. Senkrecht: was du mitgenommen hast. Punkte weit rechts unten sind Trades, die gelaufen sind, ohne dass du etwas davon hattest.": "Each dot is a trade. Horizontal: how far it was in profit. Vertical: what you actually took. Dots far to the lower right are trades that ran without you getting anything out of them.",
+  "Für {0} Trades gibt es keine Kursdaten mehr. Hyperliquid gibt je Zeitraster nur die letzten 5.000 Kerzen heraus — bei sehr alten Trades reicht selbst das gröbste Raster nicht zurück.{1}": "For {0} trades no price data is available any more. Hyperliquid only serves the last 5,000 candles per interval — for very old trades even the coarsest interval doesn't reach back.{1}",
+  "Ein Trade gilt als geplant, wenn es einen Plan mit gleichem Ticker, gleicher Richtung und passendem Zeitfenster gibt. Die Zuordnung passiert automatisch, du musst nichts markieren.": "A trade counts as planned if there is a plan with the same ticker, the same direction and a matching time window. The match happens automatically, you don't have to tag anything.",
+  "vergeben wurden. Hier siehst du, ob „Plan befolgt“ zusammen mit einem bestimmten Setup besser läuft als das Setup allein. Anders als in der Tabelle darüber zählt jeder Trade hier": "were assigned. Here you can see whether “plan followed” together with a particular setup performs better than the setup alone. Unlike the table above, every trade counts here",
+  "Trades gibt es keine Kursdaten mehr. Hyperliquid gibt je Zeitraster nur die letzten 5.000 Kerzen heraus — bei sehr alten Trades reicht selbst das gröbste Raster nicht zurück.": "trades no price data is available any more. Hyperliquid only serves the last 5,000 candles per interval — for very old trades even the coarsest interval doesn't reach back.",
+  ", leg dir ein kostenloses Supabase-Projekt an und trag hier die drei Werte ein. Danach laufen Notizen, Tags und Bewertungen automatisch zwischen allen deinen Geräten.": ", create a free Supabase project and enter the three values here. After that notes, tags and ratings flow automatically between all your devices.",
+  "Die Fills werden lokal zwischengespeichert, damit das Laden schnell geht und die API geschont wird. Bei Problemen kannst du den Cache leeren und alles neu abrufen.": "Fills are cached locally so loading stays fast and the API is spared. If something goes wrong you can clear the cache and fetch everything again.",
+  "Alle Gebühren im Filter wurden nicht in USDC abgerechnet ({0}). Sie sind deshalb nicht in der Dollar-Summe enthalten — sonst würden verschiedene Währungen addiert.": "None of the fees in this filter were settled in USDC ({0}). They are therefore not part of the dollar total — otherwise different currencies would be added together.",
+  "Hier wird durchgespielt, was gewesen wäre. Kurse hätten sich nicht anders verhalten, dein Verhalten aber schon — die Zahlen sind Anhaltspunkte, keine Versprechen.": "This plays through what would have been. Prices would not have behaved differently, but your behaviour would have — the numbers are pointers, not promises.",
+  "Notizen gleichen sich beim Öffnen und nach jeder Änderung automatisch ab. Damit das zweite Gerät dieselben Daten sieht, trag dort exakt dieselben drei Werte ein.": "Notes sync automatically on open and after every change. For the second device to see the same data, enter exactly the same three values there.",
+  "— du musst hier nichts tun. Der Export ist nur eine Sicherungskopie für den Notfall, etwa wenn du Browserdaten löschst oder das Supabase-Projekt neu aufsetzt.": "— you don't have to do anything here. The export is only an emergency backup, for instance if you clear browser data or rebuild the Supabase project.",
+  "Häkchen setzen, um eine Wallet auszuwerten. Mehrere gleichzeitig sind möglich — dann werden alle Trades zusammen ausgewertet, die Ansicht bleibt identisch.": "Tick a box to include a wallet. Several at once are possible — then all trades are evaluated together and the view stays the same.",
+  "Im Schnitt liefen sie nur {0} zu deinen Gunsten, bevor sie {1} gegen dich liefen. Das Problem liegt beim Einstieg oder beim Zeitpunkt, nicht beim Ausstieg.": "On average they only ran {0} in your favour before moving {1} against you. The problem is the entry or the timing, not the exit.",
+  "Deine Gewinner lagen im Schnitt {0} hinten, bevor sie drehten — mehr als du am Ende verdient hast. Das geht eine Weile gut und dann einmal richtig schief.": "Your winners were {0} behind on average before turning — more than you earned in the end. That works for a while and then goes badly wrong once.",
+  "Falls das alles nicht geht, trag den Kurs unten von Hand ein — für einen groben Überblick reicht das, für die Abgabe solltest du die Tageskurse nutzen.": "If none of that works, enter the rate manually below — good enough for a rough overview, but for filing you should use the daily rates.",
+  "Es wurde durchgehend mit dem festen Kurs {0} gerechnet, nicht mit den Tageskursen der EZB. Für die Steuererklärung sind tagesgenaue Kurse erforderlich.": "Everything was calculated with the fixed rate {0}, not with the ECB's daily rates. A tax return requires day-by-day rates.",
+  "Noch keine Pläne angelegt — deshalb gelten alle Trades als spontan. Leg unter Planung → Pläne welche an, dann füllt sich diese Tabelle von allein.": "No plans created yet — so every trade counts as spontaneous. Create some under Planning → Plans and this table fills itself.",
+  "%. Die Einstiege funktionieren, der Ausstieg kostet dich das Geld. Schau dir im Labor unter „Exit & Stop“ an, was ein festes Ziel gebracht hätte.": "%. The entries work, the exit is what costs you money. Look at “Exit & stop” in the Lab to see what a fixed target would have done.",
+  "Trades danach sortiert, wie viele Verluste unmittelbar davor lagen. Wenn die Zahlen mit der Verlustserie schlechter werden, handelst du im Tilt.": "Trades grouped by how many losses came immediately before. If the numbers get worse as the losing streak grows, you are trading on tilt.",
+  ". Passiert das immer wieder, liegt dein Problem beim Ausstieg — nicht beim Einstieg. Genau diese Unterscheidung ist der ganze Zweck der Messung.": ". If that keeps happening, your problem is the exit — not the entry. Making exactly that distinction is the whole point of this measurement.",
+  "Trades haben mehrere Setups und zählen deshalb in jeder betroffenen Zeile mit. Die Summe der Zeilen ist darum größer als dein Gesamtergebnis.": "trades have several setups and therefore count in every affected row. The sum of the rows is thus larger than your overall result.",
+  "Trades im aktuellen Filter: Trefferquote {0}%, Ø Gewinn {1}, Ø Verlust {2} → CRV {3} : 1. Risiko als Ø Verlust gemessen an deinem Kontostand.": "trades in the current filter: win rate {0}%, avg win {1}, avg loss {2} → R:R {3} : 1. Risk measured as the average loss relative to your balance.",
+  "Bild konnte nicht geladen werden. Bei TradingView bitte den Bild-Link nehmen (Kamera-Symbol → Bild-Link kopieren), nicht den Chart-Link.": "The image could not be loaded. On TradingView use the image link (camera icon → copy image link), not the chart link.",
+  "Keiner deiner Trades passt zu einem Plan. Prüfe, ob Ticker und Richtung übereinstimmen und ob das Datum des Plans zum Einstieg passt.": "None of your trades match a plan. Check that ticker and direction agree and that the plan's date fits the entry.",
+  "Achtung: In mindestens einem der beiden Zeiträume liegen weniger als zehn Trades. Unterschiede sind dann eher Zufall als Fortschritt.": "Careful: at least one of the two periods holds fewer than ten trades. Differences are then more likely chance than progress.",
+  "{0} Messungen stammen aus einer älteren Fassung ohne Teilausstiege. Klick auf „Ausschläge messen“, dann werden sie neu berechnet.": "{0} measurements come from an older version without partial exits. Click “Measure excursions” and they will be recalculated.",
+  "Die Pfeile vergleichen die letzten {0} Tage mit den {1} Tagen davor{2} ({3} gegen {4} Trades). Zeiger drauf zeigt beide Werte.": "The arrows compare the last {0} days with the {1} days before{2} ({3} vs. {4} trades). Hover to see both values.",
+  "Messungen stammen aus einer älteren Fassung ohne Teilausstiege. Klick auf „Ausschläge messen“, dann werden sie neu berechnet.": "measurements come from an older version without partial exits. Click “Measure excursions” and they will be recalculated.",
+  "Nichts eingetragen. Tipp auf einen Tag im Kalender, um einen Termin anzulegen — geplante Trades erscheinen hier automatisch.": "Nothing entered. Tap a day in the calendar to add an event — planned trades appear here automatically.",
+  "Hyperliquid gibt über die Schnittstelle nur die letzten {0} Ausführungen heraus — bei diesem Konto ist die Grenze erreicht.": "Hyperliquid only serves the last {0} fills through its interface — this account has hit that limit.",
+  "Der Kontostand von Hyperliquid ist zum aktuellen Kurs bewertet — laufende Gewinne und Verluste stecken also bereits darin.": "The Hyperliquid balance is marked to market — open profits and losses are already included.",
+  "Deine persönlichen Gebührensätze konnten nicht geladen werden — ohne sie ist kein Vergleich möglich. Lade die Seite neu.": "Your personal fee rates could not be loaded — without them no comparison is possible. Reload the page.",
+  "Wird innerhalb desselben Kursabschnitts sowohl Ziel als auch Stop berührt, zählt der Stop — die vorsichtigere Annahme.": "If both target and stop are touched within the same price bar, the stop counts — the more cautious assumption.",
+  "Passt. Die addierten Gebühren stimmen mit deinem Gebührensatz überein — die Summe ist also echt und kein Rechenfehler.": "Checks out. The summed fees match your fee rate — so the total is real and not a calculation error.",
+  "hinten, bevor sie drehten — mehr als du am Ende verdient hast. Das geht eine Weile gut und dann einmal richtig schief.": "behind on average before turning — more than you earned in the end. That works for a while and then goes badly wrong once.",
+  "Für jeden Trade wird der Kursverlauf zwischen Einstieg und Ausstieg geholt und gemessen, wie weit er zwischenzeitlich": "For every trade the price action between entry and exit is loaded and measured: how far it went",
+  "Das ist der geheime Key (service_role bzw. sb_secret). Nimm bitte den öffentlichen: „anon public\" oder „publishable\".": "That is the secret key (service_role or sb_secret). Please use the public one: “anon public” or “publishable”.",
+  "TradingView: Kamera-Symbol → „Bild-Link kopieren“ → hier einfügen. Bilder vom Gerät werden automatisch verkleinert.": "TradingView: camera icon → “copy image link” → paste here. Images from your device are downscaled automatically.",
+  "Die Projekt-URL sieht nicht richtig aus. Erwartet wird etwas wie https://abcdefgh.supabase.co (ohne Pfad dahinter).": "The project URL doesn't look right. Something like https://abcdefgh.supabase.co is expected (with no path after it).",
+  "{0} von {1} Zusammenstellungen haben mindestens {2} Trades. Die blasseren Zeilen darunter sind noch Einzelfälle.": "{0} of {1} combinations have at least {2} trades. The paler rows below are still one-offs.",
+  "Du steigst bei 100 ein, der Kurs läuft auf 134, fällt zurück und du schließt bei 113. Dann war der Trade bis": "You enter at 100, price runs to 134, falls back and you close at 113. Then the trade was up to",
+  "Du näherst dich der Grenze des kleinen Speichers. Lade die Seite neu — dann wird auf den großen umgestellt.": "You are approaching the limit of the small storage. Reload the page and it will switch to the large one.",
+  "gerechnet, nicht mit den Tageskursen der EZB. Für die Steuererklärung sind tagesgenaue Kurse erforderlich.": ", not with the ECB's daily rates. A tax return requires day-by-day rates.",
+  "Es passen nicht alle Ausführungen in den Speicher; die ältesten wurden weggelassen. Sichere dein Archiv.": "Not all fills fit into storage; the oldest were dropped. Save your archive.",
+  "Alle Zeilen sind noch Einzelfälle. Ab etwa {0} Trades je Zusammenstellung wird ein Vergleich sinnvoll.": "All rows are still one-offs. A comparison becomes meaningful from about {0} trades per combination.",
+  "). Sie sind deshalb nicht in der Dollar-Summe enthalten — sonst würden verschiedene Währungen addiert.": "). They are therefore not part of the dollar total — otherwise different currencies would be added together.",
+  ", nicht auf die gesamte Kontohistorie. Das Gesamtergebnis des Kontos steht daneben als eigene Kachel.": ", not to the full account history. The account's overall result is shown next to it as its own tile.",
+  "Diese Werte sind dein Zugang zu den Notizen. Nicht ins GitHub-Repo schreiben und nicht weitergeben.": "These values are your access to the notes. Do not put them in the GitHub repo and do not share them.",
+  "Der Trade war deutlich weiter vorn, als du mitgenommen hast — du hast {0} der Bewegung realisiert.": "The trade was far further ahead than what you took — you realised {0} of the move.",
+  "Dollarbeträge sind verdeckt. Prozent, R und Kurse bleiben sichtbar. Exportierte Dateien sind davon": "Dollar amounts are hidden. Percentages, R and prices stay visible. Exported files are",
+  "Nur abgeschlossene Trades. Sobald etwas offen ist, wird der laufende Stand gestrichelt angehängt.": "Closed trades only. As soon as something is open, the running total is appended as a dashed line.",
+  "Noch keine Trades mit Setup. Öffne im Bereich Trades einen Trade und wähl dort deine Setups aus.": "No trades with a setup yet. Open a trade in the Trades section and pick your setups there.",
+  "Du hast {0} auf mehreren Märkten gehandelt. Oben sind alle zusammengefasst, hier die Aufteilung.": "You traded {0} in several markets. Everything is combined above, here is the breakdown.",
+  "Das ist normal, wenn die Seite selten benutzt wird — sichere dann lieber regelmäßig dein Archiv.": "That is normal if the page is used rarely — in that case save your archive regularly.",
+  "Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server": "Data live from the public Hyperliquid API · no sign-up, no API key, no servers",
+  "Dafür brauche ich die Ausschlagsmessung (Fakten → Ausschläge) und einen geladenen Kontostand.": "This needs the excursion measurement (Facts → Excursions) and a loaded balance.",
+  "in Euro um und trennt die Ergebnisse nach den Töpfen, die das Finanzamt getrennt sehen will.": "into euros and separates the results into the buckets the tax office wants kept apart.",
+  "Verbunden. Trag dieselben drei Werte auf deinem anderen Gerät ein, dann sind beide synchron.": "Connected. Enter the same three values on your other device and both will be in sync.",
+  "gegen dich liefen. Das Problem liegt beim Einstieg oder beim Zeitpunkt, nicht beim Ausstieg.": "against you. The problem is the entry or the timing, not the exit.",
+  "Für einen Vergleich mit dem Zeitraum davor fehlen noch Trades — nötig sind {0} je Zeitraum.": "Not enough trades yet to compare with the previous period — {0} per period are needed.",
+  "Bei einigen Ausführungen wurde die Gebühr nicht in USDC abgerechnet ({0}). Diese sind oben": "On some fills the fee was not settled in USDC ({0}). Those are",
+  "Automatisch erkannt über Markt, Richtung und Datum — beim Speichern wird das festgehalten.": "Detected automatically from market, direction and date — this is recorded when you save.",
+  "Semikolon-getrennt mit deutschem Komma — Excel und LibreOffice öffnen das ohne Nachfrage.": "Semicolon-separated with German decimal commas — Excel and LibreOffice open it without asking.",
+  "Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.": "Read-only – this journal cannot trade and never needs private keys.",
+  "Verlängerung rechnet deine laufenden Positionen dazu{0}. Der schwankende Teil davon: {1}.": "extension adds your open positions{0}. The fluctuating part of that: {1}.",
+  "Zu dieser Adresse liefert die API gar nichts. Häufigster Grund: Es ist die Adresse einer": "The API returns nothing at all for this address. Most common reason: it is the address of an",
+  "Nichts gefunden. Aktien und Sondermärkte erscheinen erst, wenn ihre Liste geladen ist.": "Nothing found. Stocks and special markets only appear once their list has loaded.",
+  "Der Trade war nie nennenswert im Plus — hier liegt es am Einstieg, nicht am Ausstieg.": "The trade was never meaningfully in profit — this is about the entry, not the exit.",
+  "Neue Ausführungen konnten nicht abgelegt werden. Sichere jetzt dein Archiv als Datei.": "New fills could not be stored. Save your archive to a file now.",
+  "auf mehreren Märkten gehandelt. Oben sind alle zusammengefasst, hier die Aufteilung.": "in several markets. Everything is combined above, here is the breakdown.",
+  "Es ist keine Wallet ausgewählt. Öffne oben die Wallet-Auswahl und setz ein Häkchen.": "No wallet selected. Open the wallet picker above and tick one.",
+  "Bei deinen Gewinnern nimmst du {0} % der Bewegung mit, die dir zur Verfügung stand.": "On your winners you capture {0}% of the move that was available to you.",
+  "Nichts geplant. Unter Planung → Pläne legst du Trades an, sie erscheinen dann hier.": "Nothing planned. Create trades under Planning → Plans and they will show up here.",
+  "Margin für {0} offene Position{1} + unreal. PnL — dieses Geld liegt nicht auf Spot": "Margin for {0} open position{1} + unreal. PnL — this money is not on spot",
+  "Die Daten sind geladen, aber beim Aufbauen der Ansicht ist etwas schiefgegangen.": "The data loaded, but something went wrong building the view.",
+  "Für Screenshots: verdeckt alle Dollarbeträge, auch auf den Achsen der Diagramme.": "For screenshots: hides every dollar amount, including on chart axes.",
+  "Verglichen werden {0} Trades aus dem älteren mit {1} aus dem jüngeren Zeitraum.": "{0} trades from the older period are compared with {1} from the more recent one.",
+  "Das sieht nicht nach einer gültigen Adresse aus. Erwartet wird 0x + 40 Zeichen.": "That doesn't look like a valid address. 0x plus 40 characters is expected.",
+  "Worauf warte ich? Woran erkenne ich den Einstieg? Was macht den Plan ungültig?": "What am I waiting for? How do I recognise the entry? What invalidates the plan?",
+  "— jeweils in Dollar, gerechnet mit der Menge, die zu dem Zeitpunkt offen war.": "— each in dollars, based on the quantity open at that moment.",
+  "Der Kontoverlauf beginnt rund {0} Tage vor der ältesten geladenen Ausführung.": "The account history starts roughly {0} days before the oldest loaded fill.",
+  "Bitte einen Kurs zwischen 0,1 und 10 eintragen — z.B. 0,86 für USD in Euro.": "Please enter a rate between 0.1 and 10 — e.g. 0.86 for USD into euros.",
+  "Prüfe, ob du die Tabelle per SQL angelegt hast und ob URL und Key stimmen.": "Check that you created the table via SQL and that the URL and key are correct.",
+  "Für einen Vergleich mit dem Zeitraum davor fehlen noch Trades — nötig sind": "Not enough trades yet to compare with the previous period —",
+  "Beim ersten Mal dauert es ein bis zwei Minuten, danach liegt alles lokal.": "The first run takes a minute or two, after that everything is stored locally.",
+  "Synchronisation trennen? Deine Notizen bleiben auf diesem Gerät erhalten.": "Disconnect syncing? Your notes stay on this device.",
+  "Keine Zuordnung. Wähl eine Idee, wenn dieser Trade daraus entstanden ist.": "Not linked. Pick an idea if this trade came out of one.",
+  "Der Trade lag {0} hinten, bevor er drehte — mehr als der Gewinn am Ende.": "The trade was {0} behind before it turned — more than the eventual profit.",
+  "Für einzelne Tage lag kein Kurs vor. Lass die Berechnung nochmal laufen.": "For some days no rate was available. Run the calculation again.",
+  "Alle Werte per POST an api.hyperliquid.xyz/info mit deiner Adresse als": "All values via POST to api.hyperliquid.xyz/info with your address as",
+  "Alle Trades in vier gleich große Gruppen nach Positionsgröße geteilt.": "All trades split into four equally sized groups by position size.",
+  "— inklusive {0}, die du dort bereits durch Teilverkäufe kassiert hast": "— including {0} you have already banked there through partial exits",
+  "Perpetuals, § 20 Abs. 2 Satz 1 Nr. 3 EStG · {0} abgeschlossene Trades": "Perpetuals, § 20 (2) sentence 1 no. 3 EStG · {0} closed trades",
+  "Bei einigen Ausführungen wurde die Gebühr nicht in USDC abgerechnet (": "On some fills the fee was not settled in USDC (",
+  "Der Trade war deutlich weiter vorn, als du mitgenommen hast — du hast": "The trade was far further ahead than what you took — you realised",
+  "Es sind keine Trades geladen, aus denen ich Werte übernehmen könnte.": "No trades are loaded, so there are no values to take over.",
+  "{0} neue Ausführungen und {1} Einträge übernommen. Lade gleich neu…": "{0} new fills and {1} entries taken over. Reloading shortly…",
+  "z.B. Breakout über Tageshoch, Einstieg zu früh, SL zu eng gesetzt…": "e.g. breakout above the daily high, entered too early, stop too tight…",
+  "In dieser Woche keine Trades. Auch das ist eine Beobachtung wert.": "No trades this week. That is worth noting too.",
+  "Rohdaten der API anzeigen (zum Abgleich mit der Hyperliquid-App)": "Show raw API data (to reconcile with the Hyperliquid app)",
+  "Der Browser schützt deine Daten jetzt vor automatischem Löschen.": "The browser now protects your data from automatic deletion.",
+  "Werbeblocker wie uBlock oder AdGuard für diese Seite abschalten": "Disable ad blockers such as uBlock or AdGuard for this site",
+  "Ausführungen heraus — bei diesem Konto ist die Grenze erreicht.": "fills through its interface — this account has hit that limit.",
+  "Noch keine Wallet hinterlegt. Trag unten Name und Adresse ein.": "No wallet saved yet. Enter a name and address below.",
+  "„{0}“ aus der Liste entfernen? Deine Notizen bleiben erhalten.": "Remove “{0}” from the list? Your notes are kept.",
+  "Oben auf „Wallet wählen“ tippen und deine Adresse hinterlegen.": "Tap “Choose wallet” above and enter your address.",
+  "Öffne im Tab „Trades“ einen Trade und vergib einen Setup-Tag.": "Open a trade in the “Trades” tab and assign a setup tag.",
+  "braucht Setup-Tags an mindestens zwei Gruppen mit je 5 Trades": "requires setup tags on at least two groups of 5 trades each",
+  "mitgezählt, weil sie sonst Äpfel mit Birnen addieren würden.": "counted above, because otherwise apples and oranges would be added up.",
+  "Eröffnung liegt vor dem geladenen Zeitraum – Entry geschätzt": "Opened before the loaded period – entry estimated",
+  "Nicht vom Internet, sondern vom Browser. Häufigste Ursachen:": "Not by the internet, but by the browser. Most common causes:",
+  "Trades. Die blasseren Zeilen darunter sind noch Einzelfälle.": "trades. The paler rows below are still one-offs.",
+  "Noch keine Pläne. Leg mit „+ Neuer Plan“ deinen ersten an.": "No plans yet. Create your first with “+ New plan”.",
+  "{0}{1} Fills · {2} abgeschlossene Trades · {3} · Stand {4}": "{0}{1} fills · {2} closed trades · {3} · as of {4}",
+  "Der API-Key wirkt unvollständig – bitte komplett kopieren.": "The API key looks incomplete – please copy all of it.",
+  "“ aus der Liste entfernen? Deine Notizen bleiben erhalten.": "” from the list? Your notes are kept.",
+  "Alle Gebühren im Filter wurden nicht in USDC abgerechnet (": "None of the fees in this filter were settled in USDC (",
+  "Die durchgezogene Linie zeigt abgeschlossene Trades. Die": "The solid line shows closed trades. The",
+  "Alle Rohwerte der Adresse anzeigen (nur zur Fehlersuche)": "Show all raw values for this address (for troubleshooting only)",
+  "Kein steuerpflichtiger Vorgang, aber Teil der Belegkette": "Not a taxable event, but part of the paper trail",
+  "Noch keine Messdaten. Tipp oben auf „Ausschläge messen“.": "No measurements yet. Tap “Measure excursions” above.",
+  "Kein Kontostand geladen – R kann nicht berechnet werden.": "No balance loaded – R cannot be calculated.",
+  ": 1. Risiko als Ø Verlust gemessen an deinem Kontostand.": ": 1. Risk measured as the average loss relative to your balance.",
+  "Project Settings → API Keys. Nimm den öffentlichen Key,": "Project Settings → API Keys. Use the public key,",
+  "Hyperliquid gibt über die Schnittstelle nur die letzten": "Hyperliquid only serves the last",
+  "Trades je Zusammenstellung wird ein Vergleich sinnvoll.": "trades per combination.",
+  "Firmen- oder Schulnetzwerk, das fremde Adressen sperrt": "A company or school network blocking outside addresses",
+  "{0} von {1} Verkäufen · nur diese sind steuerpflichtig": "{0} of {1} sales · only these are taxable",
+  ", die du dort bereits durch Teilverkäufe kassiert hast": "you have already banked there through partial exits",
+  "hinten, bevor er drehte — mehr als der Gewinn am Ende.": "behind before it turned — more than the eventual profit.",
+  "Projekt-URL: {0} Anon-Key: {1} Journal-Schlüssel: {2}": "Project URL: {0} Anon key: {1} Journal key: {2}",
+  "spotClearinghouseState → balances[].total × Spot-Kurs": "spotClearinghouseState → balances[].total × spot price",
+  "Verlängerung rechnet deine laufenden Positionen dazu": "extension adds your open positions",
+  "Auf diesem Markt hast du noch nichts abgeschlossen.": "You haven't closed anything in this market yet.",
+  "Notiz – was war der Plan, was lief gut, was nicht?": "Note – what was the plan, what worked, what didn't?",
+  "Noch keine Ideen angelegt — unter Planung → Pläne.": "No ideas created yet — under Planning → Plans.",
+  "Folgt der Einstellung deines Geräts — aktuell {0}.": "Follows your device setting — currently {0}.",
+  "Erreichter Ausschlag gegen mitgenommenes Ergebnis": "Excursion reached vs. result taken",
+  "Bitte zuerst auf „Steuerdaten berechnen“ klicken.": "Please click “Calculate tax data” first.",
+  "{0}Alle Auswertungen unten beziehen sich deshalb": "{0}All the breakdowns below therefore refer",
+  "abgeschlossen · daneben {0} laufende Position{1}": "closed · plus {0} open position{1}",
+  "Diese drei Werte auf dem anderen Gerät eintragen": "Enter these three values on the other device",
+  "Journal-Schlüssel (auf beiden Geräten identisch)": "Journal key (identical on both devices)",
+  "Dieser Verlust war zwischenzeitlich {0} im Plus.": "This loss was {0} in profit at one point.",
+  "+ unreal. PnL — dieses Geld liegt nicht auf Spot": "+ unreal. PnL — this money is not on spot",
+  "% der Bewegung mit, die dir zur Verfügung stand.": "% of the move that was available to you.",
+  "Die Vorschläge sind schon alle in deiner Liste.": "All the suggestions are already in your list.",
+  "Keine Sub-Accounts zu dieser Adresse gefunden.": "No sub-accounts found for this address.",
+  "{0} Symbole verfügbar — tipp los, um zu suchen": "{0} symbols available — start typing to search",
+  "Link einfügen, z.B. tradingview.com/x/AbCdEf/": "Paste a link, e.g. tradingview.com/x/AbCdEf/",
+  "Noch keine Setups angelegt — Fakten → Setups.": "No setups created yet — Facts → Setups.",
+  "· Kurse der EZB, {0} Tage im Zwischenspeicher": "· ECB rates, {0} days cached",
+  "Setz bei mindestens einer Wallet ein Häkchen.": "Tick at least one wallet.",
+  "Alle Auswertungen unten beziehen sich deshalb": "All the breakdowns below therefore refer",
+  "Folgt der Einstellung deines Geräts — aktuell": "Follows your device setting — currently",
+  "Diagnose: was die API zu dieser Adresse sagt": "Diagnostics: what the API reports for this address",
+  "In Trades vergeben, aber nicht in der Liste:": "Used in trades but missing from the list:",
+  "Alle Setups sind mindestens einmal vergeben.": "Every setup has been used at least once.",
+  "Noch nicht eingerichtet. Folge der Anleitung": "Not set up yet. Follow the guide",
+  "Deine Notizen, Setups und Bewertungen werden": "Your notes, setups and ratings are",
+  "{0} Ausführungen und {1} Einträge gesichert.": "{0} fills and {1} entries saved.",
+  "{0} Notizen importiert und zusammengeführt.": "{0} notes imported and merged.",
+  "Fehlversuche verwerfen und erneut probieren": "Discard failed attempts and try again",
+  "Deine Verlierer waren nie wirklich im Plus.": "Your losers were never really in profit.",
+  "Tage vor der ältesten geladenen Ausführung.": "days before the oldest loaded fill.",
+  "Perpetuals, § 20 Abs. 2 Satz 1 Nr. 3 EStG ·": "Perpetuals, § 20 (2) sentence 1 no. 3 EStG ·",
+  "Notiz konnte nicht gespeichert werden: {0}": "Note could not be saved: {0}",
+  "Teilverkäufe aus {0} laufenden Position{1}": "Partial exits from {0} open position{1}",
+  "Private Veräußerungsgeschäfte, § 23 EStG —": "Private disposals, § 23 EStG —",
+  "clearinghouseState → marginSummary (Perps)": "clearinghouseState → marginSummary (perps)",
+  "Alle Zeilen sind noch Einzelfälle. Ab etwa": "All rows are still one-offs. A comparison becomes meaningful from about",
+  "Verkäufen · nur diese sind steuerpflichtig": "sales · only these are taxable",
+  "Symbole verfügbar — tipp los, um zu suchen": "symbols available — start typing to search",
+  "Was hätte den größten Unterschied gemacht": "What would have made the biggest difference",
+  "Risiko vom aktuellen Kapital (Zinseszins)": "Risk from current capital (compounding)",
+  "{0} Zahlungen · erhalten {1}, gezahlt {2}": "{0} payments · received {1}, paid {2}",
+  ", nicht mit Termingeschäften verrechenbar": ", cannot be offset against derivatives",
+  "Der Browser hat den Schutz nicht gewährt.": "The browser did not grant protection.",
+  "Für diese Woche noch nichts festgehalten.": "Nothing recorded for this week yet.",
+  "Deine Gewinn-Trades liefen im Schnitt bis": "Your winning trades ran to",
+  "Speichern fehlgeschlagen (HTTP {0}): {1}": "Saving failed (HTTP {0}): {1}",
+  "Steht in deiner Browser-Adresszeile: aus": "It's in your browser's address bar: from",
+  "Die Kursquelle antwortet mit Status {0}.": "The rate source responded with status {0}.",
+  "{0}{1} · {2} Trade{3} in deiner Historie": "{0}{1} · {2} trade{3} in your history",
+  "spotClearinghouseState → balances (Spot)": "spotClearinghouseState → balances (spot)",
+  "Trades). Zeiger drauf zeigt beide Werte.": "trades). Hover to see both values.",
+  "Trades im aktuellen Filter: Trefferquote": "trades in the current filter: win rate",
+  "Es wurde durchgehend mit dem festen Kurs": "Everything was calculated with the fixed rate",
+  "Durchläufe unter 50 % des Startkapitals": "runs below 50% of starting capital",
+  "Bitte einen Ticker eintragen, z.B. BTC.": "Please enter a ticker, e.g. BTC.",
+  "Notizen importiert und zusammengeführt.": "notes imported and merged.",
+  "Trades danach gruppiert, welche Setups": "Trades grouped by which setups",
+  "API-Key (anon public oder publishable)": "API key (anon public or publishable)",
+  "Es konnten keine Kurse geladen werden.": "No exchange rates could be loaded.",
+  "Notiz konnte nicht gespeichert werden:": "Note could not be saved:",
+  "Rechnet jede einzelne Transaktion zum": "Converts every single transaction at the",
+  "Die Trade-Historie ist unvollständig.": "The trade history is incomplete.",
+  "noch zu wenig Trades für eine Aussage": "still too few trades to draw a conclusion",
+  "Das Bild konnte nicht gelesen werden.": "The image could not be read.",
+  "Geplante Trades bringen dir pro Stück": "Planned trades earn you",
+  "Einträge übernommen. Lade gleich neu…": "entries taken over. Reloading shortly…",
+  "Deine Liste — zum Entfernen antippen": "Your list — tap to remove",
+  "Abruf fehlgeschlagen (HTTP {0}): {1}": "Fetch failed (HTTP {0}): {1}",
+  "Chance-Risiko (Ø Gewinn ÷ Ø Verlust)": "Reward-to-risk (avg win ÷ avg loss)",
+  "Keine Funding-Zahlungen im Zeitraum.": "No funding payments in this period.",
+  "Keine Ein-/Auszahlungen im Zeitraum.": "No deposits or withdrawals in this period.",
+  "Hyperliquid führt Spot und Perps als": "Hyperliquid runs spot and perps as",
+  "Zugangsdaten zum Übertragen anzeigen": "Show credentials for transfer",
+  "Keine Notizen in der Datei gefunden.": "No notes found in the file.",
+  "Ein- und Ausstieg wirken ausgewogen.": "Entry and exit look balanced.",
+  "{0} von {1} Ausführungen waren Taker": "{0} of {1} fills were taker",
+  "Diese Wallet ist schon in der Liste.": "This wallet is already in the list.",
+  "Was mache ich nächste Woche anders?": "What will I do differently next week?",
+  "Bester & schlechtester Tag (gesamt)": "Best & worst day (overall)",
+  "· {0} · {1} gesendet, {2} empfangen": "· {0} · {1} sent, {2} received",
+  "Daten konnten nicht geladen werden.": "The data could not be loaded.",
+  "keine Kursdaten für diesen Zeitraum": "no price data for this period",
+  "— nicht die tagesgenauen EZB-Kurse.": "— not the day-by-day ECB rates.",
+  "Alle gemessenen Ausschläge löschen?": "Delete all measured excursions?",
+  "Zusammenstellungen haben mindestens": "combinations have at least",
+  "Dieser Verlust war zwischenzeitlich": "This loss was",
+  "Die Kursquelle antwortet mit Status": "The rate source responded with status",
+  "schlechter als 95 % der Durchläufe": "worse than 95% of runs",
+  "Pause nach zwei Verlusten in Folge": "Break after two losses in a row",
+  "Die Pfeile vergleichen die letzten": "The arrows compare the last",
+  "Keine Trades im gewählten Filter.": "No trades match the filter.",
+  "Fester Ausstieg statt Bauchgefühl": "Fixed exit instead of gut feeling",
+  "Letzte 30 Tage gegen die 30 davor": "Last 30 days vs. the 30 before",
+  "Letzte 14 Tage gegen die 14 davor": "Last 14 days vs. the 14 before",
+  "Letzte 60 Tage gegen die 60 davor": "Last 60 days vs. the 60 before",
+  "Letzte 90 Tage gegen die 90 davor": "Last 90 days vs. the 90 before",
+  "Alle Trades dieses Marktes zeigen": "Show all trades in this market",
+  "Die Zahlen oben stimmen trotzdem.": "The numbers above are still correct.",
+  "die mittleren 50 % der Durchläufe": "the middle 50% of runs",
+  "Bild konnte nicht geladen werden.": "The image could not be loaded.",
+  "Löwen-Symbol in der Adresszeile →": "lion icon in the address bar →",
+  "Keine Spot-Geschäfte im Zeitraum.": "No spot transactions in this period.",
+  "{0} vermessene Trades · 1 R = {1}": "{0} measured trades · 1 R = {1}",
+  "nur auf die geladenen {0} Trades": "only to the {0} loaded trades",
+  "Noch keine Bewertungen vergeben.": "No ratings given yet.",
+  "Trades in zeitlicher Reihenfolge": "Trades in chronological order",
+  "positiv – langfristig profitabel": "positive – profitable long term",
+  "negativ – dieses System verliert": "negative – this system loses",
+  "Die Kursabfrage wurde blockiert.": "The rate lookup was blocked.",
+  "Du schneidest deine Gewinner ab.": "You are cutting your winners short.",
+  "kleiner Speicher (max. ca. 5 MB)": "small storage (max. approx. 5 MB)",
+  "Archiv — schützt deine Historie": "Archive — protects your history",
+  "netto nach Gebühren und Funding": "net of fees and funding",
+  "statt der echten Konto-Adresse.": "instead of the real account address.",
+  "Kursabfrage fehlgeschlagen: {0}": "Rate lookup failed: {0}",
+  "schwankend · {0} schon kassiert": "fluctuating · {0} already banked",
+  "Deine Gewinner lagen im Schnitt": "Your winners were",
+  "Rechenmodell, keine Tatsachen.": "A model, not facts.",
+  "Schon kassiert, Position offen": "Already banked, position open",
+  "besser als 95 % der Durchläufe": "better than 95% of runs",
+  "in offenen Positionen gesperrt": "locked in open positions",
+  "Nominalwert offener Positionen": "notional of open positions",
+  "freies Guthaben im Perps-Konto": "free balance in the perps account",
+  "Verbindung fehlgeschlagen: {0}": "Connection failed: {0}",
+  "Noch keine Wallet gespeichert.": "No wallet saved yet.",
+  "EZB-Kurs USD/EUR (Schliesstag)": "ECBRateUSDEUR(CloseDate)",
+  "Speichern fehlgeschlagen (HTTP": "Saving failed (HTTP",
+  "Bei deinen Gewinnern nimmst du": "On your winners you capture",
+  "Gleitendes Fenster: 20 Trades": "Rolling window: 20 trades",
+  "Noch keine Setups vergriffen.": "No setups assigned yet.",
+  "Woher der Account Value kommt": "Where the account value comes from",
+  "Keine Ausführungen im Filter.": "No fills in this filter.",
+  "Positionswert ÷ Account Value": "position value ÷ account value",
+  "Mit festem Kurs {0} gerechnet": "Calculated with the fixed rate {0}",
+  "bereits im Ergebnis abgezogen": "already deducted from the result",
+  "braucht die Ausschlagsmessung": "requires the excursion measurement",
+  "Nur Limit-Orders statt Market": "Limit orders only instead of market",
+  "Immer gleich große Positionen": "Always the same position size",
+  "Der Kontoverlauf beginnt rund": "The account history starts roughly",
+  ". Der schwankende Teil davon:": ". The fluctuating part of that:",
+  "Da ist etwas schiefgegangen.": "Something went wrong.",
+  "Kumulierter PnL im Vergleich": "Cumulative PnL compared",
+  "EZB-Referenzkurs ihres Tages": "ECB reference rate of its day",
+  "API antwortet mit Status {0}": "API responded with status {0}",
+  "nur aus den geladenen Trades": "from loaded trades only",
+  "wenn du jetzt alles schließt": "if you closed everything now",
+  "— unabhängig vom Filter oben": "— independent of the filter above",
+  "inklusive offener Positionen": "including open positions",
+  "typischer Einbruch unterwegs": "typical dip along the way",
+  "Gebühren + gezahltes Funding": "fees + funding paid",
+  "davon innerhalb eines Jahres": "of which within one year",
+  "Termingeschäfte · Anlage KAP": "Derivatives · Anlage KAP",
+  "waren sie zwischendurch vorn": "they were ahead at some point",
+  "Bitte einen Titel eintragen.": "Please enter a title.",
+  "zu deinen Gunsten, bevor sie": "in your favour before moving",
+  "Steuer-Export (Deutschland)": "Tax export (Germany)",
+  "Notizen exportieren (.json)": "Export notes (.json)",
+  "{0} Wallets zusammengefasst": "{0} wallets combined",
+  "gesamtes Konto, alle Zeiten": "whole account, all time",
+  "Verbinden & synchronisieren": "Connect & sync",
+  "Noch keine Notizen erfasst.": "No notes recorded yet.",
+  "Shields für diese Seite aus": "turn Shields off for this site",
+  "vom Möglichen bei Gewinnern": "of what was available on winners",
+  "Schwächste Setups weglassen": "Drop the weakest setups",
+  "Kursabfrage fehlgeschlagen:": "Rate lookup failed:",
+  "Ø Chance-Risiko-Verhältnis": "Avg reward-to-risk",
+  "Meine Statistik übernehmen": "Use my own statistics",
+  "Synchronisation Handy ↔ PC": "Sync phone ↔ computer",
+  "Dein Satz laut Hyperliquid": "Your rate per Hyperliquid",
+  "automatisch synchronisiert": "synced automatically",
+  "Rendite auf Positionsgröße": "Return on position size",
+  "Enthaltene Handelsgebühren": "Trading fees included",
+  "Import fehlgeschlagen: {0}": "Import failed: {0}",
+  "Tatsächliches Ergebnis ($)": "Actual result ($)",
+  "auf {0} vermessenen Trades": "on {0} measured trades",
+  "Ziel und Stop durchrechnen": "Model target and stop",
+  "Der Bestand wurde gekürzt.": "The stored data was trimmed.",
+  "Das ist keine Archivdatei.": "That is not an archive file.",
+  "je größer, desto unruhiger": "the larger, the choppier",
+  "Zuletzt gespeichert am {0}": "Last saved on {0}",
+  "Abruf fehlgeschlagen (HTTP": "Fetch failed (HTTP",
+  "Verbindung fehlgeschlagen:": "Connection failed:",
+  "Trades aus dem älteren mit": "trades from the older period are compared with",
+  "aus dem jüngeren Zeitraum.": "from the more recent one.",
+  "vorn, mitgenommen hast du": "ahead, you took",
+  "Bestes Ergebnis im Raster": "Best result in the grid",
+  "Erwartungswert im Verlauf": "Expectancy over time",
+  "Auswertung nach Setup-Tag": "Breakdown by setup",
+  "Verteilung der Ergebnisse": "Distribution of results",
+  "Keine offenen Positionen.": "No open positions.",
+  "{0}: davor {1}, jetzt {2}": "{0}: before {1}, now {2}",
+  "Kumulierter Netto-PnL ($)": "Cumulative net PnL ($)",
+  "Wieder auf geplant setzen": "Set back to planned",
+  "({0} Taker, {1} Maker{2})": "({0} taker, {1} maker{2})",
+  "– keine Idee zugeordnet –": "– no idea linked –",
+  "Ø größter Gewinn im Trade": "Avg largest profit in trade",
+  "bevor du geschlossen hast": "before you closed",
+  "Symbolliste wird geladen…": "Loading symbol list…",
+  "abgeschlossen · offen {0}": "closed · open {0}",
+  "Gespeicherte Ausführungen": "Stored fills",
+  "Diesen Rückblick löschen?": "Delete this review?",
+  "Im Schnitt liefen sie nur": "On average they only ran",
+  "vermessene Trades · 1 R =": "measured trades · 1 R =",
+  "Kumulierter PnL (Trades)": "Cumulative PnL (trades)",
+  "Cache leeren & neu laden": "Clear cache & reload",
+  "Verlauf auf diesem Markt": "History in this market",
+  "Setups — mehrere möglich": "Setups — multiple allowed",
+  "Bewertung der Ausführung": "Rating of the execution",
+  "z.B. BTC Bottom erwartet": "e.g. BTC bottom expected",
+  "⚠ Historie unvollständig": "⚠ History incomplete",
+  "Damit erwartete Gebühren": "Fees expected from that",
+  "den secret/service_role.": "the secret / service_role one.",
+  "Neuen Schlüssel erzeugen": "Generate a new key",
+  "Trades inklusive Funding": "trades including funding",
+  "Betroffen vor allem: {0}": "Mainly affected: {0}",
+  "Ø bei Gewinnern erreicht": "Avg reached on winners",
+  "{0} von {1} vermessen{2}": "{0} of {1} measured{2}",
+  "API antwortet mit Status": "API responded with status",
+  "der Bewegung realisiert.": "of the move.",
+  "Tage im Zwischenspeicher": "days cached",
+  "Ausführungen waren Taker": "fills were taker",
+  "Beste Coins je Richtung": "Best markets per side",
+  "Erwartet bis (optional)": "Expected until (optional)",
+  "Gehört zu welcher Idee?": "Which idea does this belong to?",
+  "Einzelne Fills anzeigen": "Show individual fills",
+  "Noch nie verwendet: {0}": "Never used: {0}",
+  "Als umgesetzt markieren": "Mark as executed",
+  "Als verworfen markieren": "Mark as dropped",
+  "Erwartungswert je Trade": "Expectancy per trade",
+  "Gebühren ÷ |Brutto-PnL|": "fees ÷ |gross PnL|",
+  "Kein Bereich aktiviert.": "No area enabled.",
+  "{0} offene Position(en)": "{0} open position(s)",
+  "Daraus errechneter Satz": "Rate derived from that",
+  "Die Synchronisation ist": "Syncing is",
+  "Mit festem Kurs rechnen": "Calculate with a fixed rate",
+  "Nie nennenswert im Plus": "Never meaningfully in profit",
+  "Gewinnseite unverändert": "profit side unchanged",
+  "Vom Browser freigegeben": "Granted by the browser",
+  "Notizen, Pläne, Termine": "Notes, plans, events",
+  "Keine Trades im Filter.": "No trades in this filter.",
+  "Wallets zusammengefasst": "wallets combined",
+  "abgeschlossene Trades ·": "closed trades ·",
+  "abgeschlossen · daneben": "closed · plus",
+  "Vorschläge zurückholen": "Restore suggestions",
+  "Gebühren nachgerechnet": "Fees verified",
+  "Range / Mean Reversion": "Range / mean reversion",
+  "Name für diese Wallet:": "Name for this wallet:",
+  "kein Bereich aktiviert": "no area enabled",
+  "in Positionen gesperrt": "locked in positions",
+  "{0} Vault(s), z.B. HLP": "{0} vault(s), e.g. HLP",
+  "Roh-PnL (vor Gebühren)": "Raw PnL (before fees)",
+  "Keine Daten vorhanden.": "No data available.",
+  ", dann Seite neu laden": ", then reload the page",
+  "getrennter Verlusttopf": "separate loss pot",
+  "Abfrage fehlgeschlagen": "request failed",
+  "Du sitzt Verluste aus.": "You are sitting through losses.",
+  "Nur fester Stop bei 1R": "Fixed stop at 1R only",
+  "Tatsächliches Ergebnis": "Actual result",
+  "Bestes Raster-Ergebnis": "Best result in the grid",
+  "Keine offene Position.": "No open position.",
+  "Anteil an allen Trades": "share of all trades",
+  "großer Browserspeicher": "large browser storage",
+  "Der Speicher ist voll.": "Storage is full.",
+  "Noch keine Rückblicke.": "No reviews yet.",
+  "Diesen Termin löschen?": "Delete this event?",
+  "Import fehlgeschlagen:": "Import failed:",
+  "Zuletzt gespeichert am": "Last saved on",
+  "Abgeschlossene Trades": "Closed trades",
+  "Geplant gegen spontan": "Planned vs. spontaneous",
+  "Wochentag & Tageszeit": "Weekday & time of day",
+  "Kursausschläge messen": "Measure price excursions",
+  "Guthaben nach Bereich": "Balance by area",
+  "Steuerdaten berechnen": "Calculate tax data",
+  "Keine Steuerberatung.": "Not tax advice.",
+  "Bild vom Gerät wählen": "Choose image from device",
+  "Neue Trades nachladen": "Load new trades",
+  "Taker {0} · Maker {1}": "Taker {0} · maker {1}",
+  "Jetzt synchronisieren": "Sync now",
+  "Ein- und Auszahlungen": "Deposits and withdrawals",
+  "Noch nichts gemessen.": "Nothing measured yet.",
+  "Ø Plus bei Verlierern": "Avg profit on losers",
+  "Ø Minus bei Gewinnern": "Avg loss on winners",
+  "mussten sie aushalten": "they had to sit through",
+  "alle auf {0} normiert": "all normalised to {0}",
+  "Woche {0} · {1} – {2}": "Week {0} · {1} – {2}",
+  "nur auf die geladenen": "only to the",
+  "abgeschlossene Trades": "closed trades",
+  ", mitgenommen hast du": "on average, you took",
+  "abgeschlossen · offen": "closed · open",
+  "neue Ausführungen und": "new fills and",
+  "Gewinner & Verlierer": "Winners & losers",
+  "Risiko pro Trade (%)": "Risk per trade (%)",
+  "z.B. BTC, SNDK, HYPE": "e.g. BTC, SNDK, HYPE",
+  "Support / Resistance": "Support / resistance",
+  "{0} Wallets zusammen": "{0} wallets combined",
+  "Ergebnis inkl. offen": "Result incl. open",
+  "PnL laut Hyperliquid": "PnL per Hyperliquid",
+  "Gewinner / Verlierer": "Winners / losers",
+  "Längste Verlustserie": "Longest losing streak",
+  "In {0} keine Trades.": "No trades in {0}.",
+  "Mittleres Endkapital": "Median final capital",
+  "Schlimmster Drawdown": "Worst drawdown",
+  "über alle Durchläufe": "across all runs",
+  "accountValue (Perps)": "accountValue (perps)",
+  "aktueller Kontostand": "current balance",
+  "Trades mit Eintrag ·": "trades with an entry ·",
+  "Positionsgroesse USD": "PositionSizeUSD",
+  "Ø größter Rücksetzer": "Avg largest drawdown",
+  "Was die Zahlen sagen": "What the numbers say",
+  "Ziel {0}R, Stop {1}R": "Target {0}R, stop {1}R",
+  "{0} Trades entfallen": "{0} trades removed",
+  "Unterschied zu heute": "Difference to today",
+  "Längste Durststrecke": "Longest dry spell",
+  "Diesen Plan löschen?": "Delete this plan?",
+  "· {0} ohne Kursdaten": "· {0} without price data",
+  ", {0} ohne Kursdaten": ", {0} without price data",
+  "· {0} verarbeitet{1}": "· {0} processed{1}",
+  "Zahlungen · erhalten": "payments · received",
+  "Betroffen vor allem:": "Mainly affected:",
+  "Risiko je Trade (R)": "Risk per trade (R)",
+  "Rückblick speichern": "Save review",
+  "Netto-PnL pro Setup": "Net PnL per setup",
+  "Rating vs. Ergebnis": "Rating vs. outcome",
+  "Ein- & Auszahlungen": "Deposits & withdrawals",
+  "Kein Spot-Guthaben.": "No spot balance.",
+  "Notizen importieren": "Import notes",
+  "Einstieg (optional)": "Entry (optional)",
+  "Erwartungswert in R": "Expectancy in R",
+  "−{0}% auf PnL-Kurve": "−{0}% on PnL curve",
+  "Schlechtester Trade": "Worst trade",
+  "Längste Gewinnserie": "Longest winning streak",
+  "Grüne / rote Monate": "Green / red months",
+  "Schlechtester Monat": "Worst month",
+  "davon USDC auf Spot": "of which USDC on spot",
+  "Alle Jahre zusammen": "All years combined",
+  "noch nicht gemessen": "not measured yet",
+  "Von dir zugeordnet.": "Linked by you.",
+  "Lade EZB-Kurse {0}…": "Loading ECB rates {0}…",
+  "Ergebnis USD brutto": "ResultUSDGross",
+  "Ergebnis EUR brutto": "ResultEURGross",
+  "gegen dich gelaufen": "moved against you",
+  "War im Plus bis ($)": "Was in profit up to ($)",
+  "Ohne die Setups {0}": "Without the setups {0}",
+  "Gesamt unrealisiert": "Total unrealised",
+  "Nach Markt getrennt": "Split by market",
+  "laufende Positionen": "open positions",
+  "Dauerhaft geschützt": "Permanently protected",
+  "Setups gespeichert.": "Setups saved.",
+  "Noch nie verwendet:": "Never used:",
+  "offene Position(en)": "open position(s)",
+  "Einträge gesichert.": "entries saved.",
+  "Längste Haltedauer": "Longest hold",
+  "Nach einem Verlust": "After a loss",
+  "Was lief schlecht?": "What went badly?",
+  "Frühere Rückblicke": "Earlier reviews",
+  "Simulation starten": "Run simulation",
+  "Übernehmen & laden": "Apply & load",
+  "In Notizen suchen…": "Search notes…",
+  "Gebühren & Funding": "Fees & funding",
+  "Trend-Continuation": "Trend continuation",
+  "News / Katalysator": "News / catalyst",
+  "Schlechteste Serie": "Worst streak",
+  "Handelstage gesamt": "Trading days total",
+  "Schlechter Verlauf": "Bad path",
+  "Mittlerer Drawdown": "Median drawdown",
+  "Risiko: Hälfte weg": "Risk: half gone",
+  "Unrealisierter PnL": "Unrealised PnL",
+  "dieses Konto laden": "load this account",
+  "Gehandelter Umsatz": "Volume traded",
+  "Summe der Gebühren": "Sum of fees",
+  "nicht eingerichtet": "not set up",
+  "Ergebnis USD netto": "ResultUSDNet",
+  "Ergebnis EUR netto": "ResultEURNet",
+  "Summe der Verluste": "Sum of losses",
+  "Mit Teilausstiegen": "With partial exits",
+  "anteilig gerechnet": "calculated proportionally",
+  "kein Verlust davor": "no loss before",
+  "Dazugehörige Regel": "Corresponding rule",
+  "Belegt durch Oryol": "Used by Oryol",
+  "Erwartungswert (R)": "Expectancy (R)",
+  "Schwankung pro Tag": "Daily variation",
+  "bis zum alten Hoch": "until the old high",
+  "Unbekannter Fehler": "Unknown error",
+  "laufenden Position": "open position",
+  "). Diese sind oben": "). Those are",
+  "Vault(s), z.B. HLP": "vault(s), e.g. HLP",
+  "Journal-Schlüssel:": "Journal key:",
+  "vermessenen Trades": "measured trades",
+  "in deiner Historie": "in your history",
+  "Gesamter Zeitraum": "All time",
+  "Beobachtungsliste": "Watchlist",
+  "Schlechtester PnL": "Worst PnL",
+  "Ausschläge messen": "Measure excursions",
+  "Messdaten löschen": "Delete measurements",
+  "Werde ich besser?": "Am I improving?",
+  "Offen & anstehend": "Open & upcoming",
+  "Mögliche Verläufe": "Possible paths",
+  "Grüne / rote Tage": "Green / red days",
+  "Offene Positionen": "Open positions",
+  "Ein-/Auszahlungen": "Deposits/withdrawals",
+  "Beträge verdecken": "Hide amounts",
+  "Wallets verwalten": "Manage wallets",
+  "Wallet hinzufügen": "Add wallet",
+  "Plan & Begründung": "Plan & reasoning",
+  "Positiv / bullish": "Positive / bullish",
+  "Negativ / bearish": "Negative / bearish",
+  "z.B. Haupt-Wallet": "e.g. Main wallet",
+  "Funding in Trades": "Funding in trades",
+  "Account Value ($)": "Account value ($)",
+  "Schlechtester Tag": "Worst day",
+  "Mittlerer Verlauf": "Median path",
+  "Agent-/API-Wallet": "agent / API wallet",
+  ", {0} ohne Angabe": ", {0} unspecified",
+  "{0} bei {1} → {2}": "{0} at {1} → {2}",
+  "Journal-Schlüssel": "Journal key",
+  "Davon mitgenommen": "Of that taken",
+  "Termin bearbeiten": "Edit event",
+  "Summe der Gewinne": "Sum of gains",
+  "3+ Verluste davor": "3+ losses before",
+  "{0} als spontane.": "{0} per trade than spontaneous ones.",
+  "Profitable Wochen": "Profitable weeks",
+  "laufende Position": "open position",
+  "Letzte 12 Monate": "Last 12 months",
+  "war und wie weit": "went and how far",
+  "Setups speichern": "Save setups",
+  "Long gegen Short": "Long vs. short",
+  "Zuletzt angelegt": "Recently added",
+  "Startkapital ($)": "Starting capital ($)",
+  "Trefferquote (%)": "Win rate (%)",
+  "Funding pro Coin": "Funding per market",
+  "Notiz (optional)": "Note (optional)",
+  "Realisierter PnL": "Realised PnL",
+  "Kontostand fehlt": "account balance missing",
+  "Gewinn ÷ Verlust": "profit ÷ loss",
+  "in diesen Trades": "in these trades",
+  "Gebundene Margin": "Margin used",
+  "aktuell gesperrt": "currently locked",
+  "{0} Trades · {1}": "{0} trades · {1}",
+  "Gebühren im Jahr": "Fees this year",
+  "Am Ende im Minus": "Negative at the end",
+  "Hebel (effektiv)": "Leverage (effective)",
+  "getrennte Konten": "separate accounts",
+  "Messung veraltet": "measurement outdated",
+  "War im Minus bis": "Was in loss down to",
+  "EZB-Kurs USD/EUR": "ECBRateUSDEUR",
+  "Saldo aus Trades": "Balance from trades",
+  "2 Verluste davor": "2 losses before",
+  "am Ergebnis: {0}": "of the result: {0}",
+  "Heute realisiert": "Realised today",
+  "jetzt im Fenster": "currently in the window",
+  "Wallets zusammen": "wallets combined",
+  "Teilverkäufe aus": "Partial exits from",
+  "· Kurse der EZB,": "· ECB rates,",
+  "Trades entfallen": "trades removed",
+  "Ausführungen und": "fills and",
+  "Größte Position": "Largest position",
+  "Geplante Trades": "Planned trades",
+  "Termingeschäfte": "Derivatives",
+  "Sicherungskopie": "Backup copy",
+  "Archiv einlesen": "Load archive",
+  "Ziel (optional)": "Target (optional)",
+  "Synchronisiere…": "Syncing…",
+  "{0}: {1} Fills…": "{0}: {1} fills…",
+  "Lade Kursdaten…": "Loading price data…",
+  "Gewinner-Anteil": "share of winners",
+  "{0} Position{1}": "{0} position{1}",
+  "· nur schließen": "· reduce only",
+  "Ø PnL pro Trade": "Avg PnL per trade",
+  "nach {0} Trades": "after {0} trades",
+  "Typische Spanne": "Typical range",
+  "Handelsgebühren": "Trading fees",
+  "War im Plus bis": "Was in profit up to",
+  "Plan bearbeiten": "Edit plan",
+  "Nachweis (Hash)": "Proof (hash)",
+  "Haltedauer Tage": "Hold days",
+  "Ergebnis gesamt": "Overall result",
+  "keine Kursdaten": "no price data",
+  "Zu wenig Daten.": "Not enough data.",
+  "1 Verlust davor": "1 loss before",
+  "Zweites Viertel": "Second quarter",
+  "Drittes Viertel": "Third quarter",
+  "· {0} % von {1}": "· {0}% of {1}",
+  "Stop ↓ / Ziel →": "Stop ↓ / target →",
+  "Liste ist leer.": "The list is empty.",
+  "noch kein Trade": "no trade yet",
+  "letzte {0} Tage": "last {0} days",
+  "· noch frei {0}": "· {0} still free",
+  "jetzt anfordern": "request now",
+  "Profitable Tage": "Profitable days",
+  "Ø Tagesergebnis": "Avg daily result",
+  "an Handelstagen": "on trading days",
+  "Dunkle Ansicht.": "Dark view.",
+  "% auf PnL-Kurve": "% on PnL curve",
+  "offene Position": "open position",
+  "Mit festem Kurs": "Calculated with the fixed rate",
+  "Ohne die Setups": "Without the setups",
+  "Letzte 30 Tage": "Last 30 days",
+  "Letzte 90 Tage": "Last 90 days",
+  "Neueste zuerst": "Newest first",
+  "Älteste zuerst": "Oldest first",
+  "Positionsgröße": "Position size",
+  "Erwartungswert": "Expectancy",
+  "Funding gesamt": "Funding total",
+  "davon gesperrt": "of which locked",
+  "Wie das System": "Match system",
+  "Archiv sichern": "Save archive",
+  "Bild entfernen": "Remove image",
+  "im Hintergrund": "in the background",
+  "Plan gebrochen": "Plan broken",
+  "{0}{1} $ offen": "{0}{1} $ open",
+  "Max DD (Konto)": "Max DD (account)",
+  "−{0}% vom Hoch": "−{0}% from the high",
+  "Nominal gesamt": "total notional",
+  "Funding bisher": "Funding so far",
+  "seit Eröffnung": "since opening",
+  "— ohne Setup —": "— no setup —",
+  "Trades im Jahr": "Trades this year",
+  "der Durchläufe": "of runs",
+  "Übernommen aus": "Taken from",
+  "Auffällig: Auf": "Worth noting: there is",
+  "Gestaktes HYPE": "Staked HYPE",
+  "Steuerjahr {0}": "Tax year {0}",
+  "Kursausschläge": "Price excursions",
+  "RenditeProzent": "ReturnPercent",
+  "ohne Kursdaten": "without price data",
+  "von {0} Trades": "of {0} trades",
+  "Netto-Ergebnis": "Net result",
+  "Einstieg {0} ·": "Entry {0} ·",
+  "Meistgehandelt": "Most traded",
+  "Helle Ansicht.": "Light view.",
+  "SYNC-ANLEITUNG": "SYNC GUIDE",
+  "Lade EZB-Kurse": "Loading ECB rates",
+  "schon kassiert": "already banked",
+  "Wallet wählen": "Choose wallet",
+  "Letzte 7 Tage": "Last 7 days",
+  "Symbol suchen": "Search symbol",
+  "Standardliste": "Default list",
+  "Offene Orders": "Open orders",
+  "Nur Verlierer": "Losers only",
+  "Profit Factor": "Profit factor",
+  "Was lief gut?": "What went well?",
+  "Kombinationen": "Combinations",
+  "Anzahl Trades": "Number of trades",
+  "PnL-Rückblick": "PnL review",
+  "Spot-Guthaben": "Spot balance",
+  "Letzte Trades": "Recent trades",
+  "Notiz löschen": "Delete note",
+  "Neuerer Trade": "Newer trade",
+  "Älterer Trade": "Older trade",
+  "FOMO-Einstieg": "FOMO entry",
+  "Revenge Trade": "Revenge trade",
+  "Ergebnis in R": "Result in R",
+  "Schlechtester": "Worst",
+  "auf PnL-Kurve": "on PnL curve",
+  "Positionswert": "Position value",
+  "Keine Trades.": "No trades.",
+  "Guter Verlauf": "Good path",
+  "Kosten gesamt": "Total cost",
+  "nach Gebühren": "after fees",
+  "Gebührenquote": "Fee ratio",
+  "USDC auf Spot": "USDC on spot",
+  "{0} … gekürzt": "{0} … truncated",
+  "mit Setup-Tag": "with a setup tag",
+  "Gebuehren USD": "FeesUSD",
+  "Gebuehren EUR": "FeesEUR",
+  "Funding-Saldo": "Funding balance",
+  "nicht messbar": "not measurable",
+  "Kleinste 25 %": "Smallest 25%",
+  "· schon dabei": "· already added",
+  "{0} vom Konto": "{0} of the account",
+  "Älteste davon": "Oldest of them",
+  "Chance-Risiko": "Reward-to-risk",
+  "keine Trades.": ".",
+  "Der Trade lag": "The trade was",
+  "als spontane.": "per trade than spontaneous ones.",
+  "Perps + Spot": "Perps + spot",
+  "PnL pro Coin": "PnL per market",
+  "Nur Gewinner": "Winners only",
+  "Trefferquote": "Win rate",
+  "Meine Setups": "My setups",
+  "genau einmal": "exactly once",
+  "+ Neuer Plan": "+ New plan",
+  "Trade planen": "Plan a trade",
+  "Long / Short": "Long / short",
+  "Plan befolgt": "Plan followed",
+  "Sync-Fehler:": "Sync error:",
+  "Bester Trade": "Best trade",
+  "Max Drawdown": "Max drawdown",
+  "Kontoverlauf": "account history",
+  "Ø Haltedauer": "Avg hold time",
+  "{0} Verluste": "{0} losses",
+  "Unrealisiert": "Unrealised",
+  "Einstieg {0}": "Entry {0}",
+  "Keine Daten.": "No data.",
+  "keine Trades": "no trades",
+  "Bester Monat": "Best month",
+  "Startkapital": "Starting capital",
+  "vor Gebühren": "before fees",
+  "Einzahlungen": "Deposits",
+  "Auszahlungen": "Withdrawals",
+  "Vault-Equity": "Vault equity",
+  "Sub-Accounts": "Sub-accounts",
+  "Ausführungen": "Fills",
+  "Anzahl Fills": "Number of fills",
+  "Neuer Termin": "New event",
+  "unter 1 Jahr": "under 1 year",
+  "Ausschöpfung": "Capture rate",
+  "nichts offen": "nothing open",
+  "{0} Trade{1}": "{0} trade{1}",
+  "▼ schlechter": "▼ worse",
+  "Trade-Nummer": "Trade number",
+  "Tage mit den": "days with the",
+  "je Zeitraum.": "per period are needed.",
+  "Projekt-URL:": "Project URL:",
+  "am Ergebnis:": "of the result:",
+  "schwankend ·": "fluctuating ·",
+  "Alle Setups": "All setups",
+  "Was ansteht": "What's coming up",
+  "Größe (USD)": "Size (USD)",
+  "Geschlossen": "Closed",
+  "Drei Fragen": "Three questions",
+  "Kombination": "Combination",
+  "Unterschied": "Difference",
+  "Nach Ticker": "By ticker",
+  "Darstellung": "Appearance",
+  "Erwartet ab": "Expected from",
+  "Fortschritt": "Progress",
+  "Exit & Stop": "Exit & stop",
+  "Quelle: {0}": "Source: {0}",
+  "Beste Serie": "Best streak",
+  "{0} Gewinne": "{0} wins",
+  "✓ umgesetzt": "✓ executed",
+  "✕ verworfen": "✕ dropped",
+  "CRV {0} : 1": "R:R {0} : 1",
+  "Ø pro Monat": "Avg per month",
+  "Perps-Konto": "Perps account",
+  "Sub-Account": "Sub-account",
+  "davon Taker": "of which taker",
+  "davon Maker": "of which maker",
+  "Projekt-URL": "Project URL",
+  "fester Kurs": "fixed rate",
+  "Größte 25 %": "Largest 25%",
+  "unter 5 min": "under 5 min",
+  "gerade eben": "just now",
+  "Speicherart": "Storage type",
+  "Tagen davor": "days before",
+  "— inklusive": "— including",
+  "%, Ø Gewinn": "%, avg win",
+  ", Ø Verlust": ", avg loss",
+  "ohne Angabe": "unspecified",
+  "· noch frei": "·",
+  "verarbeitet": "processed",
+  "Ausblenden": "Dismiss",
+  "Alle Coins": "All markets",
+  "Liq.-Preis": "Liq. price",
+  "Aufgegeben": "Placed",
+  "Bester PnL": "Best PnL",
+  "Ohne Notiz": "Without note",
+  "Ø je Trade": "Avg per trade",
+  "Haltedauer": "Hold time",
+  "Konsistenz": "Consistency",
+  "Nach Datum": "By date",
+  "Durchläufe": "Runs",
+  "Monats-PnL": "Month PnL",
+  "Wert (USD)": "Value (USD)",
+  "Ausschläge": "Excursions",
+  "✓ Synchron": "✓ In sync",
+  "ohne Datum": "no date",
+  "Bester Tag": "Best day",
+  "Grüne Tage": "Green days",
+  "Jahres-PnL": "Year PnL",
+  "{0} Trades": "{0} trades",
+  "Brutto-PnL": "Gross PnL",
+  "Abweichung": "Deviation",
+  "LIQUIDIERT": "LIQUIDATED",
+  "Ø Einstieg": "AvgEntry",
+  "Ø Ausstieg": "AvgExit",
+  "Betrag USD": "AmountUSD",
+  "Betrag EUR": "AmountEUR",
+  "GroesseUSD": "SizeUSD",
+  "über 1 Tag": "over 1 day",
+  "({0} Kurs)": "({0} price)",
+  "Hauptmarkt": "Main market",
+  "Kontostand": "Balance",
+  "R je Trade": "R per trade",
+  "% vom Hoch": "% from the high",
+  "Margin für": "Margin for",
+  "Steuerjahr": "Tax year",
+  "Neu laden": "Reload",
+  "Nur Perps": "Perps only",
+  "PnL netto": "Net PnL",
+  "Beispiel:": "Example:",
+  "Abbrechen": "Cancel",
+  "10 Trades": "10 trades",
+  "30 Trades": "30 trades",
+  "50 Trades": "50 trades",
+  "Ø Verlust": "Avg loss",
+  "gemeinsam": "together",
+  "Umgesetzt": "Executed",
+  "Verworfen": "Dropped",
+  "Zahlungen": "Payments",
+  "Chartbild": "Chart image",
+  "Speichern": "Save",
+  "Entfernen": "Remove",
+  "Übersicht": "Overview",
+  "Verhalten": "Behaviour",
+  "Rückblick": "Review",
+  "Zeile {0}": "Line {0}",
+  "Sonstiges": "Other",
+  "Lade {0}…": "Loading {0}…",
+  "pro Trade": "per trade",
+  "Netto-PnL": "Net PnL",
+  "kein Kurs": "no price",
+  "Eroeffnet": "Opened",
+  "Zeitpunkt": "Timestamp",
+  "Berechne…": "Calculating…",
+  "PnLBrutto": "PnLGross",
+  "Gebuehren": "Fees",
+  "Verlierer": "Losers",
+  "vor {0} s": "{0} s ago",
+  "· Liq {0}": "· liq {0}",
+  "Kumuliert": "Cumulative",
+  "Nulllinie": "Zero line",
+  "gesendet,": "sent,",
+  "empfangen": "received",
+  "… gekürzt": "… truncated",
+  "Anon-Key:": "Anon key:",
+  ", gezahlt": ", paid",
+  "vom Konto": "of the account",
+  "vermessen": "measured",
+  "Nur Spot": "Spot only",
+  "im Minus": "in loss",
+  "Annahmen": "Assumptions",
+  "Kennzahl": "Metric",
+  "Richtung": "Direction",
+  "Ø Gewinn": "Avg win",
+  "Ø Rating": "Avg rating",
+  "+ Termin": "+ Event",
+  "Kalender": "Calendar",
+  "Guthaben": "Balance",
+  "Ohne Tag": "Without tag",
+  "Gebühren": "Fees",
+  "Hinweis:": "Note:",
+  "(allein)": "(alone)",
+  "Ziel {0}": "Target {0}",
+  "Dezember": "December",
+  "✓ Fertig": "✓ Done",
+  "Achtung:": "Careful:",
+  "PnLNetto": "PnLNet",
+  "DauerMin": "DurationMin",
+  "Gewinner": "Winners",
+  "Kurs {0}": "Price {0}",
+  "Ergebnis": "Result",
+  "▲ besser": "▲ better",
+  "Verluste": "losses",
+  "Position": "position",
+  "Einstieg": "Entry",
+  "Trades ·": "trades ·",
+  "im Plus.": "in profit at one point.",
+  "alle auf": "all normalised to",
+  "Verlauf": "History",
+  "30 Tage": "30 days",
+  "90 Tage": "90 days",
+  "Abstand": "Distance",
+  "Ø Größe": "Avg size",
+  "im Plus": "in profit",
+  "Löschen": "Delete",
+  "Winrate": "Win rate",
+  "Planung": "Planning",
+  "Dateien": "Files",
+  "Adresse": "Address",
+  "Geplant": "Planned",
+  "Achtung": "Caution",
+  "Wirkung": "Impact",
+  "Sprache": "Language",
+  "VERKAUF": "SELL",
+  "Februar": "February",
+  "Oktober": "October",
+  "Projekt": "Project",
+  "Trennen": "Disconnect",
+  "Ø Entry": "Avg entry",
+  "Hinweis": "Note",
+  "Verkauf": "Sell",
+  "Vorgang": "Event",
+  "Fehler:": "Error:",
+  "Spontan": "Spontaneous",
+  "Fills ·": "fills ·",
+  "· Stand": "· as of",
+  ": davor": ": before",
+  ", jetzt": ", now",
+  "Quelle:": "Source:",
+  "$ offen": "$ open",
+  "Gewinne": "wins",
+  "· Maker": "· maker",
+  "R, Stop": "R, stop",
+  "Du hast": "You traded",
+  "Fertig": "Done",
+  "7 Tage": "7 days",
+  "1 Jahr": "1 year",
+  "Gebühr": "Fee",
+  "Vorher": "Before",
+  "Gruppe": "Group",
+  "Monate": "Months",
+  "Betrag": "Amount",
+  "Dunkel": "Dark",
+  "Termin": "Event",
+  "Fakten": "Facts",
+  "Steuer": "Tax",
+  "Anteil": "Share",
+  "Vorbei": "Past",
+  "Januar": "January",
+  "Gesamt": "Total",
+  "Ø Exit": "Avg exit",
+  "Bester": "Best",
+  "Fills…": "fills…",
+  "Trades": "loaded trades",
+  "Taker,": "taker,",
+  "— also": "— that is",
+  "letzte": "last",
+  "Offen": "Open",
+  "Seite": "Side",
+  "Hebel": "Leverage",
+  "Dauer": "Duration",
+  "Markt": "Market",
+  "Preis": "Price",
+  "Menge": "Quantity",
+  "Netto": "Net",
+  "Größe": "Size",
+  "Davor": "Before",
+  "Jetzt": "Now",
+  "Ø PnL": "Avg PnL",
+  "Datum": "Date",
+  "Titel": "Title",
+  "Farbe": "Colour",
+  "Labor": "Lab",
+  "Konto": "Account",
+  "Pläne": "Plans",
+  "Daten": "Data",
+  "Kommt": "Upcoming",
+  "Saldo": "Balance",
+  "Notiz": "Note",
+  "lädt…": "loading…",
+  "nicht": "not",
+  "Zeile": "Line",
+  "gegen": "vs.",
+  "→ CRV": "→ R:R",
+  "Maker": "maker",
+  "% von": "% of",
+  "· Liq": "· liq",
+  "Kurs)": "price)",
+  "Trade": "trade",
+  "Woche": "Week",
+  "Seit": "Since",
+  "Coin": "Market",
+  "Wert": "Value",
+  "Alle": "All",
+  "Tage": "Days",
+  "Zeit": "Time",
+  "Kurs": "Price",
+  "Hell": "Light",
+  "Idee": "Idea",
+  "KAUF": "BUY",
+  "März": "March",
+  "Juni": "June",
+  "Juli": "July",
+  "Kauf": "Buy",
+  "Null": "Zero",
+  "Rest": "Other",
+  "· KW": "· week",
+  "Lade": "Loading",
+  "Ziel": "Target",
+  "nach": "after",
+  "Art": "Type",
+  "Typ": "Type",
+  "Mai": "May",
+  "EZB": "ECB",
+  "So": "Sun",
+  "Mo": "Mon",
+  "Di": "Tue",
+  "Mi": "Wed",
+  "Do": "Thu",
+  "Fr": "Fri",
+  "Sa": "Sat",
+  "KW": "W"
+};
+function langSetting(){
+  try{ return localStorage.getItem('hlj_lang') || 'de'; }catch(e){ return 'de'; }
+}
+function loc(){ return LANG === 'en' ? 'en-US' : 'de-DE'; }
+/* Dezimaltrenner der jeweiligen Sprache */
+function dec(v, digits){
+  const s = (isFinite(v) ? v : 0).toFixed(digits === undefined ? 2 : digits);
+  return LANG === 'en' ? s : s.replace('.', ',');
+}
+/* Einzelne Wörter, die überall auftauchen können */
+const LOOSE = [
+  [/\bFassung\b/g, 'Version'],
+  [/\bZeile (\d+)/g, 'Line $1']
+];
+/* Einzelnen Text übersetzen; unbekannte bleiben unverändert */
+function t(x){
+  if(LANG !== 'en' || !x) return x;
+  const s = String(x), k = s.trim();
+  if(EN[k] !== undefined) return s.replace(k, () => EN[k]);
+  // Im Seitentext stehen oft Zeilenumbrüche mitten im Satz
+  const kn = k.replace(/\s+/g, ' ');
+  if(NORM[kn] !== undefined) return s.replace(k, () => NORM[kn]);
+  // Muster mit Platzhaltern, z.B. "letzte {0} Tage"
+  for(let i = 0; i < PATTERNS.length; i++){
+    const m = kn.match(PATTERNS[i].re);
+    if(m){
+      let out = PATTERNS[i].en;
+      for(let g = 1; g < m.length; g++){
+        const val = m[g] === undefined ? '' : m[g];
+        out = out.replace('{' + (g-1) + '}', () => val);
+      }
+      return s.replace(k, () => out);
+    }
+  }
+  let loose = s;
+  for(let i = 0; i < LOOSE.length; i++) loose = loose.replace(LOOSE[i][0], LOOSE[i][1]);
+  return loose;
+}
+let PATTERNS = [], NORM = {};
+function buildPatterns(){
+  NORM = {};
+  Object.keys(EN).forEach(k => {
+    const n = k.replace(/\s+/g, ' ');
+    if(NORM[n] === undefined) NORM[n] = EN[k];
+  });
+  // Längere Muster zuerst, damit das genauere gewinnt
+  PATTERNS = Object.keys(EN).filter(k => k.indexOf('{0}') >= 0)
+    .sort((a, b) => b.length - a.length)
+    .map(k => ({
+      re: new RegExp('^' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            .replace(/\\\{(\d)\\\}/g, '([\\s\\S]*?)') + '$'),
+      en: EN[k]
+    }));
+}
+/* Diagramme: Beschriftungen stecken nicht im Seitentext, sondern in der Konfiguration */
+function translateCfg(cfg){
+  if(LANG !== 'en' || !cfg || typeof cfg !== 'object') return cfg;
+  const seen = new Set();
+  const walk = o => {
+    if(!o || typeof o !== 'object' || seen.has(o)) return;
+    seen.add(o);
+    if(Array.isArray(o)){
+      for(let i = 0; i < o.length; i++){
+        if(typeof o[i] === 'string') o[i] = t(o[i]);
+        else walk(o[i]);
+      }
+      return;
+    }
+    for(const key in o){
+      const v = o[key];
+      if(typeof v === 'string'){
+        if(key === 'label' || key === 'text' || key === 'title') o[key] = t(v);
+      }else if(typeof v === 'function'){
+        if(!v.__t){
+          const orig = v;
+          const wrapped = function(){
+            const r = orig.apply(this, arguments);
+            if(typeof r === 'string') return t(r);
+            if(Array.isArray(r)) return r.map(z => typeof z === 'string' ? t(z) : z);
+            return r;
+          };
+          wrapped.__t = true;
+          o[key] = wrapped;
+        }
+      }else walk(v);
+    }
+  };
+  if(cfg.data && Array.isArray(cfg.data.labels))
+    cfg.data.labels = cfg.data.labels.map(l => typeof l === 'string' ? t(l) : l);
+  walk(cfg.data && cfg.data.datasets);
+  walk(cfg.options);
+  return cfg;
+}
+/* Läuft über die fertige Seite und tauscht bekannte Texte */
+function translateDOM(root){
+  if(LANG !== 'en') return;
+  const start = root || document.body;
+  if(!start) return;
+  const walk = node => {
+    if(!node) return;
+    if(node.nodeType === 3){
+      const v = node.nodeValue;
+      if(v && v.trim().length > 1){
+        const n = t(v);
+        if(n !== v) node.nodeValue = n;
+      }
+      return;
+    }
+    if(node.nodeType !== 1) return;
+    const tag = node.tagName;
+    if(tag === 'SCRIPT' || tag === 'STYLE') return;
+    ['placeholder','title','aria-label'].forEach(a => {
+      const v = node.getAttribute && node.getAttribute(a);
+      if(v){ const n = t(v); if(n !== v) node.setAttribute(a, n); }
+    });
+    if(node.tagName === 'OPTION' && node.textContent){
+      const n = t(node.textContent);
+      if(n !== node.textContent) node.textContent = n;
+    }
+    const kids = node.childNodes;
+    for(let i = 0; i < kids.length; i++) walk(kids[i]);
+  };
+  walk(start);
+}
+/* Nach jedem Neuzeichnen einmal über die Seite laufen.
+   Ein zweiter Durchlauf ändert nichts mehr, deshalb kommt die Kette von selbst
+   zur Ruhe – kein Dauerlauf im Hintergrund. */
+let langObs = null, langTimer = null;
+function startAutoTranslate(){
+  if(LANG !== 'en' || langObs) return;
+  if(typeof MutationObserver === 'undefined' || !document.body) return;
+  langObs = new MutationObserver(() => {
+    if(langTimer) return;
+    langTimer = setTimeout(() => {
+      langTimer = null;
+      try{ translateDOM(document.body); }catch(e){}
+    }, 0);
+  });
+  langObs.observe(document.body, {childList:true, subtree:true, characterData:true});
+}
+function applyLang(){
+  LANG = langSetting();
+  buildPatterns();
+  const html = document.documentElement;
+  if(html && html.setAttribute) html.setAttribute('lang', LANG);
+  $$('[data-lang-set]').forEach(el => el.classList.toggle('on', el.dataset.langSet === LANG));
+  if(LANG === 'en'){ translateDOM(document.body); startAutoTranslate(); }
+}
+function setLang(l){
+  try{ localStorage.setItem('hlj_lang', l); }catch(e){}
+  location.reload();
+}
+
+const BUILD = '13.08.2026, 13:07';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -1140,7 +2362,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 12.08.2026, 19:34';
+      ' · Fassung 13.08.2026, 13:07';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -1177,33 +2399,41 @@ const $$ = s => Array.from(document.querySelectorAll(s));
 const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-function usd(v, dec){
+/* Verdeckt Dollarbeträge, wenn der Schalter an ist. Prozent und R bleiben,
+   damit die Auswertung vorzeigbar bleibt, ohne Zahlen preiszugeben.       */
+let ANON = false;
+function usdRaw(v, dec){
   if(v === null || v === undefined || !isFinite(v)) return '–';
   const d = dec !== undefined ? dec : (Math.abs(v) >= 1000 ? 0 : 2);
-  return (v < 0 ? '-' : '') + '$' + Math.abs(v).toLocaleString('de-DE',
+  return (v < 0 ? '-' : '') + '$' + Math.abs(v).toLocaleString(loc(),
     {minimumFractionDigits:d, maximumFractionDigits:d});
+}
+function usd(v, dec){
+  if(ANON) return (v === null || v === undefined || !isFinite(v)) ? '–' : '$•••';
+  return usdRaw(v, dec);
 }
 function sgn(v, dec){
   if(!isFinite(v)) return '–';
+  if(ANON) return (v > 0 ? '+' : v < 0 ? '−' : '') + '$•••';
   return (v > 0 ? '+' : '') + usd(v, dec).replace('-','−');
 }
 function pct(v, dec){
   if(!isFinite(v)) return '–';
   const d = dec === undefined ? 1 : dec;
-  return (v > 0 ? '+' : '') + v.toFixed(d).replace('.', ',').replace('-', '−') + '%';
+  return (v > 0 ? '+' : '') + v.toFixed(d).replace('.', LANG === 'en' ? '.' : ',').replace('-', '−') + '%';
 }
 /* Prozent ohne Vorzeichen, ebenfalls mit deutschem Komma */
 function pctn(v, dec){
   if(!isFinite(v)) return '–';
-  return v.toFixed(dec === undefined ? 1 : dec).replace('.', ',').replace('-', '−') + '%';
+  return v.toFixed(dec === undefined ? 1 : dec).replace('.', LANG === 'en' ? '.' : ',').replace('-', '−') + '%';
 }
 function price(v){
   if(!isFinite(v)) return '–';
   const d = Math.abs(v) >= 1000 ? 2 : Math.abs(v) >= 1 ? 4 : 6;
-  return v.toLocaleString('de-DE', {minimumFractionDigits:d, maximumFractionDigits:d});
+  return v.toLocaleString(loc(), {minimumFractionDigits:d, maximumFractionDigits:d});
 }
 function dt(ms){
-  return new Date(ms).toLocaleString('de-DE',
+  return new Date(ms).toLocaleString(loc(),
     {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
 }
 function dur(ms){
@@ -1762,7 +2992,11 @@ const SYNC = {
     return rows.length;
   },
   row(c, id, n){
-    return {journal_id:c.jid, trade_id:id, tag:n.tag || null, rating:n.rating || null,
+    // Die Zuordnung zur Idee reist im Feld für die Bewertung mit, damit die
+    // Tabelle in Supabase unverändert bleibt.
+    return {journal_id:c.jid, trade_id:id,
+      tag:n.plan ? (packTags(tagsOf(n)) + '\u241F' + n.plan) : (n.tag || null),
+      rating:n.rating || null,
       note:n.note || null, deleted:!!n.deleted, updated_at:num(n.updatedAt) || Date.now()};
   },
 
@@ -1799,7 +3033,10 @@ const SYNC = {
         const local = S.notes[r.trade_id];
         const lt = local ? num(local.updatedAt) : -1;
         if(rt > lt){
-          S.notes[r.trade_id] = {tag:r.tag || '', note:r.note || '', rating:r.rating || 0,
+          let tg = r.tag || '', pl = '';
+          const cut = tg.indexOf('\u241F');
+          if(cut >= 0){ pl = tg.slice(cut + 1); tg = tg.slice(0, cut); }
+          S.notes[r.trade_id] = {tag:tg, plan:pl, note:r.note || '', rating:r.rating || 0,
             updatedAt:rt, deleted:!!r.deleted};
           changed = true;
         }
@@ -1821,7 +3058,7 @@ const SYNC = {
 
       S.lastSync = Date.now();
       setSyncStatus('<span class="up">✓ Synchron</span> · ' +
-        new Date().toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}) +
+        new Date().toLocaleTimeString(loc(), {hour:'2-digit', minute:'2-digit'}) +
         ' · ' + sent + ' gesendet, ' + remote.length + ' empfangen');
       if(changed) renderAll();
       return {sent, received:remote.length};
@@ -2112,7 +3349,7 @@ async function loadOne(addr, incremental){
   fills.sort((x,y) => x.time - y.time);
   await CACHE.put(addr, fills);
 
-  const [pos, port, fund, led, spot, vaults, stake, subs, fees] = await Promise.all([
+  const [pos, port, fund, led, spot, vaults, stake, subs, fees, orders] = await Promise.all([
     info({type:'clearinghouseState', user:addr}).catch(() => null),
     info({type:'portfolio', user:addr}).catch(() => null),
     info({type:'userFunding', user:addr, startTime:0}).catch(() => []),
@@ -2121,12 +3358,13 @@ async function loadOne(addr, incremental){
     info({type:'userVaultEquities', user:addr}).catch(() => []),
     info({type:'delegatorSummary', user:addr}).catch(() => null),
     info({type:'subAccounts', user:addr}).catch(() => null),
-    info({type:'userFees', user:addr}).catch(() => null)
+    info({type:'userFees', user:addr}).catch(() => null),
+    info({type:'frontendOpenOrders', user:addr}).catch(() => [])
   ]);
   // Wichtig: Positionen sind kontobezogen, deshalb wird je Wallet einzeln gerechnet
   const r = buildTrades(fills);
   const fundList = (Array.isArray(fund) ? fund : []);
-  attachFunding(r.trades, fundList);
+  attachFunding(r.trades.concat(r.openTrades), fundList);
   r.trades.forEach(t => { t.wallet = addr; });
   r.openTrades.forEach(t => { t.wallet = addr; });
   return {addr, fills, trades:r.trades, openTrades:r.openTrades,
@@ -2134,7 +3372,8 @@ async function loadOne(addr, incremental){
     funding:(Array.isArray(fund) ? fund : []).map(x => Object.assign({wallet:addr}, x)),
     ledger:(Array.isArray(led) ? led : []).map(x => Object.assign({wallet:addr}, x)),
     spot, vaults:Array.isArray(vaults) ? vaults : [], staking:stake,
-    subAccounts:Array.isArray(subs) ? subs : [], fees};
+    subAccounts:Array.isArray(subs) ? subs : [], fees,
+    orders:(Array.isArray(orders) ? orders : []).map(o => Object.assign({wallet:addr}, o))};
 }
 
 function acctHistoryOf(port){
@@ -2196,6 +3435,7 @@ async function load(incremental){
     S.ledger  = [].concat.apply([], data.map(d => d.ledger));
     S.vaults  = [].concat.apply([], data.map(d => d.vaults));
     S.subAccounts = [].concat.apply([], data.map(d => d.subAccounts));
+    S.orders = [].concat.apply([], data.map(d => d.orders || []));
 
     const fr = data.find(d => d.fees);
     S.feeRates = fr ? {cross:num(fr.fees.userCrossRate) || 0.00045,
@@ -2224,7 +3464,7 @@ async function load(incremental){
     setStatus((cov0.incomplete ? '<span class="warn">⚠ Historie unvollständig</span> · ' : '') +
       S.fills.length + ' Fills · ' + S.trades.length + ' abgeschlossene Trades · ' +
       (act2.length === 1 ? esc(act2[0].label) : act2.length + ' Wallets zusammengefasst') +
-      ' · Stand ' + new Date().toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}));
+      ' · Stand ' + new Date().toLocaleTimeString(loc(), {hour:'2-digit', minute:'2-digit'}));
   }catch(e){
     setStatus('');
     showErr('<b>Daten konnten nicht geladen werden.</b><br>' + esc(e.message) +
@@ -2306,6 +3546,21 @@ function delta(v, cmp, fmt, hoeherBesser, titel){
 /* ---------- Render: Übersicht ---------- */
 /* Summe der laufenden Gewinne und Verluste – noch nicht fix, deshalb überall
    getrennt ausgewiesen und in Diagrammen gestrichelt.                        */
+/* Bereits kassierte Gewinne aus Positionen, die noch offen sind.
+   Beispiel: Hälfte mit Gewinn verkauft, Rest läuft weiter – dieses Geld ist
+   fix, gehört aber zu keinem abgeschlossenen Trade und fehlte bisher überall. */
+function openRealized(){
+  const mkt = $('#fMarket') ? $('#fMarket').value : 'perp';
+  let sum = 0, n = 0;
+  for(const t of (S.openTrades || [])){
+    if(mkt === 'perp' && t.spot) continue;
+    if(mkt === 'spot' && !t.spot) continue;
+    const v = num(t.closedPnl) - num(t.fees) + num(t.funding);
+    if(Math.abs(v) > 1e-9){ sum += v; n++; }
+  }
+  return {sum, n};
+}
+
 function unrealized(){
   const mkt = $('#fMarket') ? $('#fMarket').value : 'perp';
   if(mkt === 'spot') return {sum:0, n:0};
@@ -2317,6 +3572,7 @@ function renderKpis(tr){
   const m = metrics(tr);
   const {R} = riskUnit();
   const U = unrealized();
+  const OR = openRealized();
   const T = S.totals;
   const hist = portfolioHistory();
   const hdd = ddFromHistory(hist.acct);
@@ -2333,7 +3589,7 @@ function renderKpis(tr){
       ? '<div class="err"><b>Die Trade-Historie ist unvollständig.</b> ' +
         (cov.nearLimit
           ? 'Hyperliquid gibt über die Schnittstelle nur die letzten ' +
-            FILL_LIMIT.toLocaleString('de-DE') + ' Ausführungen heraus — bei diesem Konto ist die ' +
+            FILL_LIMIT.toLocaleString(loc()) + ' Ausführungen heraus — bei diesem Konto ist die ' +
             'Grenze erreicht. '
           : 'Der Kontoverlauf beginnt rund ' + Math.round(cov.gapDays) + ' Tage vor der ältesten ' +
             'geladenen Ausführung. ') +
@@ -2352,8 +3608,10 @@ function renderKpis(tr){
         : (U.n ? 'abgeschlossen · daneben ' + U.n + ' laufende Position' + (U.n > 1 ? 'en' : '')
                : 'netto nach Gebühren und Funding'),
       cls(m.net)],
-    (U.n ? ['Ergebnis inkl. offen', sgn(m.net + U.sum),
-      'wenn du jetzt alles schließt', cls(m.net + U.sum)] : null),
+    (OR.n ? ['Schon kassiert, Position offen', sgn(OR.sum),
+      'Teilverkäufe aus ' + OR.n + ' laufenden Position' + (OR.n > 1 ? 'en' : ''), cls(OR.sum)] : null),
+    ((U.n || OR.n) ? ['Ergebnis inkl. offen', sgn(m.net + U.sum + OR.sum),
+      'wenn du jetzt alles schließt', cls(m.net + U.sum + OR.sum)] : null),
     (cov.totalPnl !== null && cov.incomplete
       ? ['PnL laut Hyperliquid', sgn(cov.totalPnl), 'gesamtes Konto, alle Zeiten', cls(cov.totalPnl)]
       : null),
@@ -2363,8 +3621,8 @@ function renderKpis(tr){
     ['Winrate', (m.n ? pctn(m.winrate, 1) : '–') +
       delta({now:cmp.A.winrate, prev:cmp.B.winrate}, cmp, v => pctn(v, 1), true, 'Trefferquote'),
       'Gewinner-Anteil', m.winrate >= 50 ? 'up' : 'down'],
-    ['Profit Factor', (m.pf === Infinity ? '∞' : m.pf.toFixed(2).replace('.', ',')) +
-      delta({now:cmp.A.pf, prev:cmp.B.pf}, cmp, v => v.toFixed(2).replace('.', ','), true, 'Profit Factor'),
+    ['Profit Factor', (m.pf === Infinity ? '∞' : m.pf.toFixed(2).replace('.', LANG === 'en' ? '.' : ',')) +
+      delta({now:cmp.A.pf, prev:cmp.B.pf}, cmp, v => v.toFixed(2).replace('.', LANG === 'en' ? '.' : ','), true, 'Profit Factor'),
       'Gewinn ÷ Verlust', m.pf >= 1 ? 'up' : 'down'],
     ['Erwartungswert', sgn(m.expectancy, 2) +
       delta({now:cmp.A.expectancy, prev:cmp.B.expectancy}, cmp, v => usd(v, 2), true, 'Erwartungswert'),
@@ -2434,7 +3692,7 @@ function mkChart(id, cfg){
   if(S.charts[id]) S.charts[id].destroy();
   const el = document.getElementById(id);
   if(!el) return;
-  S.charts[id] = new Chart(el.getContext('2d'), cfg);
+  S.charts[id] = new Chart(el.getContext('2d'), translateCfg(cfg));
 }
 /* Diagrammfarben – werden beim Umschalten der Ansicht angepasst */
 const C = {up:'#0f8a5f', down:'#c9354a', upFill:'rgba(15,138,95,.10)',
@@ -2444,6 +3702,11 @@ const AXIS = {
   grid:{color:C.grid},
   ticks:{color:C.tick, font:{size:10}}
 };
+/* Achse für Geldbeträge – wird bei aktiver Anonymisierung ausgeblendet */
+function moneyAxis(){
+  return {grid:{color:C.grid},
+    ticks:{color:C.tick, font:{size:10}, display:!ANON}};
+}
 function applyChartColors(dark){
   if(dark){
     C.up='#3ecf8e'; C.down='#f2606f';
@@ -2466,20 +3729,22 @@ function renderEquity(tr){
   const U = unrealized();
   if(S.curve === 'equity'){
     const h = portfolioHistory().acct;
-    labels = h.map(p => new Date(num(p[0])).toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'}));
+    labels = h.map(p => new Date(num(p[0])).toLocaleDateString(loc(), {day:'2-digit', month:'2-digit'}));
     data = h.map(p => num(p[1]));
     label = 'Account Value ($)';
   }else{
     let cum = 0;
     const s = tr.slice().sort((a,b) => a.closeTime - b.closeTime);
-    labels = s.map(t => new Date(t.closeTime).toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'}));
+    labels = s.map(t => new Date(t.closeTime).toLocaleDateString(loc(), {day:'2-digit', month:'2-digit'}));
     data = s.map(t => (cum += t.net));
     label = 'Kumulierter Netto-PnL ($)';
   }
   const pos = data.length ? data[data.length - 1] >= (data[0] || 0) : true;
   // Der Kontostand von Hyperliquid enthält laufende Gewinne bereits – dort keine
   // Verlängerung. Bei der Trade-Kurve wird sie gestrichelt angehängt.
-  const zeigeOffen = S.curve !== 'equity' && U.n && data.length;
+  const OR = openRealized();
+  const offenGesamt = U.sum + OR.sum;
+  const zeigeOffen = S.curve !== 'equity' && (U.n || OR.n) && data.length;
   const sets = [{
     label, data: zeigeOffen ? data.concat([null]) : data,
     borderColor: pos ? C.up : C.down,
@@ -2491,8 +3756,8 @@ function renderEquity(tr){
     labels = labels.concat(['jetzt']);
     sets.push({
       label:'inklusive offener Positionen',
-      data: new Array(data.length - 1).fill(null).concat([last, last + U.sum]),
-      borderColor: U.sum >= 0 ? C.up : C.down,
+      data: new Array(data.length - 1).fill(null).concat([last, last + offenGesamt]),
+      borderColor: offenGesamt >= 0 ? C.up : C.down,
       borderDash:[6,4], borderWidth:2, pointRadius:[0,3], fill:false, tension:0
     });
   }
@@ -2502,7 +3767,7 @@ function renderEquity(tr){
     options:{responsive:true, maintainAspectRatio:false,
       interaction:{mode:'index', intersect:false},
       plugins:NOLEG,
-      scales:{x:Object.assign({}, AXIS, {ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:8})}), y:AXIS}}
+      scales:{x:Object.assign({}, AXIS, {ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:8})}), y:moneyAxis()}}
   });
 
   const cap = $('#equityNote');
@@ -2511,8 +3776,9 @@ function renderEquity(tr){
       'und Verluste stecken also bereits darin.'
     : (U.n
       ? 'Die durchgezogene Linie zeigt abgeschlossene Trades. Die <b>gestrichelte</b> ' +
-        'Verlängerung rechnet deine ' + U.n + ' laufende' + (U.n > 1 ? 'n' : '') +
-        ' Position' + (U.n > 1 ? 'en' : '') + ' dazu — die schwankt, solange sie offen ist.'
+        'Verlängerung rechnet deine laufenden Positionen dazu' +
+        (OR.n ? ' — inklusive ' + sgn(OR.sum, 2) + ', die du dort bereits durch Teilverkäufe ' +
+          'kassiert hast' : '') + '. Der schwankende Teil davon: ' + sgn(U.sum, 2) + '.'
       : 'Nur abgeschlossene Trades. Sobald etwas offen ist, wird der laufende Stand ' +
         'gestrichelt angehängt.');
 }
@@ -2536,7 +3802,7 @@ function barChart(id, labels, values, horizontal){
     }]},
     options:{responsive:true, maintainAspectRatio:false,
       indexAxis: horizontal ? 'y' : 'x',
-      plugins:NOLEG, scales:{x:AXIS, y:AXIS}}
+      plugins:NOLEG, scales:{x:AXIS, y:moneyAxis()}}
   });
 }
 
@@ -2613,7 +3879,9 @@ function renderTrades(tr){
       '<td class="mut">' + dur(t.durationMs) + '</td>' +
       '<td>' + (tagsOf(n).length
         ? tagsOf(n).map(x => '<span class="pill tag">' + esc(x) + '</span>').join(' ')
-        : '<span class="mut">–</span>') + '</td>' +
+        : '<span class="mut">–</span>') +
+        ((S.planLink || {})[t.id] ? ' <span class="pill" title="aus einer geplanten Idee"' +
+          ' style="color:var(--acc2);border-color:var(--acc2)">Idee</span>' : '') + '</td>' +
       '<td>' + (noteText(n) || noteImg(n) ? '📝' : '') + (n.rating ? ' <span class="mut">' + n.rating + '★</span>' : '') + '</td>' +
       '</tr>';
   }).join('');
@@ -2673,6 +3941,43 @@ function renderOpen(){
   $('#openKpis').innerHTML = items.map(([k,v,sub,c]) =>
     '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
     '<div class="s">' + sub + '</div></div>').join('');
+}
+
+/* Offene Orders, die noch nicht ausgeführt sind */
+function renderOrders(){
+  const list = (S.orders || []).slice().sort((a,b) => num(b.timestamp) - num(a.timestamp));
+  $('#orderCount').textContent = '(' + list.length + ')';
+  $('#orderPanel').classList.toggle('hide', list.length === 0);
+  if(!list.length) return;
+  const multi = activeWallets().length > 1;
+
+  $('#tblOrders tbody').innerHTML = list.map(o => {
+    const buy = o.side === 'B';
+    const px = num(o.isTrigger && num(o.triggerPx) ? o.triggerPx : o.limitPx);
+    const sz = Math.abs(num(o.sz));
+    const mark = LIVE.price(o.coin);
+    const dist = (mark > 0 && px > 0) ? (px - mark) / mark * 100 : null;
+    let art = o.orderType || 'Limit';
+    if(o.isTrigger && o.triggerCondition && o.triggerCondition !== 'N/A'){
+      art = (o.orderType || 'Trigger') + ' · ' + o.triggerCondition;
+    }
+    if(o.reduceOnly) art += ' · nur schließen';
+    return '<tr>' +
+      '<td class="mut">' + (o.timestamp ? dt(num(o.timestamp)) : '–') + '</td>' +
+      '<td class="wcol mut">' + esc(walletLabel(o.wallet)) + '</td>' +
+      '<td><b>' + esc(LIVE.base(o.coin)) + '</b>' +
+        (LIVE.market(o.coin) ? ' <span class="resmk">' + esc(LIVE.market(o.coin)) + '</span>' : '') + '</td>' +
+      '<td class="mut">' + esc(art) + '</td>' +
+      '<td><span class="pill ' + (buy ? 'long' : 'short') + '">' +
+        (buy ? 'KAUF' : 'VERKAUF') + '</span></td>' +
+      '<td class="mono">' + price(px) + '</td>' +
+      '<td class="mono">' + sz + '</td>' +
+      '<td>' + usd(px * sz, 2) + '</td>' +
+      '<td class="' + (dist === null ? 'mut' : (Math.abs(dist) < 1 ? 'warn' : 'mut')) + '">' +
+        (dist === null ? '–' : pct(dist, 2)) + '</td>' +
+      '</tr>';
+  }).join('');
+  $$('#tblOrders .wcol').forEach(el => el.classList.toggle('hide', !multi));
 }
 
 /* ---------- Render: Setups ---------- */
@@ -2863,7 +4168,7 @@ function renderLongShort(tr){
 
   if(S.charts.chLS) S.charts.chLS.destroy();
   const el = document.getElementById('chLS');
-  if(el) S.charts.chLS = new Chart(el.getContext('2d'), {
+  if(el) S.charts.chLS = new Chart(el.getContext('2d'), translateCfg({
     type:'line',
     data:{datasets:[
       {label:'Long', data:curve(L), borderColor:C.up, backgroundColor:'rgba(15,138,95,.08)',
@@ -2877,8 +4182,8 @@ function renderLongShort(tr){
       scales:{
         x:Object.assign({}, AXIS, {type:'linear', title:{display:true, text:'Trades in zeitlicher Reihenfolge',
           color:C.tick, font:{size:10}}, ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:8})}),
-        y:AXIS}}
-  });
+        y:moneyAxis()}}
+  }));
   // Verteilung
   const buckets = [-Infinity,-500,-200,-100,-50,-20,0,20,50,100,200,500,Infinity];
   const labels = ['<-500','-500…-200','-200…-100','-100…-50','-50…-20','-20…0',
@@ -2900,7 +4205,7 @@ function renderLongShort(tr){
     ]},
     options:{responsive:true, maintainAspectRatio:false,
       plugins:{legend:{display:true, labels:{color:C.tick, boxWidth:12, font:{size:11}}}},
-      scales:{x:AXIS, y:AXIS}}
+      scales:{x:AXIS, y:moneyAxis()}}
   });
 
   const coinBox = (title, list, color) => {
@@ -3080,7 +4385,7 @@ function renderCalendar(tr){
   }
   const cur = S.calDate;
   const y = cur.getFullYear(), mo = cur.getMonth();
-  $('#calTitle').textContent = cur.toLocaleDateString('de-DE', {month:'long', year:'numeric'});
+  $('#calTitle').textContent = cur.toLocaleDateString(loc(), {month:'long', year:'numeric'});
   $('#calDow').innerHTML = ['Mo','Di','Mi','Do','Fr','Sa','So']
     .map(d => '<div class="dow">' + d + '</div>').join('');
 
@@ -3152,7 +4457,7 @@ function calItems(){
 function renderPlanCalendar(){
   const items = calItems();
   const cur = S.calDate, y = cur.getFullYear(), mo = cur.getMonth();
-  $('#calTitle').textContent = cur.toLocaleDateString('de-DE', {month:'long', year:'numeric'});
+  $('#calTitle').textContent = cur.toLocaleDateString(loc(), {month:'long', year:'numeric'});
   $('#calDow').innerHTML = ['Mo','Di','Mi','Do','Fr','Sa','So']
     .map(d => '<div class="dow">' + d + '</div>').join('');
 
@@ -3393,7 +4698,7 @@ function renderSim(){
       scales:{
         x:Object.assign({}, AXIS, {title:{display:true, text:'Trades', color:C.tick, font:{size:10}},
           ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:10})}),
-        y:AXIS}}
+        y:moneyAxis()}}
   });
 }
 
@@ -3604,12 +4909,12 @@ function renderFeeAudit(tr){
     return;
   }
 
-  const bp = v => v === null ? '–' : (v * 100).toFixed(4).replace('.', ',') + ' %';
+  const bp = v => v === null ? '–' : (v * 100).toFixed(4).replace('.', LANG === 'en' ? '.' : ',') + ' %';
   const diff = a.expected !== null ? a.fees - a.expected : null;
   const off = diff !== null && a.expected > 0 ? Math.abs(diff) / a.expected * 100 : null;
 
   box.innerHTML =
-    '<div class="dl"><span>Ausführungen</span><span>' + a.fills.toLocaleString('de-DE') +
+    '<div class="dl"><span>Ausführungen</span><span>' + a.fills.toLocaleString(loc()) +
       ' <span class="mut">(' + a.taker + ' Taker, ' + a.maker + ' Maker' +
       (a.unknown ? ', ' + a.unknown + ' ohne Angabe' : '') + ')</span></span></div>' +
     '<div class="dl"><span>Gehandelter Umsatz</span><span>' + usd(a.vol, 0) + '</span></div>' +
@@ -3749,10 +5054,10 @@ function renderPositions(){
 
   $('#tblSpot tbody').innerHTML = T.spotRows.map(r =>
     '<tr><td><b>' + esc(r.coin) + '</b></td>' +
-    '<td class="mono">' + r.amount.toLocaleString('de-DE', {maximumFractionDigits:6}) + '</td>' +
+    '<td class="mono">' + r.amount.toLocaleString(loc(), {maximumFractionDigits:6}) + '</td>' +
     '<td class="mono">' + (r.px != null ? price(r.px) : '<span class="mut">kein Kurs</span>') + '</td>' +
     '<td>' + (r.usd != null ? usd(r.usd, 2) : '–') + '</td>' +
-    '<td class="mut">' + (r.hold ? r.hold.toLocaleString('de-DE', {maximumFractionDigits:6}) : '–') + '</td></tr>').join('');
+    '<td class="mut">' + (r.hold ? r.hold.toLocaleString(loc(), {maximumFractionDigits:6}) : '–') + '</td></tr>').join('');
   $('#spotEmpty').classList.toggle('hide', T.spotRows.length > 0);
 
   $('#tblPos tbody').innerHTML = aps.map(a => {
@@ -3954,6 +5259,28 @@ function openTrade(id){
   + excursionBlock(t);
 
   chipBox('#mTags', tagsOf(n));
+
+  // Ideen zur Auswahl: passende zuerst, danach alle übrigen
+  const auto = (S.planLink || {})[id];
+  const gesetzt = (n && n.plan) || '';
+  const plans = planEntries();
+  const base = LIVE.base(t.coin).toUpperCase();
+  const passend = plans.filter(p => String(p.ticker || '').toUpperCase() === base);
+  const rest = plans.filter(p => passend.indexOf(p) < 0);
+  const opt = p => '<option value="' + esc(p.id) + '">' +
+    esc(p.ticker) + ' ' + (p.side === 'short' ? 'Short' : 'Long') +
+    (p.from ? ' · ' + deDate(p.from) : '') +
+    ((p.setups || (p.setup ? [p.setup] : [])).length
+      ? ' · ' + esc((p.setups || [p.setup]).join(' + ')) : '') + '</option>';
+  $('#mPlan').innerHTML = '<option value="">– keine Idee zugeordnet –</option>' +
+    (passend.length ? '<optgroup label="Gleicher Markt">' + passend.map(opt).join('') + '</optgroup>' : '') +
+    (rest.length ? '<optgroup label="Übrige Ideen">' + rest.map(opt).join('') + '</optgroup>' : '');
+  $('#mPlan').value = gesetzt || (auto || '');
+  $('#mPlanHint').innerHTML = gesetzt
+    ? 'Von dir zugeordnet.'
+    : (auto ? 'Automatisch erkannt über Markt, Richtung und Datum — beim Speichern wird das festgehalten.'
+            : (plans.length ? 'Keine Zuordnung. Wähl eine Idee, wenn dieser Trade daraus entstanden ist.'
+                            : 'Noch keine Ideen angelegt — unter Planung → Pläne.'));
   $('#mNote').value = noteText(n);
   mImgData = noteImg(n);
   $('#mImg').value = mImgData.indexOf('data:') === 0 ? '' : mImgData;
@@ -4287,8 +5614,8 @@ function computeTax(year){
 }
 
 /* ---------- Steuer-Export: Anzeige und Dateien ---------- */
-const de = (v, dec) => (isFinite(v) ? v : 0).toFixed(dec === undefined ? 2 : dec).replace('.', ',');
-const deDT = ms => new Date(ms).toLocaleString('de-DE',
+const de = (v, dec) => (isFinite(v) ? v : 0).toFixed(dec === undefined ? 2 : dec).replace('.', LANG === 'en' ? '.' : ',');
+const deDT = ms => new Date(ms).toLocaleString(loc(),
   {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
 
 function csv(head, rows){
@@ -4397,7 +5724,7 @@ async function runTax(){
 function renderTaxResult(){
   const r = S.taxResult;
   if(!r) return;
-  const eur = v => (v < 0 ? '−' : '') + '€' + Math.abs(v).toLocaleString('de-DE',
+  const eur = v => (v < 0 ? '−' : '') + '€' + Math.abs(v).toLocaleString(loc(),
     {minimumFractionDigits:2, maximumFractionDigits:2});
   const line = (k, v, c, sub) => '<div class="dl"><span>' + k +
     (sub ? '<br><span class="mut" style="font-size:11px">' + sub + '</span>' : '') +
@@ -4886,7 +6213,7 @@ function inR(t){
 }
 function fmtR(v){
   if(v === null || !isFinite(v)) return '–';
-  return (v > 0 ? '+' : (v < 0 ? '−' : '')) + Math.abs(v).toFixed(2).replace('.', ',') + ' R';
+  return (v > 0 ? '+' : (v < 0 ? '−' : '')) + Math.abs(v).toFixed(2).replace('.', LANG === 'en' ? '.' : ',') + ' R';
 }
 
 /* Ein Trade unter festem Ziel und Stop, entlang des gemessenen Kursverlaufs */
@@ -5410,7 +6737,7 @@ function openCoin(coin){
         borderWidth:2, pointRadius:0, tension:.2, fill:true}]},
       options:{responsive:true, maintainAspectRatio:false, plugins:NOLEG,
         scales:{x:Object.assign({}, AXIS, {ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:8})}),
-          y:AXIS}}
+          y:moneyAxis()}}
     });
 
     // Kommt derselbe Basiswert auf mehreren Märkten vor, getrennt ausweisen
@@ -5525,12 +6852,14 @@ function renderDashTop(){
   const rows = aps.map(livePos).filter(Boolean);
   const uPnl = rows.reduce((s,r) => s + r.uPnl, 0);
   const margin = rows.reduce((s,r) => s + r.margin, 0);
+  const ORd = openRealized();
   const heute = S.trades.filter(t => dayKey(t.closeTime) === dayKey(Date.now()));
   const heuteNet = heute.reduce((s,t) => s + t.net, 0);
 
   const top = [
     ['Kontostand', usd(T.total, 2), rows.length ? rows.length + ' offen' : 'nichts offen', ''],
-    ['Unrealisiert', rows.length ? sgn(uPnl, 2) : '–', 'laufende Positionen', cls(uPnl)],
+    ['Unrealisiert', rows.length ? sgn(uPnl, 2) : '–',
+      ORd.n ? 'schwankend · ' + sgn(ORd.sum, 2) + ' schon kassiert' : 'laufende Positionen', cls(uPnl)],
     ['Heute realisiert', heute.length ? sgn(heuteNet, 2) : '–',
       heute.length ? heute.length + ' Trade' + (heute.length > 1 ? 's' : '') : 'noch kein Trade',
       heute.length ? cls(heuteNet) : ''],
@@ -5608,9 +6937,11 @@ function renderDashboard(){
   const m = metrics(win);
   const {R} = riskUnit();
   const Ud = unrealized();
+  const ORo = openRealized();
   const stat = [
     ['Ergebnis', win.length ? sgn(m.net, 2) : '–',
-      Ud.n ? 'abgeschlossen · offen ' + sgn(Ud.sum, 2) : 'letzte ' + days + ' Tage', cls(m.net)],
+      (Ud.n || ORo.n) ? 'abgeschlossen · offen ' + sgn(Ud.sum + ORo.sum, 2)
+        : 'letzte ' + days + ' Tage', cls(m.net)],
     ['Trades', m.n, m.n ? m.wins + ' W / ' + m.losses + ' L' : '', ''],
     ['Trefferquote', m.n ? pctn(m.winrate, 1) : '–', '', m.n ? (m.winrate >= 50 ? 'up' : 'down') : ''],
     ['In R', (R > 0 && m.n) ? fmtR(m.net / R) : '–', R > 0 ? '1 R = ' + usd(R, 0) : '', cls(m.net)]
@@ -5621,11 +6952,12 @@ function renderDashboard(){
 
   let cum = 0;
   const ser = win.map(t => (cum += t.net));
-  let labels = win.map(t => new Date(t.closeTime).toLocaleDateString('de-DE',
+  let labels = win.map(t => new Date(t.closeTime).toLocaleDateString(loc(),
     {day:'2-digit', month:'2-digit'}));
   const pos = cum >= 0;
   const U = unrealized();
-  const zeigeOffen = U.n && ser.length;
+  const OR = openRealized();
+  const zeigeOffen = (U.n || OR.n) && ser.length;
   const sets = [{
     label:'Kumuliert', data: zeigeOffen ? ser.concat([null]) : ser,
     borderColor: pos ? C.up : C.down,
@@ -5634,8 +6966,9 @@ function renderDashboard(){
   if(zeigeOffen){
     const last = ser[ser.length - 1];
     labels = labels.concat(['jetzt']);
-    sets.push({label:'offen', data:new Array(ser.length - 1).fill(null).concat([last, last + U.sum]),
-      borderColor: U.sum >= 0 ? C.up : C.down, borderDash:[6,4], borderWidth:2,
+    const off = U.sum + OR.sum;
+    sets.push({label:'offen', data:new Array(ser.length - 1).fill(null).concat([last, last + off]),
+      borderColor: off >= 0 ? C.up : C.down, borderDash:[6,4], borderWidth:2,
       pointRadius:[0,3], fill:false, tension:0});
   }
   sets.push({label:'Null', data:labels.map(() => 0), borderColor:C.faint, borderWidth:1,
@@ -5646,7 +6979,7 @@ function renderDashboard(){
     options:{responsive:true, maintainAspectRatio:false,
       interaction:{mode:'index', intersect:false}, plugins:NOLEG,
       scales:{x:Object.assign({}, AXIS, {ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:8})}),
-        y:AXIS}}
+        y:moneyAxis()}}
   });
 }
 
@@ -5682,8 +7015,8 @@ function renderArchive(){
   const box = $('#archInfo');
   if(!box) return;
   const i = CACHE.info || {};
-  const mb = v => v == null ? '–' : (v / 1048576).toFixed(v > 10485760 ? 0 : 2).replace('.', ',') + ' MB';
-  const gb = v => v == null ? '–' : (v / 1073741824).toFixed(1).replace('.', ',') + ' GB';
+  const mb = v => v == null ? '–' : (v / 1048576).toFixed(v > 10485760 ? 0 : 2).replace('.', LANG === 'en' ? '.' : ',') + ' MB';
+  const gb = v => v == null ? '–' : (v / 1073741824).toFixed(1).replace('.', LANG === 'en' ? '.' : ',') + ' GB';
   const gross = i.mode === 'indexedDB';
   const bad = Object.values(S.cacheState || {}).filter(x => !x.ok);
   const cut = Object.values(S.cacheState || {}).filter(x => x.ok && x.trimmed);
@@ -5691,7 +7024,7 @@ function renderArchive(){
 
   box.innerHTML =
     '<div class="dl"><span>Gespeicherte Ausführungen</span><span><b>' +
-      (a.fills || 0).toLocaleString('de-DE') + '</b></span></div>' +
+      (a.fills || 0).toLocaleString(loc()) + '</b></span></div>' +
     '<div class="dl"><span>Älteste davon</span><span>' + (a.oldest ? dt(a.oldest) : '–') + '</span></div>' +
     '<div class="dl"><span>Notizen, Pläne, Termine</span><span>' + a.notes + '</span></div>' +
     '<div class="dl"><span>Speicherart</span><span>' +
@@ -5752,7 +7085,7 @@ async function archiveExport(){
   const n = payload.wallets.reduce((s,w) => s + w.fills.length, 0);
   download('oryol-archiv-' + new Date().toISOString().slice(0,10) + '.json',
     JSON.stringify(payload));
-  $('#archStatus').innerHTML = '<span class="up">✓</span> ' + n.toLocaleString('de-DE') +
+  $('#archStatus').innerHTML = '<span class="up">✓</span> ' + n.toLocaleString(loc()) +
     ' Ausführungen und ' + Object.keys(S.notes).length + ' Einträge gesichert.';
 }
 function archiveImport(file){
@@ -5805,7 +7138,11 @@ function baseTicker(coin){
 function linkPlans(tr){
   const plans = planEntries().filter(p => p.ticker && p.from);
   const map = {};
+  const gueltig = new Set(planEntries().map(p => p.id));
   for(const t of tr){
+    // Was du von Hand zugeordnet hast, gilt immer
+    const n = noteOf(t.id);
+    if(n && n.plan && gueltig.has(n.plan)){ map[t.id] = n.plan; continue; }
     const tick = baseTicker(t.coin);
     const hit = plans.find(p => {
       if(String(p.ticker).toUpperCase() !== tick) return false;
@@ -6077,6 +7414,25 @@ function renderReview(){
 }
 
 /* ---------- Helle und dunkle Ansicht ---------- */
+function anonSetting(){
+  try{ return localStorage.getItem('hlj_anon') === '1'; }catch(e){ return false; }
+}
+function applyAnon(){
+  ANON = anonSetting();
+  const b = $('#anonBtn');
+  if(b) b.classList.toggle('on', ANON);
+  const h = $('#anonHint');
+  if(h) h.innerHTML = ANON
+    ? 'Dollarbeträge sind verdeckt. Prozent, R und Kurse bleiben sichtbar. ' +
+      'Exportierte Dateien sind davon <b>nicht</b> betroffen.'
+    : 'Für Screenshots: verdeckt alle Dollarbeträge, auch auf den Achsen der Diagramme.';
+}
+function setAnon(v){
+  try{ localStorage.setItem('hlj_anon', v ? '1' : '0'); }catch(e){}
+  applyAnon();
+  try{ renderAll(); }catch(e){}
+}
+
 function themeSetting(){
   try{ return localStorage.getItem('hlj_theme') || 'light'; }catch(e){ return 'light'; }
 }
@@ -6115,6 +7471,13 @@ function renderTheme(){
     ? 'Folgt der Einstellung deines Geräts — aktuell ' +
       (systemDark() ? '<b>dunkel</b>' : '<b>hell</b>') + '.'
     : (t === 'dark' ? 'Dunkle Ansicht.' : 'Helle Ansicht.');
+}
+function renderLangHint(){
+  const hint = $('#langHint');
+  if(!hint) return;
+  hint.textContent = LANG === 'en'
+    ? 'The whole journal is shown in English. Numbers and dates follow the same setting.'
+    : 'Das komplette Journal steht auf Deutsch. Zahlen und Datumsangaben folgen der Einstellung.';
 }
 
 /* ---------- Tabs / Render ---------- */
@@ -6185,6 +7548,7 @@ function renderAll(){
   renderLab(tr);
   if(S.tab === 'labexit') renderGrid(tr);
   renderOpen();
+  renderOrders();
   renderTrades(tr);
   renderSetups(tr);
   renderLongShort(tr);
@@ -6197,6 +7561,7 @@ function renderAll(){
   renderArchive();
   renderLive();
   renderTheme();
+  applyAnon();
 }
 
 /* ---------- Events ---------- */
@@ -6207,8 +7572,11 @@ $$('[data-dash]').forEach(el => el.addEventListener('click', () => {
   S.dashWin = parseInt(el.dataset.dash, 10) || 30;
   renderDashboard();
 }));
+$('#anonBtn').addEventListener('click', () => setAnon(!ANON));
 $$('[data-theme-set]').forEach(el =>
   el.addEventListener('click', () => setTheme(el.dataset.themeSet)));
+$$('[data-lang-set]').forEach(el =>
+  el.addEventListener('click', () => setLang(el.dataset.langSet)));
 $('#crashHide').addEventListener('click', () => $('#crash').classList.add('hide'));
 $('#crashReload').addEventListener('click', () => location.reload());
 $('#btnRefresh').addEventListener('click', () => load(true));
@@ -6366,11 +7734,12 @@ $('#mSave').addEventListener('click', () => {
   if(!mCurrent) return;
   const tags = chipValue('#mTags'), note = $('#mNote').value.trim(), rating = currentRating();
   const img = mImgData || $('#mImg').value.trim();
-  if(!tags.length && !note && !rating && !img){
+  const planSel = $('#mPlan').value;
+  if(!tags.length && !note && !rating && !img && !planSel){
     S.notes[mCurrent.id] = {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()};
   }else{
     S.notes[mCurrent.id] = {tag:packTags(tags), note:packNote(note, img),
-      rating, deleted:false, updatedAt:Date.now()};
+      plan:$('#mPlan').value || '', rating, deleted:false, updatedAt:Date.now()};
   }
   saveNotes(); closeModal(); renderAll();
 });
@@ -6495,6 +7864,9 @@ $('#btnClearCache').addEventListener('click', async () => {
 
 /* ---------- Start ---------- */
 applyTheme();
+applyLang();
+renderLangHint();
+applyAnon();
 S.tags = loadTags();
 try{
   const bo = JSON.parse(localStorage.getItem(LS.balOpts) || 'null');
