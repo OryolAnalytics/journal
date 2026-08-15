@@ -44,6 +44,47 @@
   --logoInvert:1;
   --winBg:rgba(62,207,142,.10); --winLine:rgba(62,207,142,.34);
 }
+/* ---------- Logo-Animation beim Start ----------
+   Nachbau des Stings: fünf Buchstaben steigen auf, werden scharf und ruhen.
+   Die Schrift steckt als Ausschnitt (nur o, r, y, l) direkt in der Datei –
+   kein Nachladen, funktioniert auch offline.                              */
+@font-face{
+  font-family:'Oryol Mark';
+  font-style:normal; font-weight:400; font-display:block;
+  src:url(data:font/woff2;base64,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) format('woff2');
+}
+#sting{position:fixed;inset:0;z-index:2147483647;background:#100f0e;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+  opacity:1;transition:opacity .5s ease}
+#sting.out{opacity:0}
+#sting .veil{position:absolute;inset:0;opacity:0;transform:scale(1);
+  background:radial-gradient(ellipse 58% 46% at 50% 50%,rgba(243,242,242,.055),rgba(0,0,0,0) 70%);
+  animation:stVeil 3.2s cubic-bezier(.215,.61,.355,1) forwards,
+            stVeilR 3.2s linear forwards}
+#sting .word{display:flex;line-height:1;transform:scale(1);
+  font-family:'Oryol Mark',Georgia,'Times New Roman',serif;font-weight:400;
+  font-size:clamp(46px,10.2vw,196px);color:#f3f2f2;
+  animation:stPush 3.2s linear forwards}
+#sting .word span{display:inline-block;margin-right:.34em;opacity:0;will-change:opacity,transform,filter;
+  animation:stFade .85s cubic-bezier(.215,.61,.355,1) forwards,
+            stRise 1.15s cubic-bezier(.19,1,.22,1) forwards,
+            stSharp .8s cubic-bezier(.215,.61,.355,1) forwards}
+#sting .word{padding-left:.34em}   /* die Laufweite hinter dem letzten Zeichen ausgleichen */
+@keyframes stFade{from{opacity:0}to{opacity:1}}
+@keyframes stRise{from{transform:translateY(.153em)}to{transform:translateY(0)}}
+@keyframes stSharp{from{filter:blur(.036em)}to{filter:blur(0)}}
+@keyframes stPush{from{transform:scale(1)}to{transform:scale(1.05)}}
+@keyframes stVeil{from{opacity:0}to{opacity:.9}}
+@keyframes stVeilR{from{transform:scale(1)}to{transform:scale(1.276)}}
+/* Die Buchstaben setzen nacheinander ein: 0,2 s + je 0,06 s */
+#sting .word span:nth-child(1){animation-delay:.20s,.20s,.20s}
+#sting .word span:nth-child(2){animation-delay:.26s,.26s,.26s}
+#sting .word span:nth-child(3){animation-delay:.32s,.32s,.32s}
+#sting .word span:nth-child(4){animation-delay:.38s,.38s,.38s}
+#sting .word span:nth-child(5){animation-delay:.44s,.44s,.44s}
+@media(prefers-reduced-motion:reduce){
+  #sting .veil,#sting .word,#sting .word span{animation:none;opacity:1;filter:none;transform:none}
+}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -261,6 +302,48 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
 </style>
 </head>
 <body>
+
+<div id="sting" aria-hidden="true">
+  <div class="veil"></div>
+  <div class="word"><span>o</span><span>r</span><span>y</span><span>o</span><span>l</span></div>
+</div>
+<script id="stingBoot">
+/* Läuft vor allem anderen, damit nichts durchblitzt.
+   Gezeigt wird nur beim echten Start: sessionStorage überlebt ein Neuladen
+   (Sprache, Ansicht, Cache leeren), aber nicht das Schließen der App.      */
+(function(){
+  var el = document.getElementById('sting');
+  if(!el) return;
+  var gezeigt = false;
+  try{ gezeigt = sessionStorage.getItem('hlj_sting') === '1'; }catch(e){ gezeigt = true; }
+  var nachladen = false;
+  try{
+    var nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+    nachladen = nav ? nav.type === 'reload' : (performance.navigation && performance.navigation.type === 1);
+  }catch(e){}
+  if(gezeigt || nachladen){ el.parentNode.removeChild(el); return; }
+  try{ sessionStorage.setItem('hlj_sting', '1'); }catch(e){}
+
+  document.documentElement.style.overflow = 'hidden';
+  var raus = function(node){ if(node && node.parentNode) node.parentNode.removeChild(node); };
+  var weg = function(){
+    var node = el;                       // festhalten, sonst räumt der Nachlauf ins Leere
+    if(!node || !node.parentNode) return;
+    el = null;
+    node.classList.add('out');
+    document.documentElement.style.overflow = '';
+    setTimeout(function(){ raus(node); }, 600);
+  };
+  var fest = el;
+  var kurz = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  setTimeout(weg, kurz ? 400 : 2450);
+  // Notbremse: falls irgendetwas hängt, verschwindet sie trotzdem
+  setTimeout(function(){ document.documentElement.style.overflow = ''; raus(fest); }, 8000);
+  ['click','touchstart','keydown'].forEach(function(ev){
+    document.addEventListener(ev, weg, {once:true, passive:true});
+  });
+})();
+</script>
 
 <div id="crash" class="crash hide">
   <div class="crashin">
@@ -961,7 +1044,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 13.08.2026, 18:54</span><br>
+    <span class="build">Fassung 15.08.2026, 15:44</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -2379,7 +2462,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '13.08.2026, 18:54';
+const BUILD = '15.08.2026, 15:44';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -2393,7 +2476,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 13.08.2026, 18:54';
+      ' · Fassung 15.08.2026, 15:44';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
