@@ -285,7 +285,26 @@ tbody tr:hover{background:var(--panel2)}
 .cell.clickable:hover{border-color:var(--txt)}
 .lsbox{border:1px solid var(--line);border-radius:11px;padding:13px}
 .lsbox h4{margin:0 0 9px;font-size:13px}
-img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin-top:9px}
+img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin-top:9px;
+  cursor:zoom-in}
+.thumb{cursor:zoom-in}
+/* ---------- Bild groß ansehen ---------- */
+#lightbox{position:fixed;inset:0;z-index:2147483600;background:rgba(9,11,14,.95);
+  display:none;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pinch-zoom}
+#lightbox.on{display:block}
+#lightbox .lbWrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:56px 10px 16px}
+#lightbox img{max-width:96vw;max-height:calc(100vh - 76px);object-fit:contain;
+  cursor:zoom-in;border-radius:6px;box-shadow:0 12px 44px rgba(0,0,0,.55);display:block}
+#lightbox.zoom .lbWrap{align-items:flex-start;justify-content:flex-start;padding:56px 0 0}
+#lightbox.zoom img{max-width:none;max-height:none;width:auto;border-radius:0;cursor:zoom-out;
+  box-shadow:none}
+.lbBar{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;gap:8px;
+  padding:9px 12px;background:linear-gradient(rgba(9,11,14,.92),rgba(9,11,14,0));z-index:2}
+.lbBar .lbInfo{color:rgba(255,255,255,.62);font-size:12.5px;margin-right:auto}
+.lbBar button,.lbBar a{appearance:none;border:1px solid rgba(255,255,255,.22);
+  background:rgba(255,255,255,.08);color:#fff;border-radius:8px;padding:7px 13px;
+  font:inherit;font-size:13px;text-decoration:none;cursor:pointer}
+.lbBar button:hover,.lbBar a:hover{background:rgba(255,255,255,.16)}
 @media (display-mode:standalone),(display-mode:fullscreen){
   header{padding-top:env(safe-area-inset-top)}
   body{padding-bottom:calc(60px + env(safe-area-inset-bottom))}
@@ -1164,7 +1183,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 16.08.2026, 17:28</span><br>
+    <span class="build">Fassung 16.08.2026, 20:01</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1364,6 +1383,16 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </div>
 </div>
 
+<div id="lightbox" aria-hidden="true">
+  <div class="lbBar">
+    <span class="lbInfo" id="lbInfo"></span>
+    <button id="lbZoom">Originalgröße</button>
+    <a id="lbOpen" href="#" target="_blank" rel="noopener">In neuem Tab</a>
+    <button id="lbClose">Schließen</button>
+  </div>
+  <div class="lbWrap"><img id="lbImg" alt=""></div>
+</div>
+
 <script>
 /* ============================================================
    Hyperliquid Trading Journal – 100% clientseitig
@@ -1376,6 +1405,11 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Vorteil: neue Texte funktionieren sofort weiter, nur eben zunächst deutsch.  */
 let LANG = 'de';
 const EN = {
+  "Antippen für groß": "Tap to enlarge",
+  "Originalgröße": "Original size",
+  "Einpassen": "Fit to screen",
+  "In neuem Tab": "Open in new tab",
+  "Schließen": "Close",
   "Mit": "With",
   "brauchst du": "you need",
   "starten": "start",
@@ -2772,7 +2806,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '16.08.2026, 17:28';
+const BUILD = '16.08.2026, 20:01';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -2786,7 +2820,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 16.08.2026, 17:28';
+      ' · Fassung 16.08.2026, 20:01';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -4925,6 +4959,16 @@ function renderPlans(){
   $('#planEmpty').classList.toggle('hide', list.length > 0);
   $$('#planList .plan').forEach(el =>
     el.addEventListener('click', () => openPlan(el.dataset.id)));
+  // Die Miniatur zeigt das Bild groß, statt den Plan zu öffnen
+  $$('#planList .plan .thumb').forEach(el => {
+    el.title = t('Antippen für groß');
+    el.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const karte = el.closest('.plan');
+      const tk = karte ? (karte.querySelector('.tk') || {}).textContent : '';
+      openBild(el.getAttribute('src'), tk || '');
+    });
+  });
   bindStatusButtons('#planList');
 }
 function planRR(p){
@@ -6269,6 +6313,8 @@ function drawImgPreview(){
       '(Kamera-Symbol → Bild-Link kopieren), nicht den Chart-Link.</div>';
   };
   img.src = src;
+  img.title = t('Antippen für groß');
+  img.addEventListener('click', () => openBild(src, $('#pTicker').value || ''));
   box.appendChild(img);
 }
 function closePlanModal(){
@@ -6309,6 +6355,9 @@ function drawMImg(){
       'Bild konnte nicht geladen werden.</div>';
   };
   img.src = src;
+  img.title = t('Antippen für groß');
+  img.addEventListener('click', () => openBild(src,
+    mCurrent ? coinName(mCurrent.coin) : ''));
   box.appendChild(img);
 }
 
@@ -7411,6 +7460,53 @@ function renderBehavior(tr){
   }else{
     $('#sessionNote').innerHTML = 'Für einen Vergleich braucht es mindestens zwei Sitzungen ' +
       'mit je ' + MIN_AUSSAGE + ' Trades.';
+  }
+}
+
+/* ---------- Bild groß ansehen ----------
+   Ein Chartbild im Plan ist als Vorschau zu klein, um Preise zu lesen.
+   Antippen legt es bildschirmfüllend darüber, ein weiteres Antippen
+   schaltet auf Originalgröße zum Scrollen.                              */
+let lbZurueck = null;
+function openBild(src, titel){
+  if(!src) return;
+  const box = $('#lightbox'), img = $('#lbImg');
+  if(!box || !img) return;
+  lbZurueck = document.activeElement;
+  img.src = src;
+  $('#lbInfo').textContent = titel || '';
+  const a = $('#lbOpen');
+  // Nur echte Adressen lassen sich in einem neuen Tab öffnen
+  const extern = src.indexOf('data:') !== 0;
+  a.classList.toggle('hide', !extern);
+  if(extern) a.href = src;
+  box.classList.remove('zoom');
+  box.classList.add('on');
+  box.scrollTop = 0; box.scrollLeft = 0;
+  $('#lbZoom').textContent = t('Originalgröße');
+  document.body.style.overflow = 'hidden';
+}
+function closeBild(){
+  const box = $('#lightbox');
+  if(!box || !box.classList.contains('on')) return;
+  box.classList.remove('on', 'zoom');
+  $('#lbImg').removeAttribute('src');
+  document.body.style.overflow = '';
+  if(lbZurueck && lbZurueck.focus) try{ lbZurueck.focus(); }catch(e){}
+  lbZurueck = null;
+}
+function toggleBildZoom(){
+  const box = $('#lightbox');
+  if(!box) return;
+  const an = box.classList.toggle('zoom');
+  $('#lbZoom').textContent = an ? t('Einpassen') : t('Originalgröße');
+  if(an){
+    // Auf die Mitte des Bildes stellen, sonst landet man oben links
+    const img = $('#lbImg');
+    box.scrollLeft = Math.max(0, (img.naturalWidth - box.clientWidth) / 2);
+    box.scrollTop = 0;
+  }else{
+    box.scrollTop = 0; box.scrollLeft = 0;
   }
 }
 
@@ -9687,6 +9783,21 @@ $('#btnClearCache').addEventListener('click', async () => {
 });
 ['#simCap','#simRisk','#simWin','#simRR','#simN','#simRuns','#simCompound','#simEcht'].forEach(sel =>
   $(sel).addEventListener('change', renderSim));
+
+/* Bild groß ansehen */
+$('#lbClose').addEventListener('click', closeBild);
+$('#lbZoom').addEventListener('click', toggleBildZoom);
+$('#lbImg').addEventListener('click', toggleBildZoom);
+$('#lightbox').addEventListener('click', ev => {
+  // Klick daneben schließt, Klick auf Bild oder Leiste nicht
+  if(ev.target.id === 'lightbox' || ev.target.className === 'lbWrap') closeBild();
+});
+document.addEventListener('keydown', ev => {
+  if(ev.key === 'Escape' && $('#lightbox').classList.contains('on')){
+    ev.stopPropagation();
+    closeBild();
+  }
+}, true);
 
 /* Zinseszinsrechner: bei jeder Eingabe neu rechnen */
 $$('[data-zins]').forEach(el => el.addEventListener('click', () => {
