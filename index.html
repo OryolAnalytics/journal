@@ -555,6 +555,18 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         <tbody></tbody></table></div>
     </div>
     <div class="panel">
+      <h2>Handelssitzungen</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Nach der Uhrzeit der Eröffnung, in UTC. Die letzte Spalte ist der Bereich, in dem
+        der wahre Wert plausibel liegt — errechnet, indem aus deinen Trades tausendfach
+        neu gezogen wird. Schließt er die Null ein, kann alles Zufall sein.</p>
+      <div class="scroll"><table id="tblSession">
+        <thead><tr><th>Sitzung</th><th>Zeit</th><th>Trades</th><th>Trefferquote</th>
+          <th>Netto</th><th>Ø je Trade</th><th>Bereich</th></tr></thead>
+        <tbody></tbody></table></div>
+      <div id="sessionNote" class="mut" style="font-size:13px;line-height:1.6;margin-top:10px"></div>
+    </div>
+    <div class="panel">
       <h2>Wochentag &amp; Tageszeit</h2>
       <div class="chartbox sm"><canvas id="chDow"></canvas></div>
       <div class="chartbox sm" style="margin-top:14px"><canvas id="chHour"></canvas></div>
@@ -591,6 +603,23 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <p class="mut" style="font-size:12.5px;margin-bottom:0">
         Jeder Punkt ist ein Trade. Waagerecht: wie weit er im Plus war. Senkrecht: was du mitgenommen
         hast. Punkte weit rechts unten sind Trades, die gelaufen sind, ohne dass du etwas davon hattest.</p>
+    </div>
+    <div class="panel">
+      <h2>Nachdem du geschlossen hast</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Jeder Ausstieg wird weiterverfolgt. Gerechnet wird nicht der beste Punkt danach — den
+        trifft niemand —, sondern was <b>einfaches Halten</b> gebracht hätte, bei gleicher Größe.
+        Damit wird aus „ich verkaufe immer zu früh“ eine Zahl.</p>
+      <div class="filters" style="margin-bottom:12px">
+        <button class="tab on" data-nach="gleich">Gleiche Haltedauer</button>
+        <button class="tab" data-nach="tag">24 Stunden</button>
+        <button class="tab" data-nach="woche">7 Tage</button>
+      </div>
+      <div id="nachlauf"></div>
+      <div class="chartbox" style="margin-top:14px"><canvas id="chNach"></canvas></div>
+      <p class="mut" style="font-size:12.5px;margin-bottom:0">
+        Ein Balken je Trade, aufsteigend sortiert: was Halten gebracht (grün) oder gekostet
+        (rot) hätte.</p>
     </div>
   </section>
 
@@ -632,6 +661,14 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     <div class="panel">
       <h2>Bestes Ergebnis im Raster</h2>
       <div id="gridBest"></div>
+    </div>
+    <div class="panel">
+      <h2>Hält die Regel auch außerhalb?</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Die beste Kombination wird nur auf den ersten 70 % deiner vermessenen Trades
+        gesucht und danach auf den letzten 30 % geprüft, die sie nie gesehen hat.
+        Das ist die einzige Art, angepasstes Rauschen von einem Vorteil zu trennen.</p>
+      <div id="gridProbe"></div>
     </div>
   </section>
 
@@ -723,12 +760,17 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     </div>
     <div class="panel">
       <h2>Auswertung nach Setup-Tag</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        „Bereich“ ist der Vertrauensbereich für das Ergebnis je Trade: aus deinen Trades
+        wird tausendfach mit Zurücklegen neu gezogen, die mittleren 90 % stehen in Klammern.
+        Nur wenn dieser Bereich die Null <b>nicht</b> einschließt, steht „belastbar“ daneben —
+        alles andere kann Glück gewesen sein.</p>
       <div id="setupNote" class="mut" style="font-size:12.5px;margin-bottom:10px"></div>
       <div class="scroll">
         <table id="tblSetups">
           <thead><tr>
             <th>Setup</th><th>Trades</th><th>Winrate</th><th>PnL netto</th><th>Ø PnL</th>
-            <th>Profit Factor</th><th>Ø Gewinn</th><th>Ø Verlust</th><th>Erwartungswert</th><th>Ø Rating</th>
+            <th>Profit Factor</th><th>Ø Gewinn</th><th>Ø Verlust</th><th>Erwartungswert</th><th>Bereich</th><th></th><th>Ø Rating</th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -818,6 +860,30 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     </div>
   </section>
 
+  <!-- LABOR: DISZIPLIN -->
+  <section id="v-discipline" class="hide">
+    <div class="panel">
+      <h2>Was Regelbrüche gekostet haben</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Jede Regel wird gegen die Trades gerechnet, die sie eingehalten haben: wie viel
+        brachte ein Trade im Schnitt mit Bruch, wie viel ohne, und was macht die Differenz
+        mal der Anzahl. Nur Regeln, die sich aus deinen Daten sauber ablesen lassen —
+        was im Kopf passiert ist, steht hier nicht.</p>
+      <div id="regelListe"></div>
+      <div id="regelSumme" style="margin-top:14px"></div>
+    </div>
+    <div class="panel">
+      <h2>Plan gegen Hand gegen Markt</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Für jeden Trade mit hinterlegtem Plan: was dein Plan stur befolgt gebracht hätte,
+        was du tatsächlich gemacht hast, was der beste Ausstieg im Fenster gewesen wäre und
+        was mit dem Nachlauf danach möglich gewesen wäre. Die erste Lücke ist Disziplin,
+        die zweite ist die Qualität deiner Pläne.</p>
+      <div class="kpis" id="vierKpis" style="margin-bottom:16px"></div>
+      <div id="vierWege"></div>
+    </div>
+  </section>
+
   <!-- SIMULATOR -->
   <section id="v-sim" class="hide">
     <div class="panel">
@@ -834,7 +900,11 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
           <input type="checkbox" id="simCompound" checked> Risiko vom aktuellen Kapital (Zinseszins)
         </label>
+        <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="simEcht"> Aus meinen echten Trades ziehen
+        </label>
       </div>
+      <div id="simQuelle" class="mut" style="font-size:12.5px;line-height:1.6;margin-bottom:10px"></div>
       <div class="filters">
         <button class="primary" id="simRun">Simulation starten</button>
         <button id="simFromStats">Meine Statistik übernehmen</button>
@@ -1044,7 +1114,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 15.08.2026, 15:44</span><br>
+    <span class="build">Fassung 16.08.2026, 12:47</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1198,6 +1268,10 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         <button id="mClose">✕</button>
       </div>
     </div>
+    <div id="mChart" class="hide" style="margin:14px 0">
+      <canvas id="mCandles" style="display:block;width:100%"></canvas>
+      <div id="mChartHint" class="mut" style="font-size:11.5px;margin-top:5px"></div>
+    </div>
     <div id="mStats" style="margin:14px 0"></div>
     <div class="f">
       <label>Setups — mehrere möglich</label>
@@ -1252,6 +1326,123 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Vorteil: neue Texte funktionieren sofort weiter, nur eben zunächst deutsch.  */
 let LANG = 'de';
 const EN = {
+  "Aus meinen echten Trades ziehen": "Draw from my real trades",
+  "Übliche Verlustserie": "Usual losing streak",
+  "{0} in Folge": "{0} in a row",
+  "in der Hälfte der Durchläufe": "in half of the runs",
+  "Damit rechnen musst du mit": "You have to reckon with",
+  "in 1 von 20 Durchläufen · längste: {0}": "in 1 of 20 runs · longest: {0}",
+  "Gezogen aus deinen {0} echten Trades.": "Drawn from your {0} real trades.",
+  "Trefferquote und Chance-Risiko-Verhältnis oben werden dabei nicht benutzt — stattdessen wird für jeden simulierten Trade zufällig ein echtes Ergebnis gezogen. Das behält Ausreißer und Schiefe, die eine Trefferquote wegmittelt.": "Win rate and reward-to-risk above are not used — instead a real result is drawn at random for every simulated trade. That keeps the outliers and the skew a win rate averages away.",
+  "Noch zu wenig Trades zum Ziehen": "Not enough trades to draw from",
+  "— es braucht 20 abgeschlossene Trades im Filter und einen geladenen Kontostand. Gerechnet wird solange mit den Annahmen oben.": "— it needs 20 closed trades in the filter and a loaded balance. Until then the assumptions above are used.",
+  "Gerechnet wird mit den Annahmen oben. Setz den Haken, um stattdessen aus deinen echten Ergebnissen zu ziehen.": "The assumptions above are used. Tick the box to draw from your real results instead.",
+  "mit {0}. Ob der Unterschied echt ist, sagt die letzte Spalte: nur wo „belastbar\" steht, schließt der Bereich die Null nicht ein.": "with {0}. Whether the difference is real is in the last column: only where “reliable” appears does the range exclude zero.",
+  "am schlechtesten": "the worst is",
+  "je Trade, am schlechtesten": "per trade, the worst is",
+  "eine Ausschlagsmessung. Leg Pläne unter Planung → Pläne an und miss unter Fakten → Ausschläge.": "an excursion measurement. Create plans under Planning → Plans and measure under Facts → Excursions.",
+  "Dafür braucht ein Trade beides: einen verknüpften Plan mit Stop oder Ziel": "A trade needs both: a linked plan with a stop or target",
+  "Jeder Ausstieg wird weiterverfolgt. Gerechnet wird nicht der beste Punkt danach — den trifft niemand —, sondern was": "Every exit is tracked further. What counts is not the best point afterwards — nobody hits that — but what",
+  "gebracht hätte, bei gleicher Größe. Damit wird aus „ich verkaufe immer zu früh“ eine Zahl.": "would have returned, at the same size. That turns “I always sell too early” into a number.",
+  "einfaches Halten": "simply holding",
+  "Hält die Regel auch außerhalb?": "Does the rule hold outside?",
+  "Die beste Kombination wird nur auf den ersten 70 % deiner vermessenen Trades gesucht und danach auf den letzten 30 % geprüft, die sie nie gesehen hat. Das ist die einzige Art, angepasstes Rauschen von einem Vorteil zu trennen.": "The best combination is searched for on the first 70% of your measured trades only, then tested on the last 30% it has never seen. That is the only way to tell fitted noise from an edge.",
+  "einschließt, steht „belastbar“ daneben — alles andere kann Glück gewesen sein.": "does not include zero does “reliable” appear next to it — everything else may have been luck.",
+  "„Bereich“ ist der Vertrauensbereich für das Ergebnis je Trade: aus deinen Trades wird tausendfach mit Zurücklegen neu gezogen, die mittleren 90 % stehen in Klammern. Nur wenn dieser Bereich die Null": "“Range” is the confidence range for the result per trade: your trades are resampled a thousand times with replacement, the middle 90% are shown in brackets. Only when that range",
+  "Was Regelbrüche gekostet haben": "What breaking your rules has cost",
+  "Jede Regel wird gegen die Trades gerechnet, die sie eingehalten haben: wie viel brachte ein Trade im Schnitt mit Bruch, wie viel ohne, und was macht die Differenz mal der Anzahl. Nur Regeln, die sich aus deinen Daten sauber ablesen lassen — was im Kopf passiert ist, steht hier nicht.": "Every rule is measured against the trades that kept it: what a trade returned on average when the rule was broken, what it returned when it wasn't, and what the difference times the count adds up to. Only rules that can be read cleanly from your data — what happened in your head is not in here.",
+  "Plan gegen Hand gegen Markt": "Plan vs. hands vs. market",
+  "Für jeden Trade mit hinterlegtem Plan: was dein Plan stur befolgt gebracht hätte, was du tatsächlich gemacht hast, was der beste Ausstieg im Fenster gewesen wäre und was mit dem Nachlauf danach möglich gewesen wäre. Die erste Lücke ist Disziplin, die zweite ist die Qualität deiner Pläne.": "For every trade with a linked plan: what your plan would have returned followed to the letter, what you actually did, what the best exit inside the window would have been, and what was possible including the run afterwards. The first gap is discipline, the second is the quality of your plans.",
+  "Handelssitzungen": "Trading sessions",
+  "Nach der Uhrzeit der Eröffnung, in UTC. Die letzte Spalte ist der Bereich, in dem der wahre Wert plausibel liegt — errechnet, indem aus deinen Trades tausendfach neu gezogen wird. Schließt er die Null ein, kann alles Zufall sein.": "By the time of the entry, in UTC. The last column is the range the true value plausibly sits in — computed by resampling your trades a thousand times. If it includes zero, it may all be chance.",
+  "Nachdem du geschlossen hast": "After you closed",
+  "Ein Balken je Trade, aufsteigend sortiert: was Halten gebracht (grün) oder gekostet (rot) hätte.": "One bar per trade, sorted ascending: what holding would have gained (green) or cost (red).",
+  "Gleiche Haltedauer": "Same hold time",
+  "24 Stunden": "24 hours",
+  "Kurse werden geholt…": "Loading prices…",
+  "Stop laut Plan": "Stop per plan",
+  "Ziel laut Plan": "Target per plan",
+  "Ausstieg {0}": "Exit {0}",
+  "Raster {0} · der graue Bereich ist deine Haltedauer, rechts davon der Nachlauf.": "Interval {0} · the grey area is your holding period, to the right of it the run afterwards.",
+  "Nach der gleichen Haltedauer": "After the same hold time",
+  "Nach 24 Stunden": "After 24 hours",
+  "Nach 7 Tagen": "After 7 days",
+  "Erste Zahl: was der Trade bei gleicher Größe gebracht hätte, wenn du ihn einfach hättest laufen lassen. „max\" ist der beste Punkt dazwischen.": "First number: what the trade would have returned at the same size had you simply let it run. “max” is the best point in between.",
+  "noch einmal die Haltedauer": "the hold time again",
+  "Dafür braucht es die Ausschlagsmessung oben. Sie holt den Kursverlauf bis über den Ausstieg hinaus.": "This needs the excursion measurement above. It fetches the price action past the exit.",
+  "Halten statt schließen": "Holding instead of closing",
+  "über {0} Trades zusammen": "across {0} trades combined",
+  "Unterschied zum Ausstieg": "difference to your exit",
+  "Öfter besser gehalten": "Holding was better",
+  "Ø bester Punkt danach": "Avg best point afterwards",
+  "nur mit perfektem Timing": "only with perfect timing",
+  "Bei Gewinnern": "On winners",
+  "Bei Verlierern": "On losers",
+  "Du steigst tendenziell zu früh aus.": "You tend to exit too early.",
+  "Deine Ausstiege sitzen gut.": "Your exits are well placed.",
+  "Kein klares Muster.": "No clear pattern.",
+  "Späte Stunden": "Late hours",
+  "Asien": "Asia",
+  "Zufall möglich": "could be chance",
+  "belastbar": "reliable",
+  "zu wenig Trades": "too few trades",
+  "zu wenig": "too few",
+  "Am besten läuft": "The best session is",
+  "Für einen Vergleich braucht es mindestens zwei Sitzungen mit je {0} Trades.": "A comparison needs at least two sessions with {0} trades each.",
+  "Bereich": "Range",
+  "bis {0}R": "to {0}R",
+  "laufen lassen": "let it run",
+  "Hälfte bei {0}R raus, Rest {1}, Stop 1R": "Half out at {0}R, rest {1}, stop 1R",
+  "Rest danach auf Einstand gesichert": "remainder then secured at break-even",
+  "Ohne Plan gehandelt": "Traded without a plan",
+  "Verglichen mit deinen geplanten Trades.": "Compared with your planned trades.",
+  "Ein Trade gilt als geplant, wenn ein Plan zu Ticker, Richtung und Zeitfenster passt.": "A trade counts as planned if a plan matches ticker, direction and time window.",
+  "Innerhalb von 30 Minuten nach einem Verlust eröffnet": "Opened within 30 minutes of a loss",
+  "Verglichen mit allen anderen Trades.": "Compared with all other trades.",
+  "Der Klassiker: der Markt schuldet dir nichts, aber die Hand ist schneller als der Kopf.": "The classic: the market owes you nothing, but the hand is faster than the head.",
+  "Mehr als das 1,5-fache deiner üblichen Größe": "More than 1.5× your usual size",
+  "Übliche Größe = Median über alle Trades: {0}.": "Usual size = median across all trades: {0}.",
+  "Größere Positionen dürfen ruhig besser laufen — sie tun es meist nicht.": "Bigger positions are allowed to perform better — they usually don't.",
+  "Über den eigenen Stop hinaus gehalten": "Held past your own stop",
+  "Nur Trades mit hinterlegtem Plan-Stop, verglichen über die gemessenen Ausschläge.": "Only trades with a stop in the plan, compared through the measured excursions.",
+  "Gemessen wird, ob der Kurs weiter gegen dich lief als dein eigener Stop erlaubt hätte.": "What is measured: whether price ran further against you than your own stop allowed.",
+  "Eigenes Ziel war da, nicht mitgenommen": "Your target was there, not taken",
+  "Nur Trades mit hinterlegtem Ziel im Plan.": "Only trades with a target in the plan.",
+  "Der Kurs hat dein Ziel berührt, dein Ausstieg lag darunter.": "Price touched your target, your exit was below it.",
+  "{0} Trades betroffen · Ø {1} je Trade gegenüber {2} bei den übrigen {3} · Differenz": "{0} trades affected · avg {1} per trade against {2} for the other {3} · difference",
+  "je Trade": "per trade",
+  "Zusammen gekostet": "Cost in total",
+  "Die Summe der Regeln, die dich Geld gekostet haben. Sie überschneiden sich teilweise — ein Trade kann gleichzeitig zu groß und ungeplant gewesen sein. Als Größenordnung taugt sie, als exakte Rechnung nicht.": "The sum of the rules that cost you money. They overlap in part — a trade can be both oversized and unplanned. Good as an order of magnitude, not as an exact bill.",
+  "Keine deiner geprüften Regeln hat dich nachweislich Geld gekostet.": "None of the rules checked has demonstrably cost you money.",
+  "Dafür brauche ich mehr Anhaltspunkte: Pläne unter Planung → Pläne, und die Ausschlagsmessung unter Fakten → Ausschläge. Ohne beides lässt sich ein Regelbruch nicht von einer normalen Entscheidung trennen.": "This needs more to go on: plans under Planning → Plans, and the excursion measurement under Facts → Excursions. Without both, a broken rule cannot be told apart from a normal decision.",
+  "Dein Plan": "Your plan",
+  "Deine Hand": "Your hands",
+  "stur befolgt": "followed to the letter",
+  "tatsächlich": "actual",
+  "Regeln befolgen wert": "Value of following rules",
+  "Plan minus Hand": "plan minus hands",
+  "Bester Ausstieg im Fenster": "Best exit in the window",
+  "was der Markt hergab": "what the market offered",
+  "Mit Nachlauf": "Including the run after",
+  "inklusive der Zeit danach": "including the time afterwards",
+  "Trades im Vergleich": "Trades compared",
+  "mit Plan und Messung": "with a plan and a measurement",
+  "Du hältst dich weitgehend an deine Pläne. Die größere Lücke liegt zwischen deinem Plan und dem, was der Markt hergegeben hätte — an den Plänen selbst arbeiten, nicht an der Disziplin.": "You largely stick to your plans. The bigger gap sits between your plan and what the market offered — work on the plans themselves, not on discipline.",
+  "Deine Pläne waren besser als deine Ausführung. Stures Befolgen hätte {0} mehr gebracht. Das ist der Betrag, den dich das Abweichen gekostet hat.": "Your plans were better than your execution. Following them to the letter would have returned {0} more. That is what deviating has cost you.",
+  "Deine Abweichungen waren im Ergebnis besser als die Pläne — um {0}. Das kann Können sein oder Glück; die Spalte „Bereich\" bei den Setups sagt dir, wie belastbar so etwas bei deiner Trade-Zahl überhaupt ist.": "Your deviations beat the plans — by {0}. That can be skill or luck; the “range” column in Setups tells you how reliable such a thing can be at your trade count.",
+  "Hand": "Hands",
+  "Bester Ausstieg": "Best exit",
+  "Regel aus den ersten {0} Trades": "Rule from the first {0} trades",
+  "Dort besser als die Wirklichkeit um": "Better than reality there by",
+  "Auf den letzten {0} Trades": "On the last {0} trades",
+  "Für die Gegenprobe brauche ich mindestens 20 vermessene Trades — davon gehen 70 % in die Suche nach der Regel und 30 % in die Prüfung.": "The cross-check needs at least 20 measured trades — 70% go into finding the rule, 30% into testing it.",
+  "Die Regel hält.": "The rule holds.",
+  "Sie wurde auf dem älteren Teil deiner Historie gefunden und hat auf dem jüngeren, den sie nie gesehen hat, ebenfalls besser abgeschnitten als dein tatsächlicher Ausstieg. Das ist der Unterschied zwischen einem Vorteil und einer schön gerechneten Zahl.": "It was found on the older part of your history and also beat your actual exit on the newer part it had never seen. That is the difference between an edge and a nicely fitted number.",
+  "Die Regel hält nicht.": "The rule does not hold.",
+  "Auf dem älteren Teil sah sie gut aus, auf dem jüngeren hätte sie {0} gebracht. Genau so entsteht die Illusion eines Vorteils: Man sucht so lange im Raster, bis etwas glänzt. Nimm das beste Feld oben deshalb nicht als Anweisung.": "On the older part it looked good, on the newer one it would have returned {0}. That is exactly how the illusion of an edge is built: you search the grid until something shines. So don't take the best cell above as an instruction.",
+  "Disziplin": "Discipline",
+  "Sitzung": "Session",
+  "Das komplette Journal steht auf Deutsch. Zahlen und Datumsangaben folgen der Einstellung.": "The whole journal is shown in German.",
   "{0} neu geladen": "{0} newly loaded",
   "nichts Neues": "nothing new",
   "{0}: {1} Funding…": "{0}: {1} funding…",
@@ -2462,7 +2653,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '15.08.2026, 15:44';
+const BUILD = '16.08.2026, 12:47';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -2476,7 +2667,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 15.08.2026, 15:44';
+      ' · Fassung 16.08.2026, 12:47';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -3276,11 +3467,13 @@ const CACHE = {
       const idb = (typeof indexedDB !== 'undefined') ? indexedDB : null;
       if(!idb){ this.mode = 'localStorage'; return resolve(false); }
       let req;
-      try{ req = idb.open('oryol', 1); }
+      try{ req = idb.open('oryol', 2); }
       catch(e){ this.mode = 'localStorage'; return resolve(false); }
       req.onupgradeneeded = () => {
         const db = req.result;
         if(!db.objectStoreNames.contains('fills')) db.createObjectStore('fills', {keyPath:'addr'});
+        // Kursverläufe je Trade – für den kleinen Speicher wären sie zu groß
+        if(!db.objectStoreNames.contains('paths')) db.createObjectStore('paths', {keyPath:'id'});
       };
       req.onsuccess = () => {
         this.db = req.result;
@@ -4208,11 +4401,14 @@ function renderSetups(tr){
     const keys = tl.length ? tl : ['— ohne Setup —'];
     keys.forEach(k => (groups[k] = groups[k] || []).push(t));
   }
+  const {R: RE} = riskUnit();
   const rows = Object.keys(groups).map(tag => {
     const g = groups[tag], m = metrics(g);
     const ratings = g.map(t => (noteOf(t.id) || {}).rating).filter(Boolean).map(Number);
     const avgR = ratings.length ? (ratings.reduce((a,b) => a + b, 0) / ratings.length) : null;
-    return {tag, m, avgR};
+    // Vertrauensbereich für den Erwartungswert je Trade
+    const b = bootstrap(g.map(t => RE > 0 ? t.net / RE : t.net));
+    return {tag, m, avgR, b};
   }).sort((a,b) => b.m.net - a.m.net);
 
   $('#tblSetups tbody').innerHTML = rows.map(r =>
@@ -4225,6 +4421,9 @@ function renderSetups(tr){
     '<td class="up">' + sgn(r.m.avgWin, 2) + '</td>' +
     '<td class="down">' + sgn(-r.m.avgLoss, 2) + '</td>' +
     '<td class="' + cls(r.m.expectancy) + '">' + sgn(r.m.expectancy, 2) + '</td>' +
+    '<td>' + (r.b ? bereichText(r.b, RE > 0 ? fmtR : null) : '<span class="mut">zu wenig</span>') +
+      '</td>' +
+    '<td>' + sicherPill(r.b) + '</td>' +
     '<td>' + (r.avgR ? r.avgR.toFixed(1) + '★' : '–') + '</td></tr>').join('');
   $('#setupsEmpty').classList.toggle('hide', rows.length > 0);
   $('#setupNote').innerHTML = multi
@@ -4243,7 +4442,6 @@ function renderSetups(tr){
     const key = tl.slice().sort().join(' + ');
     (combos[key] = combos[key] || []).push(t);
   }
-  const MIN_AUSSAGE = 5;
   const cRows = Object.keys(combos)
     .map(k => ({k, g:combos[k], m:metrics(combos[k]), multi:k.indexOf(' + ') > 0}))
     .sort((a,b) => (b.g.length - a.g.length) || (b.m.net - a.m.net));
@@ -4868,17 +5066,31 @@ function renderCalendarTab(){
 function simulate(cfg){
   const {cap, riskPct, winrate, rr, n, runs, compound} = cfg;
   const paths = [];
+  const serien = [];      // längste Verlustserie je Durchlauf
+  // Ziehen aus den echten Ergebnissen statt aus Trefferquote und CRV
+  const echte = cfg.echte && cfg.echte.length >= 20 ? cfg.echte : null;
   for(let r = 0; r < runs; r++){
     let eq = cap;
     const path = [eq];
+    let serie = 0, maxSerie = 0;
     for(let i = 0; i < n; i++){
       const risk = compound ? eq * riskPct / 100 : cap * riskPct / 100;
-      eq += (Math.random() * 100 < winrate) ? risk * rr : -risk;
+      let ergebnisR;
+      if(echte){
+        ergebnisR = echte[(Math.random() * echte.length) | 0];
+      }else{
+        ergebnisR = (Math.random() * 100 < winrate) ? rr : -1;
+      }
+      eq += risk * ergebnisR;
+      if(ergebnisR < 0){ serie++; if(serie > maxSerie) maxSerie = serie; } else serie = 0;
       if(eq < 0) eq = 0;
       path.push(eq);
     }
     paths.push(path);
+    serien.push(maxSerie);
   }
+  serien.sort((a,b) => a - b);
+  const sq = f => serien[Math.min(serien.length-1, Math.max(0, Math.floor(serien.length * f)))];
   const finals = paths.map(p => p[p.length-1]).slice().sort((a,b) => a - b);
   const q = f => finals[Math.min(finals.length-1, Math.max(0, Math.floor(finals.length * f)))];
   const median = new Array(n+1);
@@ -4894,11 +5106,15 @@ function simulate(cfg){
   }).sort((a,b) => a - b);
   const ruin = paths.filter(p => Math.min.apply(null, p) <= cap * 0.5).length / runs * 100;
   const loss = finals.filter(v => v < cap).length / runs * 100;
+  const ausEchten = !!(cfg.echte && cfg.echte.length >= 20);
   return {paths, median, finals,
     p05:q(0.05), p25:q(0.25), p50:q(0.5), p75:q(0.75), p95:q(0.95),
     medDD:dds[Math.floor(dds.length/2)], worstDD:dds[dds.length-1],
-    ruin, loss,
-    expectancy: (winrate/100) * rr - (1 - winrate/100)
+    ruin, loss, ausEchten,
+    serieMed: sq(0.5), serie95: sq(0.95), serieMax: serien[serien.length-1],
+    expectancy: ausEchten
+      ? cfg.echte.reduce((a,b) => a + b, 0) / cfg.echte.length
+      : (winrate/100) * rr - (1 - winrate/100)
   };
 }
 
@@ -4912,8 +5128,29 @@ function renderSim(){
     runs: Math.min(3000, Math.max(20, Math.round(num($('#simRuns').value)))),
     compound: $('#simCompound').checked
   };
+  // Aus den echten Trades ziehen, wenn du das willst und genug da sind
+  const ausEcht = $('#simEcht') && $('#simEcht').checked;
+  if(ausEcht){
+    const {R} = riskUnit();
+    if(R > 0){
+      const liste = filtered().filter(t => !t.spot).map(t => t.net / R);
+      if(liste.length >= 20) cfg.echte = liste;
+    }
+  }
   const r = simulate(cfg);
   const posExp = r.expectancy > 0;
+  const quelle = $('#simQuelle');
+  if(quelle) quelle.innerHTML = r.ausEchten
+    ? '<span class="up">Gezogen aus deinen ' + cfg.echte.length + ' echten Trades.</span> ' +
+      'Trefferquote und Chance-Risiko-Verhältnis oben werden dabei nicht benutzt — ' +
+      'stattdessen wird für jeden simulierten Trade zufällig ein echtes Ergebnis gezogen. ' +
+      'Das behält Ausreißer und Schiefe, die eine Trefferquote wegmittelt.'
+    : (ausEcht
+        ? '<span class="warn">Noch zu wenig Trades zum Ziehen</span> — es braucht 20 ' +
+          'abgeschlossene Trades im Filter und einen geladenen Kontostand. ' +
+          'Gerechnet wird solange mit den Annahmen oben.'
+        : 'Gerechnet wird mit den Annahmen oben. Setz den Haken, um stattdessen aus ' +
+          'deinen echten Ergebnissen zu ziehen.');
 
   const items = [
     ['Erwartungswert je Trade', (r.expectancy >= 0 ? '+' : '') + r.expectancy.toFixed(3) + ' R',
@@ -4925,7 +5162,10 @@ function renderSim(){
     ['Mittlerer Drawdown', '−' + pctn(r.medDD, 1), 'typischer Einbruch unterwegs', 'down'],
     ['Schlimmster Drawdown', '−' + pctn(r.worstDD, 1), 'über alle Durchläufe', 'down'],
     ['Risiko: Hälfte weg', pctn(r.ruin, 1), 'Durchläufe unter 50 % des Startkapitals', r.ruin > 5 ? 'down' : ''],
-    ['Am Ende im Minus', pctn(r.loss, 1), 'der Durchläufe', r.loss > 40 ? 'down' : '']
+    ['Am Ende im Minus', pctn(r.loss, 1), 'der Durchläufe', r.loss > 40 ? 'down' : ''],
+    ['Übliche Verlustserie', r.serieMed + ' in Folge', 'in der Hälfte der Durchläufe', ''],
+    ['Damit rechnen musst du mit', r.serie95 + ' in Folge',
+      'in 1 von 20 Durchläufen · längste: ' + r.serieMax, 'warn']
   ];
   $('#simKpis').innerHTML = items.map(([k,v,s,c]) =>
     '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
@@ -5459,6 +5699,135 @@ function renderSettings(){
     : 'Noch keine Wallet gespeichert.';
 }
 
+/* ---------- Der Trade auf echten Kerzen ----------
+   Von Hand auf Canvas gezeichnet: Chart.js kann keine Kerzen, und eine
+   weitere Bibliothek wollen wir uns nicht ans Bein binden.              */
+async function zeichneTradeChart(t){
+  const box = $('#mChart');
+  if(!box) return;
+  const cv = $('#mCandles');
+  const hint = $('#mChartHint');
+  await PATHS.load();
+  let p = PATHS.get(t.id);
+  if(!p){
+    // Nicht gemessen? Dann holen wir die Kerzen nur für diesen einen Trade.
+    hint.textContent = t.spot ? '' : 'Kurse werden geholt…';
+    if(t.spot){ box.classList.add('hide'); return; }
+    try{
+      const span = Math.max(60e3, t.closeTime - t.openTime);
+      const nach = EXC.nachlaufFenster(t);
+      const bis = Math.min(Date.now(), t.closeTime + nach);
+      const [iv] = EXC.interval(span + (bis - t.closeTime), Date.now() - t.openTime);
+      const res = await info({type:'candleSnapshot', req:{coin:t.coin, interval:iv,
+        startTime:t.openTime - 60e3, endTime:bis + 60e3}});
+      if(Array.isArray(res) && res.length){
+        p = PATHS.verdichten(res.slice().sort((a,b) => num(a.t) - num(b.t)), 140);
+        if(p){ p.open = t.openTime; p.close = t.closeTime; p.iv = iv; PATHS.put(t.id, p); }
+      }
+    }catch(e){}
+  }
+  if(!p || !p.t || !p.t.length){
+    box.classList.add('hide');
+    return;
+  }
+  box.classList.remove('hide');
+  if(mCurrent !== t) return;      // zwischenzeitlich weitergeblättert
+
+  const plan = planOfTrade(t);
+  const linien = [];
+  linien.push({y:t.avgEntry, farbe:C.tick, text:'Einstieg ' + price(t.avgEntry), strich:false});
+  if(t.avgExit) linien.push({y:t.avgExit, farbe: t.net >= 0 ? C.up : C.down,
+    text:'Ausstieg ' + price(t.avgExit), strich:false});
+  if(plan){
+    const ps = parseFloat(String(plan.stop).replace(',','.'));
+    const pt = parseFloat(String(plan.target).replace(',','.'));
+    if(isFinite(ps)) linien.push({y:ps, farbe:C.down, text:'Stop laut Plan', strich:true});
+    if(isFinite(pt)) linien.push({y:pt, farbe:C.up, text:'Ziel laut Plan', strich:true});
+  }
+  malKerzen(cv, p, t, linien);
+  hint.innerHTML = 'Raster ' + esc(p.iv || '?') + ' · der graue Bereich ist deine Haltedauer, ' +
+    'rechts davon der Nachlauf.';
+}
+
+function malKerzen(cv, p, t, linien){
+  if(!cv || !cv.getContext) return;
+  const dpr = window.devicePixelRatio || 1;
+  const br = cv.parentNode.clientWidth || 600;
+  const ho = 260;
+  cv.width = br * dpr; cv.height = ho * dpr;
+  cv.style.width = br + 'px'; cv.style.height = ho + 'px';
+  const g = cv.getContext('2d');
+  if(!g) return;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, br, ho);
+
+  const padL = 8, padR = 74, padT = 10, padB = 18;
+  const w = br - padL - padR, h = ho - padT - padB;
+  const n = p.t.length;
+  let hi = -Infinity, lo = Infinity;
+  for(let i = 0; i < n; i++){ hi = Math.max(hi, p.h[i]); lo = Math.min(lo, p.l[i]); }
+  linien.forEach(l => { if(isFinite(l.y)){ hi = Math.max(hi, l.y); lo = Math.min(lo, l.y); } });
+  if(!(hi > lo)) return;
+  const spanne = hi - lo;
+  hi += spanne * 0.06; lo -= spanne * 0.06;
+  const y = v => padT + (hi - v) / (hi - lo) * h;
+  const x = i => padL + (i + 0.5) * (w / n);
+  const bw = Math.max(1.2, Math.min(9, w / n * 0.66));
+
+  // Haltedauer hinterlegen
+  let vonI = 0, bisI = n - 1;
+  for(let i = 0; i < n; i++){
+    if(p.t[i] <= p.open) vonI = i;
+    if(p.t[i] <= p.close) bisI = i;
+  }
+  g.fillStyle = C.grid;
+  g.globalAlpha = .55;
+  g.fillRect(x(vonI) - bw, padT, Math.max(2, x(bisI) - x(vonI) + bw * 2), h);
+  g.globalAlpha = 1;
+
+  // Kerzen
+  for(let i = 0; i < n; i++){
+    const auf = p.c[i] >= p.o[i];
+    g.strokeStyle = auf ? C.up : C.down;
+    g.fillStyle = auf ? C.up : C.down;
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(Math.round(x(i)) + .5, y(p.h[i]));
+    g.lineTo(Math.round(x(i)) + .5, y(p.l[i]));
+    g.stroke();
+    const oy = y(p.o[i]), cy = y(p.c[i]);
+    g.fillRect(x(i) - bw / 2, Math.min(oy, cy), bw, Math.max(1, Math.abs(cy - oy)));
+  }
+
+  // Waagerechte Linien mit Beschriftung
+  g.font = '10px -apple-system,system-ui,sans-serif';
+  g.textBaseline = 'middle';
+  linien.filter(l => isFinite(l.y) && l.y > 0).forEach(l => {
+    const yy = y(l.y);
+    if(yy < padT || yy > padT + h) return;
+    g.strokeStyle = l.farbe;
+    g.lineWidth = 1;
+    g.setLineDash(l.strich ? [4,3] : []);
+    g.beginPath(); g.moveTo(padL, yy); g.lineTo(padL + w, yy); g.stroke();
+    g.setLineDash([]);
+    g.fillStyle = l.farbe;
+    g.fillText(t.__anon ? '' : l.text.split(' ')[0], padL + w + 5, yy);
+  });
+  // Preisachse rechts
+  g.fillStyle = C.tick;
+  [hi, (hi + lo) / 2, lo].forEach(v => {
+    const yy = Math.max(padT + 6, Math.min(padT + h - 6, y(v)));
+    g.fillText(price(v), padL + w + 5, yy);
+  });
+}
+
+/* Zu welchem Plan gehört dieser Trade? */
+function planOfTrade(t){
+  const id = (S.planLink || {})[t.id] || ((noteOf(t.id) || {}).plan);
+  if(!id) return null;
+  return planEntries().find(p => p.id === id) || null;
+}
+
 /* Ausschläge eines einzelnen Trades, in Worten */
 function excursionBlock(t){
   const e = EXC.get(t.id);
@@ -5485,8 +5854,31 @@ function excursionBlock(t){
     '<div class="dl"><span>Davon mitgenommen</span><span class="' + cls(t.net) + '">' +
       sgn(t.net, 2) + (cap !== null ? ' <span class="mut">(' + pctn(cap, 0) + ')</span>' : '') +
       '</span></div>' +
+    nachlaufBlock(t, e) +
     (satz ? '<div class="mut" style="font-size:12.5px;line-height:1.6;padding:8px 0 0">' +
       esc(satz) + '</div>' : '');
+}
+
+/* Was der Kurs tat, nachdem du geschlossen hattest */
+function nachlaufBlock(t, e){
+  const p = e && e.post;
+  if(!p) return '';
+  const zeile = (name, w) => {
+    if(!w) return '';
+    return '<div class="dl"><span>' + name + '</span><span>' +
+      '<span class="' + cls(w.halten) + '">' + sgn(w.halten, 2) + '</span>' +
+      ' <span class="mut">max ' + sgn(w.best, 2) + '</span></span></div>';
+  };
+  const kopf = '<div class="mut" style="font-size:11.5px;letter-spacing:.4px;' +
+    'text-transform:uppercase;margin:12px 0 4px">Nachdem du geschlossen hast</div>';
+  const inhalt = zeile('Nach der gleichen Haltedauer', p.gleich) +
+                 zeile('Nach 24 Stunden', p.tag) +
+                 zeile('Nach 7 Tagen', p.woche);
+  if(!inhalt) return '';
+  return kopf + inhalt +
+    '<div class="mut" style="font-size:12px;line-height:1.55;padding:4px 0 0">' +
+    'Erste Zahl: was der Trade bei gleicher Größe gebracht hätte, wenn du ihn ' +
+    'einfach hättest laufen lassen. „max" ist der beste Punkt dazwischen.</div>';
 }
 
 /* ---------- Trade-Detail ---------- */
@@ -5500,6 +5892,7 @@ function openTrade(id){
     (t.side === 'long' ? 'LONG' : 'SHORT') + '</span>' + (t.liquidated ? ' <span class="pill liq">LIQUIDIERT</span>' : '');
   $('#mSub').textContent = dt(t.openTime) + '  →  ' + dt(t.closeTime) + '  ·  ' + dur(t.durationMs);
   const size = t.maxNotional || t.entryNotional;
+  zeichneTradeChart(t);
   $('#mStats').innerHTML = [
     ['Netto-PnL', '<b class="' + cls(t.net) + '">' + sgn(t.net, 2) + '</b>'],
     ['Rendite auf Positionsgröße', '<span class="' + cls(t.retPct) + '">' + pct(t.retPct, 2) + '</span>'],
@@ -6120,8 +6513,78 @@ function exportCsv(tr){
 }
 
 /* ---------- Kursausschläge (MAE / MFE) ---------- */
+/* ---------- Kursverläufe je Trade ----------
+   Die Ausschlagsmessung holt ohnehin Kerzen. Wir behalten davon einen
+   gestauchten Verlauf: er trägt den Kerzenchart im Trade-Detail, die
+   Teilausstiegs-Rechnung und den Nachlauf nach dem Ausstieg.
+   Sie liegen im großen Speicher – für localStorage wären sie zu groß.   */
+const PATHS = {
+  mem: null,
+  bereit: false,
+  async load(){
+    if(this.mem) return this.mem;
+    this.mem = {};
+    await CACHE.open();
+    if(CACHE.mode !== 'indexedDB' || !CACHE.db){ this.bereit = false; return this.mem; }
+    this.bereit = true;
+    await new Promise(resolve => {
+      try{
+        const r = CACHE.db.transaction('paths', 'readonly').objectStore('paths').getAll();
+        r.onsuccess = () => {
+          (r.result || []).forEach(x => { if(x && x.id) this.mem[x.id] = x; });
+          resolve();
+        };
+        r.onerror = () => resolve();
+      }catch(e){ this.bereit = false; resolve(); }
+    });
+    return this.mem;
+  },
+  get(id){ return (this.mem && this.mem[id]) || null; },
+  put(id, p){
+    if(!this.mem) this.mem = {};
+    const rec = Object.assign({id}, p);
+    this.mem[id] = rec;
+    if(!this.bereit || CACHE.mode !== 'indexedDB' || !CACHE.db) return Promise.resolve();
+    return new Promise(resolve => {
+      try{
+        const r = CACHE.db.transaction('paths', 'readwrite').objectStore('paths').put(rec);
+        r.onsuccess = r.onerror = () => resolve();
+      }catch(e){ resolve(); }
+    });
+  },
+  clear(){
+    this.mem = {};
+    if(!this.bereit || CACHE.mode !== 'indexedDB' || !CACHE.db) return Promise.resolve();
+    return new Promise(resolve => {
+      try{
+        const r = CACHE.db.transaction('paths', 'readwrite').objectStore('paths').clear();
+        r.onsuccess = r.onerror = () => resolve();
+      }catch(e){ resolve(); }
+    });
+  },
+  /* Kerzen in gleichmäßige Abschnitte stauchen, damit der Speicher klein bleibt */
+  verdichten(rows, maxBars){
+    const N = Math.min(maxBars || 140, rows.length);
+    if(!rows.length) return null;
+    const o = [], h = [], l = [], c = [], ts = [];
+    for(let b = 0; b < N; b++){
+      const von = Math.floor(b * rows.length / N);
+      const bis = Math.max(von + 1, Math.floor((b + 1) * rows.length / N));
+      let hi = -Infinity, lo = Infinity;
+      for(let i = von; i < bis; i++){
+        hi = Math.max(hi, num(rows[i].h));
+        lo = Math.min(lo, num(rows[i].l));
+      }
+      ts.push(num(rows[von].t));
+      o.push(num(rows[von].o)); h.push(hi); l.push(lo); c.push(num(rows[bis-1].c));
+    }
+    const g = a => a.map(v => +Number(v).toPrecision(8));
+    return {t:ts, o:g(o), h:g(h), l:g(l), c:g(c)};
+  }
+};
+
 const EXC = {
-  VERSION: 2,
+  VERSION: 3,
   data: null,
   running: false,
   cancel: false,
@@ -6218,17 +6681,28 @@ const EXC = {
     return cur;
   },
 
+  /* Wie weit über den Ausstieg hinaus schauen wir? Mindestens einen Tag,
+     sonst die Haltedauer noch einmal – gedeckelt auf 30 Tage.            */
+  NACHLAUF: 30 * 86400000,
+  nachlaufFenster(trade){
+    const span = Math.max(60e3, trade.closeTime - trade.openTime);
+    return Math.min(this.NACHLAUF, Math.max(86400000, span));
+  },
+
   async measure(trade){
     if(trade.spot) return null;
     const span = Math.max(60e3, trade.closeTime - trade.openTime);
     const age = Date.now() - trade.openTime;
-    let [iv] = this.interval(span, age);
+    const nach = this.nachlaufFenster(trade);
+    const bis = Math.min(Date.now(), trade.closeTime + nach);
+    // Das Raster muss den Trade und den Nachlauf zusammen tragen
+    let [iv] = this.interval(span + Math.max(0, bis - trade.closeTime), age);
     let res = null;
     // Bis zu drei Versuche mit jeweils gröberem Raster
     for(let attempt = 0; attempt < 3 && iv; attempt++){
       res = await info({type:'candleSnapshot', req:{
         coin: trade.coin, interval: iv,
-        startTime: trade.openTime - 60e3, endTime: trade.closeTime + 60e3}});
+        startTime: trade.openTime - 60e3, endTime: bis + 60e3}});
       if(Array.isArray(res) && res.length) break;
       iv = this.nextInterval(iv);
       if(iv) await sleep(120);
@@ -6236,6 +6710,7 @@ const EXC = {
     if(!Array.isArray(res) || !res.length){
       return {v:EXC.VERSION, failed:true, reason:'keine Kursdaten', coin:trade.coin};
     }
+    res = res.slice().sort((a,b) => num(a.t) - num(b.t));
 
     const long = trade.side === 'long';
     const fallback = {size: trade.entrySize || 0, entry: trade.avgEntry || 0};
@@ -6269,12 +6744,57 @@ const EXC = {
       if(advs[i] > adv[b]) adv[b] = advs[i];
     }
     const r4 = a => a.map(v => +v.toFixed(4));
+
+    /* ---- Nachlauf: was tat der Kurs, nachdem du geschlossen hattest? ---- */
+    const danach = res.filter(c => num(c.t) >= trade.closeTime);
+    let post = null;
+    if(danach.length){
+      const ex = trade.avgExit || 0;
+      const sz = trade.maxSize || fallback.size || 0;
+      if(ex > 0 && sz > 0){
+        // In Richtung deines Trades weitergedacht: „hättest du gehalten"
+        const fensterFuer = ms => {
+          const grenze = trade.closeTime + ms;
+          let best = 0, schlecht = 0, letzter = null;
+          for(const c of danach){
+            if(num(c.t) > grenze) break;
+            const hi = num(c.h), lo = num(c.l);
+            const w = (long ? hi - ex : ex - lo) * sz;   // weiter gelaufen
+            const g = (long ? ex - lo : hi - ex) * sz;   // zurückgekommen
+            if(w > best) best = w;
+            if(g > schlecht) schlecht = g;
+            letzter = num(c.c);
+          }
+          if(letzter == null) return null;
+          const halten = (long ? letzter - ex : ex - letzter) * sz;
+          return {best:+best.toFixed(4), schlecht:+schlecht.toFixed(4), halten:+halten.toFixed(4)};
+        };
+        const spanne = Math.max(60e3, trade.closeTime - trade.openTime);
+        post = {
+          gleich: fensterFuer(spanne),          // noch einmal die Haltedauer
+          tag:    fensterFuer(86400000),
+          woche:  fensterFuer(7 * 86400000),
+          bis:    num(danach[danach.length - 1].T) || num(danach[danach.length - 1].t)
+        };
+      }
+    }
+
+    /* ---- Verlauf für Chart und Teilausstiege ---- */
+    const pfad = PATHS.verdichten(res, 140);
+    if(pfad){
+      pfad.close = trade.closeTime;
+      pfad.open = trade.openTime;
+      pfad.iv = iv;
+      await PATHS.put(trade.id, pfad);
+    }
+
     return {v:EXC.VERSION, mfe:+mfe.toFixed(4), mae:+mae.toFixed(4), iv, n:rows.length,
-      partial, fav:r4(fav), adv:r4(adv)};
+      partial, fav:r4(fav), adv:r4(adv), post, pfad: !!pfad};
   },
 
   async runAll(onProgress){
     this.load();
+    await PATHS.load();
     this.running = true; this.cancel = false;
     const todo = S.trades.filter(t => !t.spot &&
       !(this.data[t.id] && this.data[t.id].v === this.VERSION && !this.data[t.id].failed));
@@ -6327,6 +6847,100 @@ function excStats(tr){
   };
 }
 
+/* ---------- Nachlauf über alle Trades ----------
+   Die ehrliche Fassung von „ich verkaufe immer zu früh": nicht der beste
+   Punkt danach zählt, sondern was einfaches Halten gebracht hätte.      */
+function nachlaufStats(tr, fenster){
+  const f = fenster || 'gleich';
+  const rows = [];
+  for(const t of tr){
+    const e = EXC.get(t.id);
+    const w = e && e.post && e.post[f];
+    if(w) rows.push({t, w});
+  }
+  if(!rows.length) return null;
+  const n = rows.length;
+  const summe = a => a.reduce((s,x) => s + x, 0);
+  const halten = rows.map(x => x.w.halten);
+  const best   = rows.map(x => x.w.best);
+  // Wie oft wäre Halten besser gewesen als dein tatsächlicher Ausstieg?
+  const besser = rows.filter(x => x.w.halten > 0).length;
+  const gewinner = rows.filter(x => x.t.net > 0);
+  const verlierer = rows.filter(x => x.t.net <= 0);
+  const mw = a => a.length ? summe(a) / a.length : 0;
+  return {
+    n, fenster: f,
+    haltenSumme: summe(halten),
+    haltenMittel: mw(halten),
+    bestMittel: mw(best),
+    besser, anteilBesser: besser / n * 100,
+    gewinnerHalten: mw(gewinner.map(x => x.w.halten)),
+    verliererHalten: mw(verlierer.map(x => x.w.halten)),
+    gewinnerN: gewinner.length, verliererN: verlierer.length,
+    rows
+  };
+}
+const NACHLAUF_NAMEN = {gleich:'noch einmal die Haltedauer', tag:'24 Stunden', woche:'7 Tage'};
+
+function renderNachlauf(tr){
+  const box = $('#nachlauf');
+  if(!box) return;
+  const f = S.nachWin || 'gleich';
+  $$('[data-nach]').forEach(el => el.classList.toggle('on', el.dataset.nach === f));
+  const st = nachlaufStats(tr.filter(t => !t.spot), f);
+  if(!st){
+    box.innerHTML = '<div class="empty-state">Dafür braucht es die Ausschlagsmessung oben. ' +
+      'Sie holt den Kursverlauf bis über den Ausstieg hinaus.</div>';
+    if(S.charts.chNach){ S.charts.chNach.destroy(); S.charts.chNach = null; }
+    return;
+  }
+  const items = [
+    ['Halten statt schließen', sgn(st.haltenSumme, 2),
+     'über ' + st.n + ' Trades zusammen', cls(st.haltenSumme)],
+    ['Ø je Trade', sgn(st.haltenMittel, 2), 'Unterschied zum Ausstieg', cls(st.haltenMittel)],
+    ['Öfter besser gehalten', pctn(st.anteilBesser, 0), st.besser + ' von ' + st.n + ' Trades', ''],
+    ['Ø bester Punkt danach', sgn(st.bestMittel, 2), 'nur mit perfektem Timing', 'mut'],
+    ['Bei Gewinnern', sgn(st.gewinnerHalten, 2), st.gewinnerN + ' Trades', cls(st.gewinnerHalten)],
+    ['Bei Verlierern', sgn(st.verliererHalten, 2), st.verliererN + ' Trades', cls(st.verliererHalten)]
+  ];
+  let urteil, grund;
+  if(st.haltenMittel > 0 && st.anteilBesser > 55){
+    urteil = 'Du steigst tendenziell zu früh aus.';
+    grund = 'Hätte man jeden Trade ' + NACHLAUF_NAMEN[f] + ' länger gehalten, wären ' +
+      sgn(st.haltenSumme, 2) + ' mehr herausgekommen — in ' + st.besser + ' von ' + st.n +
+      ' Fällen war Halten besser. Das ist kein Freibrief zum Aussitzen: es sagt nur, ' +
+      'dass deine Ausstiege im Schnitt vor der Bewegung liegen.';
+  }else if(st.haltenMittel < 0 && st.anteilBesser < 45){
+    urteil = 'Deine Ausstiege sitzen gut.';
+    grund = 'Längeres Halten hätte im Schnitt ' + sgn(st.haltenMittel, 2) +
+      ' je Trade gekostet. Wenn du das Gefühl hast, zu früh zu verkaufen, ' +
+      'widerspricht dir deine eigene Historie.';
+  }else{
+    urteil = 'Kein klares Muster.';
+    grund = 'Halten hätte im Schnitt ' + sgn(st.haltenMittel, 2) + ' je Trade gebracht, ' +
+      'in ' + pctn(st.anteilBesser, 0) + ' der Fälle wäre es besser gewesen. ' +
+      'Das ist zu nah an der Hälfte, um daraus eine Regel zu machen.';
+  }
+  box.innerHTML =
+    '<div class="kpis">' + items.map(([k,v,sub,c]) =>
+      '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
+      '<div class="s">' + sub + '</div></div>').join('') + '</div>' +
+    '<div style="font-size:16px;font-weight:600;margin:16px 0 6px">' + esc(urteil) + '</div>' +
+    '<div style="font-size:14px;line-height:1.65;color:var(--muted)">' + esc(grund) + '</div>';
+
+  // Verteilung: was hätte Halten je Trade gebracht?
+  const werte = st.rows.map(x => x.w.halten).sort((a,b) => a - b);
+  mkChart('chNach', {
+    type:'bar',
+    data:{labels: werte.map((_, i) => i + 1),
+      datasets:[{label:'Halten statt schließen', data: werte,
+        backgroundColor: werte.map(v => v >= 0 ? C.up : C.down), borderRadius:2}]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{display:false}, y:moneyAxis()}}
+  });
+}
+
 function renderExcursion(tr){
   const perp = tr.filter(t => !t.spot);
   const c = EXC.counts(perp);
@@ -6359,6 +6973,7 @@ function renderExcursion(tr){
       ev.preventDefault();
       EXC.clearFailed();
       renderExcursion(filtered());
+      renderNachlauf(filtered());
     });
   }
 
@@ -6430,9 +7045,67 @@ function renderExcursion(tr){
 }
 
 /* ---------- Verhalten ---------- */
+/* Ab so vielen Trades in einer Gruppe lohnt der Vergleich überhaupt */
+const MIN_AUSSAGE = 5;
 function bucketTable(sel, rows){
   $(sel + ' tbody').innerHTML = rows.length ? rows.join('')
-    : '<tr><td colspan="6" class="mut">Zu wenig Daten.</td></tr>';
+    : '<tr><td colspan="7" class="mut">Zu wenig Daten.</td></tr>';
+}
+
+/* ---------- Handelssitzungen ----------
+   Nach UTC, weil die Börse danach läuft. Die Grenzen sind die üblichen:
+   Asien 0–7, London 7–13, Überschneidung 13–16, New York 16–21, Rest ruhig. */
+const SESSIONS = [
+  {id:'asia',    name:'Asien',            von:0,  bis:7},
+  {id:'london',  name:'London',           von:7,  bis:13},
+  {id:'overlap', name:'London + New York',von:13, bis:16},
+  {id:'ny',      name:'New York',         von:16, bis:21},
+  {id:'quiet',   name:'Späte Stunden',    von:21, bis:24}
+];
+function sessionOf(ms){
+  const h = new Date(ms).getUTCHours();
+  return SESSIONS.find(s => h >= s.von && h < s.bis) || SESSIONS[SESSIONS.length - 1];
+}
+
+/* ---------- Wie sicher ist das überhaupt? ----------
+   Ein Bootstrap: aus den Ergebnissen wird tausendfach mit Zurücklegen
+   gezogen. Die mittleren 90 % der Ergebnisse sind der Bereich, in dem der
+   wahre Wert plausibel liegt. Schließt er die Null ein, ist der Vorteil
+   nicht von Zufall zu unterscheiden.                                      */
+function bootstrap(werte, ziehungen){
+  const n = werte.length;
+  if(n < 5) return null;
+  const runden = ziehungen || 1200;
+  // Fester Startwert: gleiche Daten, gleiches Ergebnis – sonst springt die Anzeige
+  let seed = 20260101 + n;
+  const rnd = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  const mittel = new Array(runden);
+  for(let r = 0; r < runden; r++){
+    let sum = 0;
+    for(let i = 0; i < n; i++) sum += werte[(rnd() * n) | 0];
+    mittel[r] = sum / n;
+  }
+  mittel.sort((a,b) => a - b);
+  const q = p => mittel[Math.min(runden - 1, Math.max(0, Math.floor(p * runden)))];
+  const lo = q(0.05), hi = q(0.95);
+  const mw = werte.reduce((a,b) => a + b, 0) / n;
+  return {n, mw, lo, hi, sicher: lo > 0 || hi < 0};
+}
+/* Kurzform für die Anzeige: „+0,21 R (−0,05 … +0,48)" */
+function bereichText(b, formatter){
+  if(!b) return '<span class="mut">zu wenig Trades</span>';
+  const f = formatter || (v => sgn(v, 2));
+  return f(b.mw) + ' <span class="mut" style="font-size:11.5px">(' +
+    f(b.lo) + ' … ' + f(b.hi) + ')</span>';
+}
+function sicherPill(b){
+  if(!b) return '';
+  return b.sicher
+    ? '<span class="pill" style="color:var(--up);border-color:var(--up)">belastbar</span>'
+    : '<span class="pill mut" title="Der Bereich schließt die Null ein">Zufall möglich</span>';
 }
 function renderBehavior(tr){
   const sorted = tr.slice().sort((a,b) => a.closeTime - b.closeTime);
@@ -6487,6 +7160,40 @@ function renderBehavior(tr){
       '<td class="' + cls(m.net) + '">' + sgn(m.net, 2) + '</td>' +
       '<td class="' + cls(m.net/m.n) + '">' + sgn(m.net/m.n, 2) + '</td></tr>';
   }).filter(Boolean));
+
+  // Handelssitzungen – nach Eröffnungszeit, in UTC
+  const {R} = riskUnit();
+  bucketTable('#tblSession', SESSIONS.map(s => {
+    const g = tr.filter(t => sessionOf(t.openTime).id === s.id);
+    if(!g.length) return '';
+    const m = metrics(g);
+    const b = R > 0 ? bootstrap(g.map(t => t.net / R)) : bootstrap(g.map(t => t.net));
+    return '<tr><td><b>' + s.name + '</b></td>' +
+      '<td class="mut">' + String(s.von).padStart(2,'0') + '–' +
+        String(s.bis).padStart(2,'0') + ' UTC</td>' +
+      '<td>' + m.n + '</td>' +
+      '<td class="' + (m.winrate >= 50 ? 'up' : 'down') + '">' + m.winrate.toFixed(0) + '%</td>' +
+      '<td class="' + cls(m.net) + '">' + sgn(m.net, 2) + '</td>' +
+      '<td class="' + cls(m.net/m.n) + '">' + sgn(m.net/m.n, 2) + '</td>' +
+      '<td>' + (b ? (R > 0 ? bereichText(b, fmtR) : bereichText(b)) + ' ' + sicherPill(b)
+                  : '<span class="mut">zu wenig</span>') + '</td></tr>';
+  }).filter(Boolean));
+
+  const beste = SESSIONS.map(s => {
+    const g = tr.filter(t => sessionOf(t.openTime).id === s.id);
+    return {s, g, m: g.length ? metrics(g) : null};
+  }).filter(x => x.m && x.g.length >= MIN_AUSSAGE);
+  if(beste.length >= 2){
+    beste.sort((a,b) => (b.m.net/b.m.n) - (a.m.net/a.m.n));
+    const top = beste[0], flop = beste[beste.length - 1];
+    $('#sessionNote').innerHTML = 'Am besten läuft <b>' + esc(top.s.name) + '</b> mit ' +
+      sgn(top.m.net/top.m.n, 2) + ' je Trade, am schlechtesten <b>' + esc(flop.s.name) + '</b> mit ' +
+      sgn(flop.m.net/flop.m.n, 2) + '. Ob der Unterschied echt ist, sagt die letzte Spalte: ' +
+      'nur wo „belastbar" steht, schließt der Bereich die Null nicht ein.';
+  }else{
+    $('#sessionNote').innerHTML = 'Für einen Vergleich braucht es mindestens zwei Sitzungen ' +
+      'mit je ' + MIN_AUSSAGE + ' Trades.';
+  }
 }
 
 /* ---------- Labor ---------- */
@@ -6520,6 +7227,69 @@ function replay(t, tpR, slR, R){
   return t.net;
 }
 
+/* Ein Trade mit Teilausstieg: die Hälfte bei einem festen Ziel raus, der Rest
+   auf Einstand gesichert und laufen gelassen. Die Reihenfolge der Berührungen
+   entscheidet – deshalb Abschnitt für Abschnitt, nicht nur die Extremwerte.   */
+function replayTeil(t, tpR, slR, teilR, R){
+  const e = EXC.get(t.id);
+  if(!e || !e.fav || !(R > 0)) return null;
+  const kosten = -t.fees + (t.funding || 0);
+  const brutto = t.closedPnl;
+  const ziel = tpR > 0 ? tpR * R : Infinity;
+  const teil = teilR > 0 ? teilR * R : Infinity;
+  let stop = slR > 0 ? slR * R : Infinity;   // in Dollar, 0 = auf Einstand
+  let rest = 1, erg = 0, geradeGeteilt = false;
+
+  for(let i = 0; i < e.fav.length; i++){
+    const fav = e.fav[i], adv = e.adv[i];
+    // Vorsichtige Annahme: im selben Abschnitt zählt der Stop zuerst
+    if(!geradeGeteilt && stop !== Infinity){
+      const getroffen = stop > 0 ? adv >= stop : adv > 0;
+      if(getroffen){ erg += -stop * rest; rest = 0; break; }
+    }
+    geradeGeteilt = false;
+    if(rest === 1 && teil !== Infinity && fav >= teil){
+      erg += teil * 0.5;
+      rest = 0.5;
+      stop = 0;                 // Rest auf Einstand absichern
+      geradeGeteilt = true;     // im selben Abschnitt nicht gleich wieder rauswerfen
+    }
+    if(fav >= ziel){ erg += ziel * rest; rest = 0; break; }
+  }
+  if(rest > 0) erg += brutto * rest;   // Rest wie tatsächlich geschlossen
+  return erg + kosten;
+}
+
+/* Beste Regel auf dem älteren Teil bestimmen, auf dem jüngeren nachrechnen.
+   Nur was beide Hälften überlebt, ist mehr als angepasstes Rauschen.      */
+function halbprobe(tr, R){
+  const mess = tr.filter(t => EXC.get(t.id)).sort((a,b) => a.closeTime - b.closeTime);
+  if(mess.length < 20 || !(R > 0)) return null;
+  const schnitt = Math.floor(mess.length * 0.7);
+  const alt = mess.slice(0, schnitt), neu = mess.slice(schnitt);
+  if(neu.length < 6) return null;
+  const tps = [1, 1.5, 2, 2.5, 3, 4], sls = [0.5, 0.75, 1, 1.5, 2];
+  const summe = (liste, tp, sl) => liste.reduce((s,t) => {
+    const r = replay(t, tp, sl, R);
+    return s + (r === null ? t.net : r);
+  }, 0);
+  let best = null;
+  for(const tp of tps) for(const sl of sls){
+    const net = summe(alt, tp, sl);
+    if(!best || net > best.net) best = {tp, sl, net};
+  }
+  const istAlt = alt.reduce((s,t) => s + t.net, 0);
+  const istNeu = neu.reduce((s,t) => s + t.net, 0);
+  const testNeu = summe(neu, best.tp, best.sl);
+  return {
+    best, nAlt: alt.length, nNeu: neu.length,
+    gewinnAlt: best.net - istAlt,
+    gewinnNeu: testNeu - istNeu,
+    istNeu, testNeu,
+    haelt: (testNeu - istNeu) > 0
+  };
+}
+
 function scenarios(tr){
   const {R} = riskUnit();
   const actual = tr.reduce((s,t) => s + t.net, 0);
@@ -6544,6 +7314,17 @@ function scenarios(tr){
       return s + (r === null ? t.net : r);
     }, 0);
     add('Nur fester Stop bei 1R', netStop, 'Gewinnseite unverändert', false);
+
+    // Teilausstiege: Hälfte früh sichern, Rest laufen lassen
+    for(const [teil, tp] of [[1, 3], [1, 0], [1.5, 4]]){
+      const net = tr.reduce((s,t) => {
+        const r = replayTeil(t, tp, 1, teil, R);
+        return s + (r === null ? t.net : r);
+      }, 0);
+      add('Hälfte bei ' + teil + 'R raus, Rest ' +
+        (tp ? 'bis ' + tp + 'R' : 'laufen lassen') + ', Stop 1R',
+        net, 'Rest danach auf Einstand gesichert', false);
+    }
   }else{
     add('Ziel und Stop durchrechnen', actual, 'braucht die Ausschlagsmessung', true);
   }
@@ -6602,6 +7383,259 @@ function scenarios(tr){
       'alle auf ' + usd(med, 0) + ' normiert', false);
   }
   return {actual, list:out.sort((a,b) => b.delta - a.delta)};
+}
+
+/* ---------- Was Regelbrüche gekostet haben ----------
+   Jede Regel wird gegen die Trades gerechnet, die sie eingehalten haben.
+   Ausgewiesen wird die Differenz je Trade mal Anzahl – kein Ratschlag,
+   sondern eine Rechnung. Was sich nicht sauber messen lässt, fehlt hier
+   lieber, als geschätzt zu werden.                                       */
+function regelBrueche(tr){
+  const {R} = riskUnit();
+  const raus = [];
+  const chron = tr.slice().sort((a,b) => a.openTime - b.openTime);
+
+  const vergleich = (name, bruch, rest, erklaerung, hinweis) => {
+    if(!bruch.length || !rest.length) return;
+    const mw = a => a.reduce((s,t) => s + t.net, 0) / a.length;
+    const mB = mw(bruch), mR = mw(rest);
+    const diff = mB - mR;
+    const kosten = diff * bruch.length;
+    const b = bootstrap(bruch.map(t => R > 0 ? t.net / R : t.net));
+    raus.push({name, n:bruch.length, nRest:rest.length, mB, mR, diff, kosten, erklaerung, hinweis, b});
+  };
+
+  /* 1. Ohne Plan gehandelt */
+  const link = S.planLink || {};
+  const geplant = tr.filter(t => link[t.id]);
+  const spontan = tr.filter(t => !link[t.id]);
+  if(geplant.length >= MIN_AUSSAGE)
+    vergleich('Ohne Plan gehandelt', spontan, geplant,
+      'Verglichen mit deinen geplanten Trades.',
+      'Ein Trade gilt als geplant, wenn ein Plan zu Ticker, Richtung und Zeitfenster passt.');
+
+  /* 2. Sofort nach einem Verlust wieder rein */
+  const rache = [], ruhig = [];
+  for(let i = 0; i < chron.length; i++){
+    const t = chron[i];
+    const vorher = chron.filter(x => x.closeTime <= t.openTime)
+      .sort((a,b) => b.closeTime - a.closeTime)[0];
+    const kurzNach = vorher && vorher.net < 0 && (t.openTime - vorher.closeTime) <= 30 * 60e3;
+    (kurzNach ? rache : ruhig).push(t);
+  }
+  vergleich('Innerhalb von 30 Minuten nach einem Verlust eröffnet', rache, ruhig,
+    'Verglichen mit allen anderen Trades.',
+    'Der Klassiker: der Markt schuldet dir nichts, aber die Hand ist schneller als der Kopf.');
+
+  /* 3. Deutlich zu groß eingestiegen */
+  const groessen = tr.map(t => t.maxNotional || t.entryNotional).filter(v => v > 0)
+    .slice().sort((a,b) => a - b);
+  if(groessen.length >= 10){
+    const med = groessen[Math.floor(groessen.length / 2)];
+    const gross = tr.filter(t => (t.maxNotional || t.entryNotional) > med * 1.5);
+    const normal = tr.filter(t => (t.maxNotional || t.entryNotional) <= med * 1.5);
+    vergleich('Mehr als das 1,5-fache deiner üblichen Größe', gross, normal,
+      'Übliche Größe = Median über alle Trades: ' + usd(med, 0) + '.',
+      'Größere Positionen dürfen ruhig besser laufen — sie tun es meist nicht.');
+  }
+
+  /* 4. Eigenen Stop nicht eingehalten (nur mit Plan messbar) */
+  const mitStop = [];
+  for(const t of tr){
+    const p = planOfTrade(t);
+    const e = EXC.get(t.id);
+    if(!p || !e) continue;
+    const stop = parseFloat(String(p.stop).replace(',','.'));
+    const entry = t.avgEntry;
+    if(!isFinite(stop) || !(entry > 0) || !(t.maxSize > 0)) continue;
+    const abstand = Math.abs(entry - stop) * t.maxSize;
+    if(!(abstand > 0)) continue;
+    mitStop.push({t, ueber: e.mae > abstand * 1.05});
+  }
+  if(mitStop.length >= MIN_AUSSAGE * 2){
+    vergleich('Über den eigenen Stop hinaus gehalten',
+      mitStop.filter(x => x.ueber).map(x => x.t),
+      mitStop.filter(x => !x.ueber).map(x => x.t),
+      'Nur Trades mit hinterlegtem Plan-Stop, verglichen über die gemessenen Ausschläge.',
+      'Gemessen wird, ob der Kurs weiter gegen dich lief als dein eigener Stop erlaubt hätte.');
+  }
+
+  /* 5. Eigenes Ziel nicht mitgenommen */
+  const mitZiel = [];
+  for(const t of tr){
+    const p = planOfTrade(t);
+    const e = EXC.get(t.id);
+    if(!p || !e) continue;
+    const ziel = parseFloat(String(p.target).replace(',','.'));
+    const entry = t.avgEntry;
+    if(!isFinite(ziel) || !(entry > 0) || !(t.maxSize > 0)) continue;
+    const abstand = Math.abs(ziel - entry) * t.maxSize;
+    if(!(abstand > 0)) continue;
+    // Ziel war erreichbar, aber weniger mitgenommen
+    mitZiel.push({t, verpasst: e.mfe >= abstand * 0.98 && t.net < abstand * 0.9});
+  }
+  if(mitZiel.length >= MIN_AUSSAGE * 2){
+    vergleich('Eigenes Ziel war da, nicht mitgenommen',
+      mitZiel.filter(x => x.verpasst).map(x => x.t),
+      mitZiel.filter(x => !x.verpasst).map(x => x.t),
+      'Nur Trades mit hinterlegtem Ziel im Plan.',
+      'Der Kurs hat dein Ziel berührt, dein Ausstieg lag darunter.');
+  }
+
+  raus.sort((a,b) => a.kosten - b.kosten);
+  return raus;
+}
+
+/* ---------- Plan gegen Hand gegen Markt ----------
+   Vier Zahlen zu einem Trade:
+     Plan    – was dein eigener Plan gebracht hätte, stur befolgt
+     Hand    – was du tatsächlich gemacht hast
+     Markt   – der beste Ausstieg, den es im Trade-Fenster gab
+     Möglich – dazu noch der Nachlauf nach dem Schließen
+   Die Lücken dazwischen sind die eigentliche Auswertung.                */
+function vierWege(t){
+  const p = planOfTrade(t);
+  const e = EXC.get(t.id);
+  if(!p || !e || !e.fav) return null;
+  const entry = parseFloat(String(p.entry).replace(',','.'));
+  const stop  = parseFloat(String(p.stop).replace(',','.'));
+  const ziel  = parseFloat(String(p.target).replace(',','.'));
+  const sz = t.maxSize || t.entrySize || 0;
+  if(!(sz > 0) || !(t.avgEntry > 0)) return null;
+  if(!isFinite(stop) && !isFinite(ziel)) return null;
+
+  const long = t.side === 'long';
+  const richtung = long ? 1 : -1;
+  const P = isFinite(entry) ? entry : t.avgEntry;
+  const d = (t.avgEntry - P) * sz;               // Versatz zum geplanten Einstieg
+  const zielAbstand = isFinite(ziel) ? Math.abs(ziel - P) * sz : Infinity;
+  const stopAbstand = isFinite(stop) ? Math.abs(P - stop) * sz : Infinity;
+  const kosten = -t.fees + (t.funding || 0);
+
+  let planErg = null;
+  for(let i = 0; i < e.fav.length; i++){
+    const fav = e.fav[i] + richtung * d;
+    const adv = e.adv[i] - richtung * d;
+    if(adv >= stopAbstand){ planErg = -stopAbstand; break; }
+    if(fav >= zielAbstand){ planErg = zielAbstand; break; }
+  }
+  if(planErg === null) planErg = t.closedPnl;    // weder Ziel noch Stop berührt
+  const nach = e.post && (e.post.woche || e.post.tag || e.post.gleich);
+  return {
+    plan: planErg + kosten,
+    hand: t.net,
+    markt: e.mfe + kosten,
+    moeglich: e.mfe + kosten + (nach ? Math.max(0, nach.best) : 0),
+    zielAbstand, stopAbstand, p
+  };
+}
+
+function renderVierWege(tr){
+  const box = $('#vierWege');
+  if(!box) return;
+  const rows = [];
+  for(const t of tr){
+    const v = vierWege(t);
+    if(v) rows.push({t, v});
+  }
+  if(!rows.length){
+    box.innerHTML = '<div class="empty-state">Dafür braucht ein Trade beides: einen ' +
+      'verknüpften Plan mit Stop oder Ziel <b>und</b> eine Ausschlagsmessung. ' +
+      'Leg Pläne unter Planung → Pläne an und miss unter Fakten → Ausschläge.</div>';
+    $('#vierKpis').innerHTML = '';
+    return;
+  }
+  rows.sort((a,b) => a.t.closeTime - b.t.closeTime);
+  const sum = f => rows.reduce((s,x) => s + f(x), 0);
+  const sPlan = sum(x => x.v.plan), sHand = sum(x => x.v.hand);
+  const sMarkt = sum(x => x.v.markt), sMoeg = sum(x => x.v.moeglich);
+
+  $('#vierKpis').innerHTML = [
+    ['Dein Plan', sgn(sPlan, 2), 'stur befolgt', cls(sPlan)],
+    ['Deine Hand', sgn(sHand, 2), 'tatsächlich', cls(sHand)],
+    ['Regeln befolgen wert', sgn(sPlan - sHand, 2), 'Plan minus Hand', cls(sPlan - sHand)],
+    ['Bester Ausstieg im Fenster', sgn(sMarkt, 2), 'was der Markt hergab', 'mut'],
+    ['Mit Nachlauf', sgn(sMoeg, 2), 'inklusive der Zeit danach', 'mut'],
+    ['Trades im Vergleich', rows.length, 'mit Plan und Messung', '']
+  ].map(([k,v,sub,c]) =>
+    '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
+    '<div class="s">' + sub + '</div></div>').join('');
+
+  const luecke1 = sPlan - sHand;
+  const luecke2 = sMarkt - sPlan;
+  let urteil;
+  if(Math.abs(luecke1) < Math.abs(luecke2) * 0.3){
+    urteil = 'Du hältst dich weitgehend an deine Pläne. Die größere Lücke liegt zwischen ' +
+      'deinem Plan und dem, was der Markt hergegeben hätte — an den Plänen selbst arbeiten, ' +
+      'nicht an der Disziplin.';
+  }else if(luecke1 > 0){
+    urteil = 'Deine Pläne waren besser als deine Ausführung. Stures Befolgen hätte ' +
+      sgn(luecke1, 2) + ' mehr gebracht. Das ist der Betrag, den dich das Abweichen gekostet hat.';
+  }else{
+    urteil = 'Deine Abweichungen waren im Ergebnis besser als die Pläne — um ' +
+      sgn(-luecke1, 2) + '. Das kann Können sein oder Glück; die Spalte „Bereich" bei den ' +
+      'Setups sagt dir, wie belastbar so etwas bei deiner Trade-Zahl überhaupt ist.';
+  }
+
+  box.innerHTML =
+    '<div style="font-size:14px;line-height:1.65;color:var(--muted);margin-bottom:14px">' +
+      esc(urteil) + '</div>' +
+    '<div class="scroll"><table><thead><tr>' +
+      '<th>Trade</th><th>Plan</th><th>Hand</th><th>Unterschied</th>' +
+      '<th>Bester Ausstieg</th><th>Mit Nachlauf</th></tr></thead><tbody>' +
+    rows.map(x =>
+      '<tr data-tr="' + esc(x.t.id) + '" style="cursor:pointer">' +
+      '<td><b>' + esc(coinName(x.t.coin)) + '</b> <span class="mut">' +
+        deDate(new Date(x.t.openTime).toISOString().slice(0,10)) + '</span></td>' +
+      '<td class="' + cls(x.v.plan) + '">' + sgn(x.v.plan, 2) + '</td>' +
+      '<td class="' + cls(x.v.hand) + '">' + sgn(x.v.hand, 2) + '</td>' +
+      '<td class="' + cls(x.v.plan - x.v.hand) + '"><b>' + sgn(x.v.plan - x.v.hand, 2) + '</b></td>' +
+      '<td class="mut">' + sgn(x.v.markt, 2) + '</td>' +
+      '<td class="mut">' + sgn(x.v.moeglich, 2) + '</td></tr>').join('') +
+    '</tbody></table></div>';
+  $$('#vierWege [data-tr]').forEach(el =>
+    el.addEventListener('click', () => openTrade(el.dataset.tr)));
+}
+
+function renderRegeln(tr){
+  const box = $('#regelListe');
+  if(!box) return;
+  const liste = regelBrueche(tr);
+  if(!liste.length){
+    box.innerHTML = '<div class="empty-state">Dafür brauche ich mehr Anhaltspunkte: ' +
+      'Pläne unter Planung → Pläne, und die Ausschlagsmessung unter Fakten → Ausschläge. ' +
+      'Ohne beides lässt sich ein Regelbruch nicht von einer normalen Entscheidung trennen.</div>';
+    $('#regelSumme').innerHTML = '';
+    return;
+  }
+  const teuer = liste.filter(x => x.kosten < 0);
+  const summe = teuer.reduce((s,x) => s + x.kosten, 0);
+  $('#regelSumme').innerHTML = teuer.length
+    ? '<div class="dl"><span><b>Zusammen gekostet</b></span><span class="down"><b>' +
+        sgn(summe, 2) + '</b></span></div>' +
+      '<div class="mut" style="font-size:12.5px;line-height:1.6;margin-top:6px">' +
+      'Die Summe der Regeln, die dich Geld gekostet haben. Sie überschneiden sich teilweise — ' +
+      'ein Trade kann gleichzeitig zu groß und ungeplant gewesen sein. Als Größenordnung ' +
+      'taugt sie, als exakte Rechnung nicht.</div>'
+    : '<div class="mut" style="font-size:13px">Keine deiner geprüften Regeln hat dich ' +
+      'nachweislich Geld gekostet.</div>';
+
+  box.innerHTML = liste.map(x => {
+    const schlecht = x.kosten < 0;
+    return '<div style="padding:13px 0;border-bottom:1px solid var(--line)">' +
+      '<div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap">' +
+        '<span style="font-size:14.5px;font-weight:600">' + esc(x.name) + '</span>' +
+        '<span><b class="' + cls(x.kosten) + '" style="font-size:16px">' + sgn(x.kosten, 2) + '</b></span>' +
+      '</div>' +
+      '<div class="mut" style="font-size:12.5px;margin-top:5px;line-height:1.6">' +
+        x.n + ' Trades betroffen · Ø ' + sgn(x.mB, 2) + ' je Trade gegenüber ' +
+        sgn(x.mR, 2) + ' bei den übrigen ' + x.nRest + ' · Differenz ' +
+        '<span class="' + cls(x.diff) + '">' + sgn(x.diff, 2) + '</span> je Trade ' +
+        sicherPill(x.b) +
+      '</div>' +
+      '<div class="mut" style="font-size:12px;margin-top:4px">' + esc(x.hinweis) + '</div>' +
+      '</div>';
+  }).join('');
 }
 
 function renderLab(tr){
@@ -6672,6 +7706,40 @@ function renderGrid(tr){
         'nicht als Rezept — und schau, ob die Nachbarfelder ähnlich aussehen. Tun sie das nicht, ' +
         'ist der Wert nicht stabil.</div>'
     : '';
+
+  renderHalbprobe(tr, R);
+}
+
+/* Die Gegenprobe: hält die Regel auch auf Trades, die sie nie gesehen hat? */
+function renderHalbprobe(tr, R){
+  const box = $('#gridProbe');
+  if(!box) return;
+  const p = halbprobe(tr, R);
+  if(!p){
+    box.innerHTML = '<div class="mut" style="font-size:13px;line-height:1.6">' +
+      'Für die Gegenprobe brauche ich mindestens 20 vermessene Trades — davon gehen ' +
+      '70 % in die Suche nach der Regel und 30 % in die Prüfung.</div>';
+    return;
+  }
+  box.innerHTML =
+    '<div class="dl"><span>Regel aus den ersten ' + p.nAlt + ' Trades</span>' +
+      '<span>Ziel ' + p.best.tp + 'R, Stop ' + p.best.sl + 'R</span></div>' +
+    '<div class="dl"><span>Dort besser als die Wirklichkeit um</span>' +
+      '<span class="' + cls(p.gewinnAlt) + '">' + sgn(p.gewinnAlt, 2) + '</span></div>' +
+    '<div class="dl"><span>Auf den letzten ' + p.nNeu + ' Trades</span>' +
+      '<span class="' + cls(p.gewinnNeu) + '"><b>' + sgn(p.gewinnNeu, 2) + '</b></span></div>' +
+    '<div class="' + (p.haelt ? '' : 'err') + '" style="font-size:13px;line-height:1.65;margin-top:12px' +
+      (p.haelt ? ';color:var(--muted)' : '') + '">' +
+      (p.haelt
+        ? '<b>Die Regel hält.</b> Sie wurde auf dem älteren Teil deiner Historie gefunden und ' +
+          'hat auf dem jüngeren, den sie nie gesehen hat, ebenfalls besser abgeschnitten als ' +
+          'dein tatsächlicher Ausstieg. Das ist der Unterschied zwischen einem Vorteil und ' +
+          'einer schön gerechneten Zahl.'
+        : '<b>Die Regel hält nicht.</b> Auf dem älteren Teil sah sie gut aus, auf dem jüngeren ' +
+          'hätte sie ' + sgn(p.gewinnNeu, 2) + ' gebracht. Genau so entsteht die Illusion eines ' +
+          'Vorteils: Man sucht so lange im Raster, bis etwas glänzt. Nimm das beste Feld oben ' +
+          'deshalb nicht als Anweisung.') +
+    '</div>';
 }
 
 /* ---------- Live-Daten ----------
@@ -7776,7 +8844,8 @@ const GROUPS = [
     ['longshort','Long / Short'],['setups','Setups'],['behavior','Verhalten'],
     ['excursion','Ausschläge'],['progress','Fortschritt']]},
   {id:'plan', label:'Planung', tabs:[['plans','Pläne'],['calendar','Kalender'],['review','Rückblick']]},
-  {id:'lab', label:'Labor', tabs:[['labimpact','Wirkung'],['labexit','Exit & Stop'],['sim','Simulator']]},
+  {id:'lab', label:'Labor', tabs:[['labimpact','Wirkung'],['labexit','Exit & Stop'],
+    ['discipline','Disziplin'],['sim','Simulator']]},
   {id:'acct', label:'Konto', tabs:[['positions','Guthaben'],['costs','Gebühren & Funding'],
     ['tax','Steuer'],['settings','Daten']]}
 ];
@@ -7835,7 +8904,10 @@ function renderAll(){
   renderProgress(tr);
   renderReview();
   renderExcursion(tr);
+  renderNachlauf(tr);
   renderLab(tr);
+  renderRegeln(tr);
+  renderVierWege(tr);
   if(S.tab === 'labexit') renderGrid(tr);
   renderOpen();
   renderOrders();
@@ -7861,6 +8933,10 @@ $$('[data-dash]').forEach(el => el.addEventListener('click', () => {
   el.classList.add('on');
   S.dashWin = parseInt(el.dataset.dash, 10) || 30;
   renderDashboard();
+}));
+$$('[data-nach]').forEach(el => el.addEventListener('click', () => {
+  S.nachWin = el.dataset.nach;
+  renderNachlauf(filtered());
 }));
 $('#anonBtn').addEventListener('click', () => setAnon(!ANON));
 $$('[data-theme-set]').forEach(el =>
@@ -8050,12 +9126,12 @@ $('#excRun').addEventListener('click', async () => {
   $('#excRun').disabled = false; $('#excStop').classList.add('hide');
   $('#excStatus').innerHTML = '<span class="up">✓ Fertig</span> · ' + r.done + ' verarbeitet' +
     (r.failed ? ', ' + r.failed + ' ohne Kursdaten' : '');
-  renderExcursion(filtered()); renderLab(filtered());
+  renderExcursion(filtered()); renderNachlauf(filtered()); renderLab(filtered());
 });
 $('#excStop').addEventListener('click', () => { EXC.cancel = true; });
 $('#excClear').addEventListener('click', () => {
   if(!confirm('Alle gemessenen Ausschläge löschen?')) return;
-  EXC.clear(); renderExcursion(filtered()); renderLab(filtered());
+  EXC.clear(); PATHS.clear(); renderExcursion(filtered()); renderLab(filtered());
 });
 $('#riskPct').addEventListener('input', () => { renderLab(filtered()); renderGrid(filtered()); });
 
@@ -8149,7 +9225,7 @@ $('#btnClearCache').addEventListener('click', async () => {
   for(const w of S.wallets) await CACHE.del(w.addr);
   load(false);
 });
-['#simCap','#simRisk','#simWin','#simRR','#simN','#simRuns','#simCompound'].forEach(sel =>
+['#simCap','#simRisk','#simWin','#simRR','#simN','#simRuns','#simCompound','#simEcht'].forEach(sel =>
   $(sel).addEventListener('change', renderSim));
 
 /* ---------- Start ---------- */
