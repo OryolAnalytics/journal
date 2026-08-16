@@ -1202,7 +1202,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 16.08.2026, 20:13</span><br>
+    <span class="build">Fassung 16.08.2026, 20:25</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1237,6 +1237,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     </div>
     <div class="filters">
       <button class="primary" id="coAll" style="flex:1">Alle Trades dieses Marktes zeigen</button>
+      <button id="coOpen" class="hide">Laufende Position ansehen</button>
     </div>
   </div>
 </div>
@@ -1361,6 +1362,9 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <div id="mChartHint" class="mut" style="font-size:11.5px;margin-top:5px"></div>
     </div>
     <div id="mStats" style="margin:14px 0"></div>
+    <div id="mOffenHint" class="mut hide"
+      style="font-size:13px;line-height:1.6;padding:12px;background:var(--panel2);border-radius:10px"></div>
+    <div id="mNotizen">
     <div class="f">
       <label>Setups — mehrere möglich</label>
       <div class="chips" id="mTags"></div>
@@ -1391,6 +1395,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     <div class="filters">
       <button class="primary" id="mSave" style="flex:1">Speichern</button>
       <button id="mDel">Notiz löschen</button>
+    </div>
     </div>
     <details style="margin-top:14px">
       <summary class="mut" style="cursor:pointer;font-size:13px">Einzelne Fills anzeigen</summary>
@@ -1424,6 +1429,21 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Vorteil: neue Texte funktionieren sofort weiter, nur eben zunächst deutsch.  */
 let LANG = 'de';
 const EN = {
+  "läuft": "open",
+  "seit": "since",
+  "Schon kassiert": "Already banked",
+  "aus {0} Teilausstieg{1}": "from {0} partial exit{1}",
+  "Laufender Gewinn": "Running profit",
+  "Zusammen": "Together",
+  "Aktueller Kurs": "Current price",
+  "Noch offen": "Still open",
+  "Gebühren bisher": "Fees so far",
+  "Notizen, Setups und Bewertung gibt es, sobald die Position geschlossen ist — vorher hätten sie noch keine feste Kennung.": "Notes, setups and a rating appear once the position is closed — before that they would have no stable identity.",
+  "▲ {0} Einstieg{1} · ◆ {2} Teilausstieg{3} · Größe = Anteil der Position": "▲ {0} entr{1} · ◆ {2} partial exit{3} · size = share of the position",
+  "grau hinterlegt läuft die Position bis jetzt": "the grey area is the position running until now",
+  "grau hinterlegt ist deine Haltedauer, rechts davon der Nachlauf": "the grey area is your holding period, to the right of it the run afterwards",
+  "Raster": "Interval",
+  "Laufende Position ansehen": "View running position",
   "Symbol suchen, z.B. BTC oder SNDK": "Search a symbol, e.g. BTC or SNDK",
   "Von dir gehandelt": "Traded by you",
   "Alle Märkte auf Hyperliquid": "All markets on Hyperliquid",
@@ -2715,6 +2735,9 @@ function t(x){
   for(let i = 0; i < LOOSE.length; i++) loose = loose.replace(LOOSE[i][0], LOOSE[i][1]);
   return loose;
 }
+/* Kurzform für Stellen, an denen „t" schon der Trade ist –
+   sonst überdeckt der Parameter die Übersetzungsfunktion. */
+const txt = x => t(x);
 let PATTERNS = [], NORM = {};
 function buildPatterns(){
   NORM = {};
@@ -2830,7 +2853,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '16.08.2026, 20:13';
+const BUILD = '16.08.2026, 20:25';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -2844,7 +2867,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 16.08.2026, 20:13';
+      ' · Fassung 16.08.2026, 20:25';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -3314,6 +3337,7 @@ function buildTrades(fills){
     const c = Object.assign({}, t);
     c.avgEntry = c.entrySize > 0 ? c.entryNotional / c.entrySize : 0;
     c.open = true;          // läuft noch – für Funding gibt es kein Ende
+    c.id = 'open:' + c.coin + '|' + c.openTime;
     return c;
   });
   return {trades, openTrades};
@@ -4577,7 +4601,9 @@ function renderOpen(){
     const fnd = -num(q.cumFunding && q.cumFunding.sinceOpen);
     uPnl += up; notional += num(q.positionValue); marg += num(q.marginUsed); funding += fnd;
     const t0 = since[(a.wallet || '') + '|' + q.coin];
-    return '<tr>' +
+    const rt = (S.openTrades || []).find(x =>
+      x.coin === q.coin && (x.wallet || '') === (a.wallet || ''));
+    return '<tr' + (rt ? ' data-open="' + esc(rt.id) + '" style="cursor:pointer"' : '') + '>' +
       '<td class="mut">' + (t0 ? dt(t0) : '–') + '</td>' +
       '<td class="wcol mut">' + esc(walletLabel(a.wallet)) + '</td>' +
       '<td><b>' + esc(q.coin) + '</b></td>' +
@@ -4594,6 +4620,9 @@ function renderOpen(){
       '</tr>';
   }).join('');
   $('#tblOpen tbody').innerHTML = rows;
+  // Eine laufende Position lässt sich genauso öffnen wie ein abgeschlossener Trade
+  $$('#tblOpen [data-open]').forEach(el =>
+    el.addEventListener('click', () => openTrade(el.dataset.open)));
 
   const items = [
     ['Unrealisiert', sgn(uPnl, 2), list.length + ' Position' + (list.length > 1 ? 'en' : ''), cls(uPnl)],
@@ -5988,21 +6017,28 @@ async function zeichneTradeChart(t){
   const cv = $('#mCandles');
   const hint = $('#mChartHint');
   await PATHS.load();
-  let p = PATHS.get(t.id);
+  const laeuft = !!t.open;
+  // Eine laufende Position wird nicht zwischengespeichert – sie ändert sich ja
+  let p = laeuft ? null : PATHS.get(t.id);
   if(!p){
-    // Nicht gemessen? Dann holen wir die Kerzen nur für diesen einen Trade.
-    hint.textContent = t.spot ? '' : 'Kurse werden geholt…';
+    hint.textContent = t.spot ? '' : txt('Kurse werden geholt…');
     if(t.spot){ box.classList.add('hide'); return; }
     try{
-      const span = Math.max(60e3, t.closeTime - t.openTime);
-      const nach = EXC.nachlaufFenster(t);
-      const bis = Math.min(Date.now(), t.closeTime + nach);
-      const [iv] = EXC.interval(span + (bis - t.closeTime), Date.now() - t.openTime);
+      const ende = laeuft ? Date.now() : t.closeTime;
+      const span = Math.max(60e3, ende - t.openTime);
+      const nach = laeuft ? 0 : EXC.nachlaufFenster(t);
+      const bis = Math.min(Date.now(), ende + nach);
+      const [iv] = EXC.interval(span + (bis - ende), Date.now() - t.openTime);
       const res = await info({type:'candleSnapshot', req:{coin:t.coin, interval:iv,
         startTime:t.openTime - 60e3, endTime:bis + 60e3}});
       if(Array.isArray(res) && res.length){
         p = PATHS.verdichten(res.slice().sort((a,b) => num(a.t) - num(b.t)), 140);
-        if(p){ p.open = t.openTime; p.close = t.closeTime; p.iv = iv; PATHS.put(t.id, p); }
+        if(p){
+          p.open = t.openTime;
+          p.close = laeuft ? Date.now() : t.closeTime;
+          p.iv = iv;
+          if(!laeuft) PATHS.put(t.id, p);
+        }
       }
     }catch(e){}
   }
@@ -6016,8 +6052,15 @@ async function zeichneTradeChart(t){
   const plan = planOfTrade(t);
   const linien = [];
   linien.push({y:t.avgEntry, farbe:C.tick, text:'Ø Ein', strich:true});
-  if(t.avgExit) linien.push({y:t.avgExit, farbe: t.net >= 0 ? C.up : C.down,
+  if(!laeuft && t.avgExit) linien.push({y:t.avgExit, farbe: t.net >= 0 ? C.up : C.down,
     text:'Ø Aus', strich:true});
+  if(laeuft){
+    const kurs = LIVE.price(t.coin);
+    if(kurs > 0){
+      const vorn = (t.side === 'long') === (kurs >= t.avgEntry);
+      linien.push({y:kurs, farbe: vorn ? C.up : C.down, text:'Jetzt', strich:false});
+    }
+  }
   if(plan){
     const ps = parseFloat(String(plan.stop).replace(',','.'));
     const pt = parseFloat(String(plan.target).replace(',','.'));
@@ -6026,12 +6069,15 @@ async function zeichneTradeChart(t){
   }
   const marken = tradeMarken(t);
   malKerzen(cv, p, t, linien, marken);
-  const ein = marken.filter(m => m.auf).length, aus = marken.length - marken.filter(m => m.auf).length;
-  hint.innerHTML = '▲ ' + ein + ' Einstieg' + (ein > 1 ? 'e' : '') +
-    ' · ▼ ' + aus + ' Ausstieg' + (aus > 1 ? 'e' : '') +
-    ' · Größe des Zeichens = Anteil der Position' +
-    ' · grau hinterlegt ist deine Haltedauer, rechts davon der Nachlauf' +
-    ' · Raster ' + esc(p.iv || '?');
+  const ein = marken.filter(m => m.auf).length, aus = marken.length - ein;
+  hint.innerHTML =
+    txt('▲ {0} Einstieg{1} · ◆ {2} Teilausstieg{3} · Größe = Anteil der Position')
+      .replace('{0}', ein).replace('{1}', ein > 1 ? 'e' : '')
+      .replace('{2}', aus).replace('{3}', aus === 1 ? '' : 'e') +
+    ' · ' + (laeuft
+      ? txt('grau hinterlegt läuft die Position bis jetzt')
+      : txt('grau hinterlegt ist deine Haltedauer, rechts davon der Nachlauf')) +
+    ' · ' + txt('Raster') + ' ' + esc(p.iv || '?');
 }
 
 /* Jede einzelne Ausführung als Marke: wann, zu welchem Kurs, wie viel davon */
@@ -6185,11 +6231,18 @@ function malKerzen(cv, p, t, linien, marken){
       g.stroke();
     });
 
-    // Ø Einstieg und Ø Ausstieg als kleine Ringe auf der Zeitachse verbinden
-    if(erste && letzte && t.avgEntry > 0 && t.avgExit > 0){
-      const x1 = xAt(erste.t), x2 = xAt(letzte.t);
-      const y1 = y(t.avgEntry), y2 = y(t.avgExit);
-      g.strokeStyle = t.net >= 0 ? C.up : C.down;
+    /* Vom Ø-Einstieg zum Ausstieg – bei einer laufenden Position zum
+       aktuellen Kurs, damit man den Stand auf einen Blick sieht.        */
+    const laeuftJetzt = !!t.open;
+    const zielKurs = laeuftJetzt ? LIVE.price(t.coin) : t.avgExit;
+    const zielX = laeuftJetzt ? p.t[n-1] : (letzte ? letzte.t : null);
+    if(erste && zielX !== null && t.avgEntry > 0 && zielKurs > 0){
+      const x1 = xAt(erste.t), x2 = xAt(zielX);
+      const y1 = y(t.avgEntry), y2 = y(zielKurs);
+      const gut = laeuftJetzt
+        ? ((t.side === 'long') === (zielKurs >= t.avgEntry))
+        : t.net >= 0;
+      g.strokeStyle = gut ? C.up : C.down;
       g.globalAlpha = .8;
       g.lineWidth = 1.6;
       g.setLineDash([5,3]);
@@ -6260,19 +6313,58 @@ function nachlaufBlock(t, e){
     'einfach hättest laufen lassen. „max" ist der beste Punkt dazwischen.</div>';
 }
 
+/* Kennzahlen einer laufenden Position: schon kassiert, noch offen, zusammen */
+function offenZeilen(t){
+  const kurs = LIVE.price(t.coin) || 0;
+  const offen = Math.abs(num(t.pos));
+  const kassiert = num(t.closedPnl) - num(t.fees) + num(t.funding);
+  const laufend = (kurs > 0 && offen > 0 && t.avgEntry > 0)
+    ? (t.side === 'long' ? kurs - t.avgEntry : t.avgEntry - kurs) * offen
+    : null;
+  const zusammen = laufend === null ? null : kassiert + laufend;
+  const teile = (t.fills || []).filter(f =>
+    (f.side === 'B') !== (t.side === 'long')).length;
+  return [
+    ['Schon kassiert', '<b class="' + cls(kassiert) + '">' + sgn(kassiert, 2) + '</b>' +
+      (teile ? ' <span class="mut">' + txt('aus {0} Teilausstieg{1}')
+        .replace('{0}', teile).replace('{1}', teile > 1 ? 'en' : '') + '</span>' : '')],
+    ['Laufender Gewinn', laufend === null
+      ? '<span class="mut">' + txt('kein Kurs') + '</span>'
+      : '<span class="' + cls(laufend) + '">' + sgn(laufend, 2) + '</span>'],
+    ['Zusammen', zusammen === null ? '–'
+      : '<b class="' + cls(zusammen) + '">' + sgn(zusammen, 2) + '</b>'],
+    ['Ø Entry', '<span class="mono">' + price(t.avgEntry) + '</span>'],
+    ['Aktueller Kurs', kurs ? '<span class="mono">' + price(kurs) + '</span>'
+      : '<span class="mut">' + txt('kein Kurs') + '</span>'],
+    ['Noch offen', dec(offen, 4) + ' <span class="mut">' + esc(LIVE.base(t.coin)) + '</span>' +
+      (kurs ? ' <span class="mut">· ' + usd(offen * kurs, 0) + '</span>' : '')],
+    ['Größte Position', usd(t.maxNotional || t.entryNotional, 2)],
+    ['Gebühren bisher', usd(t.fees, 4)],
+    ['Funding bisher', sgn(t.funding || 0, 2)],
+    ['Anzahl Fills', (t.fills || []).length]
+  ];
+}
+
 /* ---------- Trade-Detail ---------- */
 let mCurrent = null;
 function openTrade(id){
-  const t = S.trades.find(x => x.id === id);
+  // Abgeschlossene und laufende Trades öffnen denselben Dialog
+  const t = S.trades.find(x => x.id === id) ||
+            (S.openTrades || []).find(x => x.id === id);
   if(!t) return;
   mCurrent = t;
+  const laeuft = !!t.open;
   const n = noteOf(id) || {};
   $('#mTitle').innerHTML = coinName(t.coin) + ' <span class="pill ' + t.side + '">' +
-    (t.side === 'long' ? 'LONG' : 'SHORT') + '</span>' + (t.liquidated ? ' <span class="pill liq">LIQUIDIERT</span>' : '');
-  $('#mSub').textContent = dt(t.openTime) + '  →  ' + dt(t.closeTime) + '  ·  ' + dur(t.durationMs);
+    (t.side === 'long' ? 'LONG' : 'SHORT') + '</span>' +
+    (laeuft ? ' <span class="pill jetzt">läuft</span>' : '') +
+    (t.liquidated ? ' <span class="pill liq">LIQUIDIERT</span>' : '');
+  $('#mSub').textContent = laeuft
+    ? txt('seit') + ' ' + dt(t.openTime) + '  ·  ' + dur(Date.now() - t.openTime)
+    : dt(t.openTime) + '  →  ' + dt(t.closeTime) + '  ·  ' + dur(t.durationMs);
   const size = t.maxNotional || t.entryNotional;
   zeichneTradeChart(t);
-  $('#mStats').innerHTML = [
+  $('#mStats').innerHTML = (laeuft ? offenZeilen(t) : [
     ['Netto-PnL', '<b class="' + cls(t.net) + '">' + sgn(t.net, 2) + '</b>'],
     ['Rendite auf Positionsgröße', '<span class="' + cls(t.retPct) + '">' + pct(t.retPct, 2) + '</span>'],
     ['Ø Entry', '<span class="mono">' + price(t.avgEntry) + '</span>'],
@@ -6282,8 +6374,17 @@ function openTrade(id){
     ['Gebühren', usd(t.fees, 4)],
     ['Anzahl Fills', t.fills.length],
     t.partial ? ['Hinweis', '<span class="warn">Eröffnung liegt vor dem geladenen Zeitraum – Entry geschätzt</span>'] : null
-  ].filter(Boolean).map(([k, v]) => '<div class="dl"><span>' + k + '</span><span>' + v + '</span></div>').join('')
-  + excursionBlock(t);
+  ]).filter(Boolean).map(([k, v]) => '<div class="dl"><span>' + k + '</span><span>' + v + '</span></div>').join('')
+  + (laeuft ? '' : excursionBlock(t));
+
+  /* Eine laufende Position bekommt noch keine Notizen: ihre Kennung ändert
+     sich beim Schließen, alles Eingetragene wäre danach verwaist.        */
+  $('#mNotizen').classList.toggle('hide', laeuft);
+  $('#mOffenHint').classList.toggle('hide', !laeuft);
+  if(laeuft){
+    $('#mOffenHint').textContent = txt('Notizen, Setups und Bewertung gibt es, sobald die ' +
+      'Position geschlossen ist — vorher hätten sie noch keine feste Kennung.');
+  }
 
   chipBox('#mTags', tagsOf(n));
 
@@ -8688,6 +8789,13 @@ function openCoin(coin){
   const base = LIVE.base(coin).toUpperCase();
   coCurrent = coin;
   const tr = tradesOfCoin(coin);
+  // Läuft in diesem Markt gerade etwas? Dann direkt zum Chart der Position
+  const offen = (S.openTrades || []).find(x => LIVE.base(x.coin).toUpperCase() === base);
+  const ob = $('#coOpen');
+  if(ob){
+    ob.classList.toggle('hide', !offen);
+    ob.dataset.tr = offen ? offen.id : '';
+  }
   const m = metrics(tr);
   const mk = LIVE.market(coin);
 
@@ -9651,6 +9759,12 @@ $('#wApply').addEventListener('click', () => {
 });
 $('#coClose').addEventListener('click', closeCoin);
 $('#coinModal').addEventListener('click', e => { if(e.target.id === 'coinModal') closeCoin(); });
+$('#coOpen').addEventListener('click', () => {
+  const id = $('#coOpen').dataset.tr;
+  if(!id) return;
+  closeCoin();
+  openTrade(id);
+});
 $('#coAll').addEventListener('click', () => {
   if(!coCurrent) return;
   const base = LIVE.base(coCurrent).toUpperCase();
