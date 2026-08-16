@@ -222,6 +222,17 @@ tbody tr:hover{background:var(--panel2)}
 .resrow:last-child{border-bottom:0}
 .resrow:hover{background:var(--panel2)}
 .resrow.has{opacity:.5}
+.coinPickWrap{position:relative;display:inline-block}
+.pickBtn{white-space:nowrap}
+.pickPanel{position:absolute;z-index:60;top:calc(100% + 6px);left:0;width:min(340px,86vw);
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  box-shadow:0 12px 34px rgba(16,24,40,.16);padding:10px}
+:root[data-theme="dark"] .pickPanel{box-shadow:0 12px 34px rgba(0,0,0,.5)}
+.pickPanel input{width:100%;margin-bottom:8px}
+.pickPanel .liste{max-height:min(52vh,340px);overflow:auto;
+  border:1px solid var(--line);border-radius:9px}
+.pickPanel .kopf{font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);
+  padding:8px 12px 4px;background:var(--panel2)}
 .resrow b{font-weight:650}
 .resmk{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 7px}
 .chip .x{margin-left:7px;opacity:.6}
@@ -402,7 +413,15 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <option value="90">Letzte 90 Tage</option>
       <option value="365">Letzte 12 Monate</option>
     </select>
-    <select id="fCoin"><option value="">Alle Coins</option></select>
+    <div class="coinPickWrap">
+      <button id="fCoinBtn" class="pickBtn">Alle Coins <span class="chev">▾</span></button>
+      <select id="fCoin" class="hide"><option value="">Alle Coins</option></select>
+      <div id="coinPick" class="pickPanel hide">
+        <input type="text" id="coinPickSearch" placeholder="Symbol suchen, z.B. BTC oder SNDK"
+          spellcheck="false" autocomplete="off">
+        <div id="coinPickList"></div>
+      </div>
+    </div>
     <select id="fTag"><option value="">Alle Setups</option></select>
     <select id="fMarket">
       <option value="perp">Nur Perps</option>
@@ -1183,7 +1202,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 16.08.2026, 20:01</span><br>
+    <span class="build">Fassung 16.08.2026, 20:13</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1405,6 +1424,11 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Vorteil: neue Texte funktionieren sofort weiter, nur eben zunächst deutsch.  */
 let LANG = 'de';
 const EN = {
+  "Symbol suchen, z.B. BTC oder SNDK": "Search a symbol, e.g. BTC or SNDK",
+  "Von dir gehandelt": "Traded by you",
+  "Alle Märkte auf Hyperliquid": "All markets on Hyperliquid",
+  "Nichts gefunden.": "Nothing found.",
+  "Symbole verfügbar": "symbols available",
   "Antippen für groß": "Tap to enlarge",
   "Originalgröße": "Original size",
   "Einpassen": "Fit to screen",
@@ -2806,7 +2830,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '16.08.2026, 20:01';
+const BUILD = '16.08.2026, 20:13';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -2820,7 +2844,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 16.08.2026, 20:01';
+      ' · Fassung 16.08.2026, 20:13';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -4023,13 +4047,106 @@ async function load(incremental){
 }
 
 
-/* ---------- Filter ---------- */
+/* ---------- Filter ----------
+   Der Markt-Filter ist eine Suche über alle Symbole von Hyperliquid, nicht
+   nur über die selbst gehandelten. Das versteckte Auswahlfeld trägt weiterhin
+   den Wert – so bleibt die ganze Filterlogik dahinter unverändert.        */
 function fillCoinFilter(){
   const coins = Array.from(new Set(S.trades.map(t => t.coin))).sort();
   const sel = $('#fCoin'), cur = sel.value;
+  // Ein bereits gewählter Markt ohne eigene Trades muss erhalten bleiben
+  if(cur && coins.indexOf(cur) < 0) coins.push(cur);
   sel.innerHTML = '<option value="">Alle Coins</option>' +
     coins.map(c => '<option value="' + esc(c) + '">' + esc(coinName(c)) + '</option>').join('');
   sel.value = cur;
+  renderCoinBtn();
+}
+function renderCoinBtn(){
+  const btn = $('#fCoinBtn');
+  if(!btn) return;
+  const v = $('#fCoin').value;
+  btn.innerHTML = (v ? esc(coinName(v)) : t('Alle Coins')) + ' <span class="chev">▾</span>';
+}
+/* Wie viele Trades habe ich in welchem Markt? */
+function coinCounts(){
+  const map = {};
+  for(const t of (S.trades || [])) map[t.coin] = (map[t.coin] || 0) + 1;
+  return map;
+}
+function setCoinFilter(coin){
+  const sel = $('#fCoin');
+  if(!sel) return;
+  if(coin && !Array.from(sel.options).some(o => o.value === coin)){
+    const o = document.createElement('option');
+    o.value = coin; o.textContent = coinName(coin);
+    sel.appendChild(o);
+  }
+  sel.value = coin || '';
+  renderCoinBtn();
+  closeCoinPick();
+  renderAll();
+}
+function openCoinPick(){
+  const p = $('#coinPick');
+  if(!p) return;
+  p.classList.remove('hide');
+  $('#coinPickSearch').value = '';
+  renderCoinPick();
+  setTimeout(() => { try{ $('#coinPickSearch').focus(); }catch(e){} }, 0);
+  // Aktien und Sondermärkte stehen erst nach dem Laden ihrer Listen bereit
+  if(!LIVE.dexes) LIVE.loadDexes().then(renderCoinPick);
+}
+function closeCoinPick(){
+  const p = $('#coinPick');
+  if(p) p.classList.add('hide');
+}
+function renderCoinPick(){
+  const box = $('#coinPickList');
+  if(!box) return;
+  const q = ($('#coinPickSearch').value || '').trim().toUpperCase();
+  const zaehl = coinCounts();
+  const meine = Object.keys(zaehl).sort((a,b) => zaehl[b] - zaehl[a]);
+  const passt = c => !q || LIVE.base(c).toUpperCase().indexOf(q) >= 0 ||
+                     String(c).toUpperCase().indexOf(q) >= 0;
+  const sortiert = liste => liste.slice().sort((a,b) => {
+    const ab = LIVE.base(a).toUpperCase(), bb = LIVE.base(b).toUpperCase();
+    const as = ab === q ? 0 : (ab.indexOf(q) === 0 ? 1 : 2);
+    const bs = bb === q ? 0 : (bb.indexOf(q) === 0 ? 1 : 2);
+    return as - bs || ab.localeCompare(bb);
+  });
+  const zeile = (c, n) => {
+    const mk = LIVE.market(c);
+    return '<div class="resrow" data-coin="' + esc(c) + '">' +
+      '<span><b>' + esc(LIVE.base(c)) + '</b>' +
+        (mk ? ' <span class="resmk">' + esc(mk) + '</span>' : '') + '</span>' +
+      '<span class="mut">' + (n ? n + ' ' + t(n === 1 ? 'Trade' : 'Trades')
+                                : t('keine Trades')) + '</span></div>';
+  };
+  const eigene = sortiert(meine.filter(passt));
+  const rest = sortiert((LIVE.universe || []).filter(c => passt(c) && zaehl[c] === undefined))
+    .slice(0, 40);
+
+  box.innerHTML =
+    '<div class="liste">' +
+    '<div class="resrow" data-coin=""><span><b>' + t('Alle Coins') + '</b></span>' +
+      '<span class="mut">' + (S.trades || []).length + ' ' + t('Trades') + '</span></div>' +
+    (eigene.length ? '<div class="kopf">' + t('Von dir gehandelt') + '</div>' +
+      eigene.map(c => zeile(c, zaehl[c])).join('') : '') +
+    (rest.length ? '<div class="kopf">' + t('Alle Märkte auf Hyperliquid') + '</div>' +
+      rest.map(c => zeile(c, 0)).join('') : '') +
+    (!eigene.length && !rest.length
+      ? '<div class="resrow" style="cursor:default"><span class="mut">' +
+        (LIVE.universe && LIVE.universe.length
+          ? t('Nichts gefunden.')
+          : t('Symbolliste wird geladen…')) + '</span></div>'
+      : '') +
+    '</div>' +
+    (LIVE.universe && LIVE.universe.length
+      ? '<div class="mut" style="font-size:11.5px;margin-top:7px">' +
+        LIVE.universe.length + ' ' + t('Symbole verfügbar') + '</div>' : '');
+
+  box.querySelectorAll('[data-coin]').forEach(el =>
+    el.addEventListener('click', () => setCoinFilter(el.dataset.coin)));
 }
 function fillTagFilter(){
   const set = new Set();
@@ -9538,10 +9655,9 @@ $('#coAll').addEventListener('click', () => {
   if(!coCurrent) return;
   const base = LIVE.base(coCurrent).toUpperCase();
   const hit = Array.from($('#fCoin').options).find(o =>
-    LIVE.base(o.value).toUpperCase() === base);
-  $('#fCoin').value = hit ? hit.value : '';
+    o.value && LIVE.base(o.value).toUpperCase() === base);
   closeCoin();
-  renderAll();
+  setCoinFilter(hit ? hit.value : coCurrent);
   switchTab('trades');
 });
 $('#liveEdit').addEventListener('click', async () => {
@@ -9783,6 +9899,23 @@ $('#btnClearCache').addEventListener('click', async () => {
 });
 ['#simCap','#simRisk','#simWin','#simRR','#simN','#simRuns','#simCompound','#simEcht'].forEach(sel =>
   $(sel).addEventListener('change', renderSim));
+
+/* Marktsuche im Filter */
+$('#fCoinBtn').addEventListener('click', ev => {
+  ev.stopPropagation();
+  const p = $('#coinPick');
+  if(p.classList.contains('hide')) openCoinPick(); else closeCoinPick();
+});
+$('#coinPickSearch').addEventListener('input', renderCoinPick);
+$('#coinPickSearch').addEventListener('keydown', ev => {
+  if(ev.key === 'Escape'){ ev.stopPropagation(); closeCoinPick(); }
+  if(ev.key === 'Enter'){
+    const erste = $('#coinPickList').querySelector('[data-coin]:not([data-coin=""])');
+    if(erste) setCoinFilter(erste.dataset.coin);
+  }
+});
+$('#coinPick').addEventListener('click', ev => ev.stopPropagation());
+document.addEventListener('click', () => closeCoinPick());
 
 /* Bild groß ansehen */
 $('#lbClose').addEventListener('click', closeBild);
