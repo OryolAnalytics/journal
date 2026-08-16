@@ -1114,7 +1114,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 16.08.2026, 12:47</span><br>
+    <span class="build">Fassung 16.08.2026, 16:44</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1326,6 +1326,10 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Vorteil: neue Texte funktionieren sofort weiter, nur eben zunächst deutsch.  */
 let LANG = 'de';
 const EN = {
+  "▲ {0} Einstieg · ▼ {1} Ausstieg · Größe des Zeichens = Anteil der Position · grau hinterlegt ist deine Haltedauer, rechts davon der Nachlauf · Raster {2}": "▲ {0} entry · ◆ {1} exit · marker size = share of the position · the grey area is your holding period, to the right of it the run afterwards · interval {2}",
+  "▲ {0} Einstiege · ▼ {1} Ausstiege · Größe des Zeichens = Anteil der Position · grau hinterlegt ist deine Haltedauer, rechts davon der Nachlauf · Raster {2}": "▲ {0} entries · ◆ {1} exits · marker size = share of the position · the grey area is your holding period, to the right of it the run afterwards · interval {2}",
+  "Ø Ein": "Avg in",
+  "Ø Aus": "Avg out",
   "Aus meinen echten Trades ziehen": "Draw from my real trades",
   "Übliche Verlustserie": "Usual losing streak",
   "{0} in Folge": "{0} in a row",
@@ -2653,7 +2657,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '16.08.2026, 12:47';
+const BUILD = '16.08.2026, 16:44';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -2667,7 +2671,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 16.08.2026, 12:47';
+      ' · Fassung 16.08.2026, 16:44';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -4090,7 +4094,7 @@ function mkChart(id, cfg){
 /* Diagrammfarben – werden beim Umschalten der Ansicht angepasst */
 const C = {up:'#0f8a5f', down:'#c9354a', upFill:'rgba(15,138,95,.10)',
   downFill:'rgba(201,53,74,.10)', acc:'#0d7d6f', grid:'#eef0f3', tick:'#6b7280',
-  faint:'#9ca3af', warn:'#b45309'};
+  faint:'#9ca3af', warn:'#b45309', panel:'#ffffff', mark:'#111418'};
 const AXIS = {
   grid:{color:C.grid},
   ticks:{color:C.tick, font:{size:10}}
@@ -4105,12 +4109,12 @@ function applyChartColors(dark){
     C.up='#3ecf8e'; C.down='#f2606f';
     C.upFill='rgba(62,207,142,.14)'; C.downFill='rgba(242,96,111,.14)';
     C.acc='#3ec9b4'; C.grid='#252c35'; C.tick='#9aa5b4'; C.faint='#6b7683';
-    C.warn='#e0a84a';
+    C.warn='#e0a84a'; C.panel='#171b21'; C.mark='#e8ecf1';
   }else{
     C.up='#0f8a5f'; C.down='#c9354a';
     C.upFill='rgba(15,138,95,.10)'; C.downFill='rgba(201,53,74,.10)';
     C.acc='#0d7d6f'; C.grid='#eef0f3'; C.tick='#6b7280'; C.faint='#9ca3af';
-    C.warn='#b45309';
+    C.warn='#b45309'; C.panel='#ffffff'; C.mark='#111418';
   }
   AXIS.grid.color = C.grid;
   AXIS.ticks.color = C.tick;
@@ -5735,25 +5739,48 @@ async function zeichneTradeChart(t){
 
   const plan = planOfTrade(t);
   const linien = [];
-  linien.push({y:t.avgEntry, farbe:C.tick, text:'Einstieg ' + price(t.avgEntry), strich:false});
+  linien.push({y:t.avgEntry, farbe:C.tick, text:'Ø Ein', strich:true});
   if(t.avgExit) linien.push({y:t.avgExit, farbe: t.net >= 0 ? C.up : C.down,
-    text:'Ausstieg ' + price(t.avgExit), strich:false});
+    text:'Ø Aus', strich:true});
   if(plan){
     const ps = parseFloat(String(plan.stop).replace(',','.'));
     const pt = parseFloat(String(plan.target).replace(',','.'));
-    if(isFinite(ps)) linien.push({y:ps, farbe:C.down, text:'Stop laut Plan', strich:true});
-    if(isFinite(pt)) linien.push({y:pt, farbe:C.up, text:'Ziel laut Plan', strich:true});
+    if(isFinite(ps)) linien.push({y:ps, farbe:C.down, text:'Stop', strich:true});
+    if(isFinite(pt)) linien.push({y:pt, farbe:C.up, text:'Ziel', strich:true});
   }
-  malKerzen(cv, p, t, linien);
-  hint.innerHTML = 'Raster ' + esc(p.iv || '?') + ' · der graue Bereich ist deine Haltedauer, ' +
-    'rechts davon der Nachlauf.';
+  const marken = tradeMarken(t);
+  malKerzen(cv, p, t, linien, marken);
+  const ein = marken.filter(m => m.auf).length, aus = marken.length - marken.filter(m => m.auf).length;
+  hint.innerHTML = '▲ ' + ein + ' Einstieg' + (ein > 1 ? 'e' : '') +
+    ' · ▼ ' + aus + ' Ausstieg' + (aus > 1 ? 'e' : '') +
+    ' · Größe des Zeichens = Anteil der Position' +
+    ' · grau hinterlegt ist deine Haltedauer, rechts davon der Nachlauf' +
+    ' · Raster ' + esc(p.iv || '?');
 }
 
-function malKerzen(cv, p, t, linien){
+/* Jede einzelne Ausführung als Marke: wann, zu welchem Kurs, wie viel davon */
+function tradeMarken(t){
+  const long = t.side === 'long';
+  const fills = (t.fills || []).filter(f => f && f.time && num(f.px) > 0)
+    .slice().sort((a,b) => num(a.time) - num(b.time));
+  const groesst = fills.reduce((m,f) => Math.max(m, Math.abs(num(f.sz))), 0) || 1;
+  return fills.map(f => {
+    const isBuy = f.side === 'B';
+    const auf = isBuy === long;                 // öffnet die Position
+    const sz = Math.abs(num(f.sz));
+    return {
+      t: num(f.time), px: num(f.px), auf, sz,
+      anteil: sz / groesst,
+      gewinn: num(f.closedPnl)
+    };
+  });
+}
+
+function malKerzen(cv, p, t, linien, marken){
   if(!cv || !cv.getContext) return;
   const dpr = window.devicePixelRatio || 1;
   const br = cv.parentNode.clientWidth || 600;
-  const ho = 260;
+  const ho = 300;
   cv.width = br * dpr; cv.height = ho * dpr;
   cv.style.width = br + 'px'; cv.style.height = ho + 'px';
   const g = cv.getContext('2d');
@@ -5767,12 +5794,23 @@ function malKerzen(cv, p, t, linien){
   let hi = -Infinity, lo = Infinity;
   for(let i = 0; i < n; i++){ hi = Math.max(hi, p.h[i]); lo = Math.min(lo, p.l[i]); }
   linien.forEach(l => { if(isFinite(l.y)){ hi = Math.max(hi, l.y); lo = Math.min(lo, l.y); } });
+  (marken || []).forEach(m => { if(m.px > 0){ hi = Math.max(hi, m.px); lo = Math.min(lo, m.px); } });
   if(!(hi > lo)) return;
   const spanne = hi - lo;
-  hi += spanne * 0.06; lo -= spanne * 0.06;
+  hi += spanne * 0.09; lo -= spanne * 0.09;
   const y = v => padT + (hi - v) / (hi - lo) * h;
   const x = i => padL + (i + 0.5) * (w / n);
   const bw = Math.max(1.2, Math.min(9, w / n * 0.66));
+  /* Zeitpunkt → Bildpunkt, zwischen den Kerzen interpoliert.
+     Nur so landet eine Ausführung dort, wo sie wirklich stattfand.        */
+  const xAt = ms => {
+    if(ms <= p.t[0]) return x(0);
+    if(ms >= p.t[n-1]) return x(n-1);
+    let i = 0;
+    while(i < n - 1 && p.t[i+1] <= ms) i++;
+    const spannt = (p.t[i+1] - p.t[i]) || 1;
+    return x(i) + ((ms - p.t[i]) / spannt) * (w / n);
+  };
 
   // Haltedauer hinterlegen
   let vonI = 0, bisI = n - 1;
@@ -5799,26 +5837,91 @@ function malKerzen(cv, p, t, linien){
     g.fillRect(x(i) - bw / 2, Math.min(oy, cy), bw, Math.max(1, Math.abs(cy - oy)));
   }
 
-  // Waagerechte Linien mit Beschriftung
+  // Waagerechte Linien, dünn und gestrichelt – die Marken sollen führen
   g.font = '10px -apple-system,system-ui,sans-serif';
   g.textBaseline = 'middle';
+  const belegt = [];
   linien.filter(l => isFinite(l.y) && l.y > 0).forEach(l => {
     const yy = y(l.y);
     if(yy < padT || yy > padT + h) return;
     g.strokeStyle = l.farbe;
+    g.globalAlpha = .55;
     g.lineWidth = 1;
-    g.setLineDash(l.strich ? [4,3] : []);
+    g.setLineDash([3,3]);
     g.beginPath(); g.moveTo(padL, yy); g.lineTo(padL + w, yy); g.stroke();
     g.setLineDash([]);
+    g.globalAlpha = 1;
     g.fillStyle = l.farbe;
-    g.fillText(t.__anon ? '' : l.text.split(' ')[0], padL + w + 5, yy);
+    g.fillText(l.text, padL + w + 5, yy);
+    belegt.push(yy);
   });
-  // Preisachse rechts
+  // Preisachse rechts, nur wo nichts anderes steht
   g.fillStyle = C.tick;
+  // Nachkommastellen an die Spanne anpassen – vier Stellen bei Kurs 100 sind Unsinn
+  const stellen = Math.max(0, Math.min(6, 2 - Math.floor(Math.log10(Math.max(1e-9, hi - lo)))));
   [hi, (hi + lo) / 2, lo].forEach(v => {
     const yy = Math.max(padT + 6, Math.min(padT + h - 6, y(v)));
-    g.fillText(price(v), padL + w + 5, yy);
+    if(belegt.some(b => Math.abs(b - yy) < 11)) return;
+    g.fillText(dec(v, stellen), padL + w + 5, yy);
   });
+
+  /* ---- Ein- und Ausstiege ---- */
+  const ms = marken || [];
+  if(ms.length){
+    // Senkrechte Hilfslinien zum ersten Einstieg und zum letzten Ausstieg
+    const erste = ms.find(m => m.auf), letzte = ms.slice().reverse().find(m => !m.auf);
+    g.strokeStyle = C.faint;
+    g.globalAlpha = .5;
+    g.setLineDash([2,4]);
+    [erste, letzte].forEach(m => {
+      if(!m) return;
+      const xx = Math.round(xAt(m.t)) + .5;
+      g.beginPath(); g.moveTo(xx, padT); g.lineTo(xx, padT + h); g.stroke();
+    });
+    g.setLineDash([]);
+    g.globalAlpha = 1;
+
+    /* Einstieg = Dreieck in Handelsrichtung, in der Textfarbe.
+       Ausstieg = Raute, grün oder rot je nach Ergebnis dieser Ausführung.
+       Zwei verschiedene Formen, damit auch bei Short nichts zu verwechseln ist. */
+    ms.forEach(m => {
+      const xx = xAt(m.t), yy = y(m.px);
+      if(yy < padT - 6 || yy > padT + h + 6) return;
+      const r = 4.5 + m.anteil * 3.5;               // größere Ausführung, größeres Zeichen
+      g.beginPath();
+      if(m.auf){
+        if(t.side === 'long'){
+          g.moveTo(xx, yy - r); g.lineTo(xx + r, yy + r * .8); g.lineTo(xx - r, yy + r * .8);
+        }else{
+          g.moveTo(xx, yy + r); g.lineTo(xx + r, yy - r * .8); g.lineTo(xx - r, yy - r * .8);
+        }
+        g.fillStyle = C.mark;
+      }else{
+        g.moveTo(xx, yy - r); g.lineTo(xx + r, yy);
+        g.lineTo(xx, yy + r);  g.lineTo(xx - r, yy);
+        g.fillStyle = m.gewinn >= 0 ? C.up : C.down;
+      }
+      g.closePath();
+      g.fill();
+      // Heller Rand zuletzt, damit die Marke auch auf einer Kerze lesbar bleibt
+      g.lineWidth = 1.8;
+      g.strokeStyle = C.panel;
+      g.stroke();
+    });
+
+    // Ø Einstieg und Ø Ausstieg als kleine Ringe auf der Zeitachse verbinden
+    if(erste && letzte && t.avgEntry > 0 && t.avgExit > 0){
+      const x1 = xAt(erste.t), x2 = xAt(letzte.t);
+      const y1 = y(t.avgEntry), y2 = y(t.avgExit);
+      g.strokeStyle = t.net >= 0 ? C.up : C.down;
+      g.globalAlpha = .8;
+      g.lineWidth = 1.6;
+      g.setLineDash([5,3]);
+      g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+      g.setLineDash([]);
+      g.globalAlpha = 1;
+    }
+  }
 }
 
 /* Zu welchem Plan gehört dieser Trade? */
