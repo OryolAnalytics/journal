@@ -167,6 +167,9 @@ tbody tr:hover{background:var(--panel2)}
   padding-bottom:calc(18px + env(safe-area-inset-bottom))}
 .sheet h3{margin:0 0 4px;font-size:17px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+@media(max-width:720px){.grid4{grid-template-columns:1fr 1fr}}
+.f input:disabled{background:var(--panel2);color:var(--muted);font-weight:600}
 .f{margin:12px 0}
 .f label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
 .f input,.f select,.f textarea{width:100%}
@@ -712,6 +715,53 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     </div>
   </section>
 
+  <!-- PLANUNG: RECHNER -->
+  <section id="v-calc" class="hide">
+    <div class="panel">
+      <h2>Zinseszinsrechner</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Vier Größen hängen zusammen. Wähl aus, welche berechnet werden soll — die
+        anderen drei trägst du ein. Das gesuchte Feld wird gesperrt und zeigt das Ergebnis.
+        Unten stellst du ein, worauf sich die Rendite bezieht: je Trade, täglich,
+        wöchentlich, monatlich oder jährlich.</p>
+      <div class="filters" style="margin-bottom:14px">
+        <button class="tab" data-zins="start">Startkapital</button>
+        <button class="tab" data-zins="rendite">Rendite</button>
+        <button class="tab on" data-zins="schritte">Anzahl</button>
+        <button class="tab" data-zins="ziel">Zielkapital</button>
+      </div>
+      <div class="grid4">
+        <div class="f"><label>Startkapital ($)</label>
+          <input type="number" id="zStart" value="10000" step="100"></div>
+        <div class="f"><label id="zRenditeLabel">Rendite je Woche (%)</label>
+          <input type="number" id="zRendite" value="2" step="0.1"></div>
+        <div class="f"><label id="zAnzahlLabel">Anzahl Wochen</label>
+          <input type="number" id="zSchritte" value="52" step="1"></div>
+        <div class="f"><label>Zielkapital ($)</label>
+          <input type="number" id="zZiel" value="100000" step="100"></div>
+      </div>
+      <div class="filters" style="margin-top:4px">
+        <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="zZinseszins" checked> Zinseszins beachten
+        </label>
+        <select id="zEinheit">
+          <option value="trade">Rendite je Trade</option>
+          <option value="tag">Rendite täglich</option>
+          <option value="woche" selected>Rendite wöchentlich</option>
+          <option value="monat">Rendite monatlich</option>
+          <option value="quartal">Rendite je Quartal</option>
+          <option value="jahr">Rendite jährlich</option>
+        </select>
+      </div>
+      <div id="zErgebnis" style="margin-top:18px"></div>
+    </div>
+    <div class="panel">
+      <h2>Verlauf</h2>
+      <div class="chartbox"><canvas id="chZins"></canvas></div>
+      <div id="zMeilen" style="margin-top:14px"></div>
+    </div>
+  </section>
+
   <!-- RÜCKBLICK -->
   <section id="v-review" class="hide">
     <div class="panel">
@@ -1114,7 +1164,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 16.08.2026, 16:44</span><br>
+    <span class="build">Fassung 16.08.2026, 17:28</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1326,6 +1376,71 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Vorteil: neue Texte funktionieren sofort weiter, nur eben zunächst deutsch.  */
 let LANG = 'de';
 const EN = {
+  "Mit": "With",
+  "brauchst du": "you need",
+  "starten": "start",
+  ", um von {0} auf {1} zu kommen": " to get from {0} to {1}",
+  "Aus {0} werden nach {1} {2} bei {3} {4}": "{0} becomes, after {1} {2} at {3} {4},",
+  "Um nach {0} {1} bei {2} {3} auf {4} zu kommen, musst du mit": "To reach {4} after {0} {1} at {2} {3}, you have to",
+  "Zinseszinsrechner": "Compound calculator",
+  "Vier Größen hängen zusammen. Wähl aus, welche berechnet werden soll — die anderen drei trägst du ein. Das gesuchte Feld wird gesperrt und zeigt das Ergebnis. Unten stellst du ein, worauf sich die Rendite bezieht: je Trade, täglich, wöchentlich, monatlich oder jährlich.": "Four figures belong together. Pick the one to be calculated — you enter the other three. The chosen field is locked and shows the result. Below you set what the return refers to: per trade, daily, weekly, monthly or yearly.",
+  "Zielkapital ($)": "Target capital ($)",
+  "Rendite je Woche (%)": "Return weekly (%)",
+  "Rendite je Trade (%)": "Return per trade (%)",
+  "Rendite {0} (%)": "Return {0} (%)",
+  "Anzahl {0}": "Number of {0}",
+  "Anzahl Wochen": "Number of weeks",
+  "Zinseszins beachten": "Apply compounding",
+  "Rendite je Trade": "Return per trade",
+  "Rendite täglich": "Return daily",
+  "Rendite wöchentlich": "Return weekly",
+  "Rendite monatlich": "Return monthly",
+  "Rendite je Quartal": "Return per quarter",
+  "Rendite jährlich": "Return yearly",
+  "Rechner": "Calculator",
+  "Zielkapital": "Target capital",
+  "Rendite": "Return",
+  "Anzahl": "Number",
+  "Wochen": "weeks",
+  "Quartale": "quarters",
+  "Jahre": "years",
+  "Tag": "day",
+  "Monat": "month",
+  "Quartal": "quarter",
+  "Jahr": "year",
+  "täglich": "daily",
+  "wöchentlich": "weekly",
+  "monatlich": "monthly",
+  "jährlich": "yearly",
+  "je Quartal": "per quarter",
+  "Startkapital muss größer als 0 sein.": "Starting capital must be greater than 0.",
+  "Die Anzahl der Schritte muss größer als 0 sein.": "The number of steps must be greater than 0.",
+  "Bei −100 % oder weniger ist nach einem Schritt nichts mehr da.": "At −100% or less there is nothing left after one step.",
+  "Zielkapital muss größer als 0 sein.": "Target capital must be greater than 0.",
+  "Mit dieser Rendite lässt sich das Ziel nicht erreichen.": "This return cannot reach the target.",
+  "Start und Ziel müssen größer als 0 sein.": "Start and target must be greater than 0.",
+  "Ohne Rendite bewegt sich nichts.": "Without a return nothing moves.",
+  "Mit einer negativen Rendite wird das Ziel nie erreicht.": "With a negative return the target is never reached.",
+  "Mit einer positiven Rendite sinkt das Kapital nie auf das Ziel.": "With a positive return the capital never falls to the target.",
+  "In diese Richtung führt die Rechnung nicht zum Ziel.": "In this direction the maths does not reach the target.",
+  "{0} Tage": "{0} days",
+  "{0} Monate": "{0} months",
+  "{0} Jahre": "{0} years",
+  "Mit {0} {1} brauchst du": "With {0} {1} you need",
+  ", um von {0} auf {1} zu kommen{2}.": " to get from {0} to {1}{2}.",
+  "— das sind {0}, erreicht am {1}": "— that is {0}, reached on {1}",
+  "Aus {0} werden nach {1} {2} bei {3} je {4}": "{0} becomes, after {1} {2} at {3} per {4},",
+  "Um nach {0} {1} bei {2} je {3} auf {4} zu kommen, musst du mit": "To reach {4} after {0} {1} at {2} per {3}, you have to start with",
+  "Um in {0} {1} von {2} auf {3} zu kommen, brauchst du": "To get from {2} to {3} in {0} {1}, you need",
+  "{0} im Monat und": "{0} per month and",
+  "Das sind {0}{1} im Jahr.": "That is {0}{1} per year.",
+  "Das entspricht {0} im Jahr. Über mehrere Jahre hat das noch niemand durchgehalten — die Rechnung stimmt, die Annahme nicht.": "That equals {0} per year. Nobody has kept that up over several years — the maths is right, the assumption is not.",
+  "Über 3 % je Trade dauerhaft zu erreichen, schafft fast niemand. Die Rechnung stimmt, die Annahme selten.": "Almost nobody sustains more than 3% per trade. The maths is right, the assumption rarely is.",
+  "Das ist mehr als eine Verfünfzigfachung. Rechnerisch geht das auf, praktisch scheitert es meist nicht an der Rendite, sondern an einer Serie, die das Kapital zwischendurch halbiert.": "That is more than a fifty-fold increase. It adds up on paper; in practice it usually fails not on the return but on a streak that halves the capital along the way.",
+  "Ohne Zinseszins bleibt die Rendite immer auf das Startkapital bezogen — so handelt kaum jemand, aber als Untergrenze taugt es.": "Without compounding the return always refers to the starting capital — hardly anyone trades that way, but it works as a lower bound.",
+  "{0}× Startkapital": "{0}× starting capital",
+  "nach {0} {1}{2}": "after {0} {1}{2}",
+  "Keine Zwischenmarken auf diesem Weg.": "No milestones along this path.",
   "▲ {0} Einstieg · ▼ {1} Ausstieg · Größe des Zeichens = Anteil der Position · grau hinterlegt ist deine Haltedauer, rechts davon der Nachlauf · Raster {2}": "▲ {0} entry · ◆ {1} exit · marker size = share of the position · the grey area is your holding period, to the right of it the run afterwards · interval {2}",
   "▲ {0} Einstiege · ▼ {1} Ausstiege · Größe des Zeichens = Anteil der Position · grau hinterlegt ist deine Haltedauer, rechts davon der Nachlauf · Raster {2}": "▲ {0} entries · ◆ {1} exits · marker size = share of the position · the grey area is your holding period, to the right of it the run afterwards · interval {2}",
   "Ø Ein": "Avg in",
@@ -2657,7 +2772,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '16.08.2026, 16:44';
+const BUILD = '16.08.2026, 17:28';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -2671,7 +2786,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 16.08.2026, 16:44';
+      ' · Fassung 16.08.2026, 17:28';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -7299,6 +7414,246 @@ function renderBehavior(tr){
   }
 }
 
+/* ---------- Zinseszinsrechner ----------
+   Vier Größen hängen zusammen: Startkapital, Rendite je Schritt, Anzahl der
+   Schritte, Zielkapital. Drei davon gibst du vor, die vierte fällt heraus.
+   Mit Zinseszins wächst jeder Schritt auf dem vorherigen auf, ohne bleibt
+   die Rendite immer auf das Startkapital bezogen.                          */
+function zinsRechnen(cfg){
+  const start = num(cfg.start), ziel = num(cfg.ziel);
+  const p = num(cfg.rendite) / 100, n = num(cfg.schritte);
+  const zz = cfg.zinseszins !== false;
+  const gesucht = cfg.gesucht || 'schritte';
+  const fehler = t => ({fehler:t});
+
+  if(gesucht === 'ziel'){
+    if(!(start > 0)) return fehler('Startkapital muss größer als 0 sein.');
+    if(!(n > 0)) return fehler('Die Anzahl der Schritte muss größer als 0 sein.');
+    if(zz && p <= -1) return fehler('Bei −100 % oder weniger ist nach einem Schritt nichts mehr da.');
+    const wert = zz ? start * Math.pow(1 + p, n) : start * (1 + p * n);
+    return {wert: Math.max(0, wert), start, ziel:Math.max(0, wert), p, n, zz};
+  }
+  if(gesucht === 'start'){
+    if(!(ziel > 0)) return fehler('Zielkapital muss größer als 0 sein.');
+    if(!(n > 0)) return fehler('Die Anzahl der Schritte muss größer als 0 sein.');
+    const faktor = zz ? Math.pow(1 + p, n) : (1 + p * n);
+    if(!(faktor > 0)) return fehler('Mit dieser Rendite lässt sich das Ziel nicht erreichen.');
+    const wert = ziel / faktor;
+    return {wert, start:wert, ziel, p, n, zz};
+  }
+  if(gesucht === 'rendite'){
+    if(!(start > 0) || !(ziel > 0)) return fehler('Start und Ziel müssen größer als 0 sein.');
+    if(!(n > 0)) return fehler('Die Anzahl der Schritte muss größer als 0 sein.');
+    const q = ziel / start;
+    const wert = zz ? Math.pow(q, 1 / n) - 1 : (q - 1) / n;
+    return {wert: wert * 100, start, ziel, p:wert, n, zz};
+  }
+  // gesucht === 'schritte'
+  if(!(start > 0) || !(ziel > 0)) return fehler('Start und Ziel müssen größer als 0 sein.');
+  const q = ziel / start;
+  if(Math.abs(q - 1) < 1e-12) return {wert:0, start, ziel, p, n:0, zz};
+  if(zz){
+    if(p <= -1) return fehler('Bei −100 % oder weniger ist nach einem Schritt nichts mehr da.');
+    if(Math.abs(p) < 1e-12) return fehler('Ohne Rendite bewegt sich nichts.');
+    if((q > 1) !== (p > 0)) return fehler(q > 1
+      ? 'Mit einer negativen Rendite wird das Ziel nie erreicht.'
+      : 'Mit einer positiven Rendite sinkt das Kapital nie auf das Ziel.');
+    const wert = Math.log(q) / Math.log(1 + p);
+    return {wert, start, ziel, p, n:wert, zz};
+  }
+  if(Math.abs(p) < 1e-12) return fehler('Ohne Rendite bewegt sich nichts.');
+  const wert = (q - 1) / p;
+  if(!(wert > 0)) return fehler('In diese Richtung führt die Rechnung nicht zum Ziel.');
+  return {wert, start, ziel, p, n:wert, zz};
+}
+/* Kapitalverlauf für Kurve und Meilensteine */
+function zinsVerlauf(start, p, n, zz, maxPunkte){
+  const schritte = Math.max(1, Math.min(2000, Math.ceil(n)));
+  const punkte = [];
+  const jeder = Math.max(1, Math.ceil(schritte / (maxPunkte || 120)));
+  for(let i = 0; i <= schritte; i++){
+    const wert = zz ? start * Math.pow(1 + p, i) : start * (1 + p * i);
+    if(i % jeder === 0 || i === schritte) punkte.push({i, wert});
+  }
+  return punkte;
+}
+/* Wann wird ein Vielfaches des Startkapitals erreicht? */
+function zinsSchritteFuer(start, ziel, p, zz){
+  const r = zinsRechnen({start, ziel, rendite:p * 100, zinseszins:zz, gesucht:'schritte'});
+  return r.fehler ? null : r.wert;
+}
+
+const ZINS_EINHEIT = {
+  trade:   {eins:'Trade',   viele:'Trades',   je:'je Trade',    proTag:0},
+  tag:     {eins:'Tag',     viele:'Tage',     je:'täglich',     proTag:1},
+  woche:   {eins:'Woche',   viele:'Wochen',   je:'wöchentlich', proTag:7},
+  monat:   {eins:'Monat',   viele:'Monate',   je:'monatlich',   proTag:30.4375},
+  quartal: {eins:'Quartal', viele:'Quartale', je:'je Quartal',  proTag:91.3125},
+  jahr:    {eins:'Jahr',    viele:'Jahre',    je:'jährlich',    proTag:365.25}
+};
+/* Dieselbe Rendite in anderen Takten ausgedrückt – die ehrlichste Zahl im Rechner */
+function zinsUmrechnen(p, proTag, zz){
+  if(!proTag) return null;
+  const je = tage => zz ? Math.pow(1 + p, tage / proTag) - 1 : p * (tage / proTag);
+  return {monat: je(30.4375), jahr: je(365.25)};
+}
+function zinsDatum(tage){
+  if(!(tage > 0) || !isFinite(tage)) return '';
+  const d = new Date(Date.now() + tage * 86400000);
+  return d.toLocaleDateString(loc(), {day:'2-digit', month:'2-digit', year:'numeric'});
+}
+function zinsDauer(tage){
+  if(!(tage > 0) || !isFinite(tage)) return '';
+  if(tage < 60) return t(Math.round(tage) + ' Tage');
+  if(tage < 730) return t(dec(tage / 30.4375, 1) + ' Monate');
+  return t(dec(tage / 365.25, 1) + ' Jahre');
+}
+function renderZins(){
+  const felder = {start:'#zStart', rendite:'#zRendite', schritte:'#zSchritte', ziel:'#zZiel'};
+  const gesucht = S.zinsZiel || 'schritte';
+  $$('[data-zins]').forEach(el => el.classList.toggle('on', el.dataset.zins === gesucht));
+  Object.keys(felder).forEach(k => {
+    const el = $(felder[k]);
+    if(el) el.disabled = (k === gesucht);
+  });
+  const e0 = ZINS_EINHEIT[$('#zEinheit').value] || ZINS_EINHEIT.trade;
+  // Die Einheiten stecken in zusammengesetzten Sätzen – deshalb hier schon übersetzen
+  const e = {eins:t(e0.eins), viele:t(e0.viele), je:t(e0.je), proTag:e0.proTag};
+  $('#zAnzahlLabel').textContent = t('Anzahl {0}').replace('{0}', e.viele);
+  $('#zRenditeLabel').textContent = e.proTag
+    ? t('Rendite') + ' ' + e.je + ' (%)'
+    : t('Rendite je Trade (%)');
+
+  const cfg = {
+    start: num($('#zStart').value),
+    rendite: num($('#zRendite').value),
+    schritte: num($('#zSchritte').value),
+    ziel: num($('#zZiel').value),
+    zinseszins: $('#zZinseszins').checked,
+    gesucht
+  };
+  const r = zinsRechnen(cfg);
+  const box = $('#zErgebnis');
+  if(r.fehler){
+    box.innerHTML = '<div class="err">' + esc(r.fehler) + '</div>';
+    $(felder[gesucht]).value = '';
+    if(S.charts.chZins){ S.charts.chZins.destroy(); S.charts.chZins = null; }
+    $('#zMeilen').innerHTML = '';
+    return;
+  }
+  // Das gesuchte Feld zeigt das Ergebnis
+  const rund = gesucht === 'rendite' ? 3 : (gesucht === 'schritte' ? 2 : 2);
+  $(felder[gesucht]).value = (+r.wert.toFixed(rund));
+
+  const ganz = Math.ceil(r.n - 1e-9);
+  const dauer = e.proTag ? ganz * e.proTag : 0;
+  const gross = gesucht === 'rendite'
+    ? pctn(r.wert, 2) + ' ' + e.je
+    : gesucht === 'schritte'
+      ? ganz + ' ' + (ganz === 1 ? e.eins : e.viele)
+      : usd(r.wert, 2);
+
+  const satz = gesucht === 'schritte'
+    ? t('Mit') + ' ' + pctn(r.p * 100, 2) + ' ' + e.je + ' ' + t('brauchst du') + ' <b>' + ganz + ' ' +
+      (ganz === 1 ? e.eins : e.viele) + '</b>' + t(', um von {0} auf {1} zu kommen')
+        .replace('{0}', usd(r.start, 0)).replace('{1}', usd(r.ziel, 0)) +
+      (dauer ? ' ' + t('— das sind {0}, erreicht am {1}')
+        .replace('{0}', zinsDauer(dauer)).replace('{1}', zinsDatum(dauer)) : '') + '.'
+    : gesucht === 'rendite'
+      ? t('Um in {0} {1} von {2} auf {3} zu kommen, brauchst du')
+          .replace('{0}', dec(r.n, 0)).replace('{1}', e.viele)
+          .replace('{2}', usd(r.start, 0)).replace('{3}', usd(r.ziel, 0)) +
+        ' <b>' + pctn(r.wert, 2) + '</b> ' + e.je + '.'
+    : gesucht === 'ziel'
+      ? t('Aus {0} werden nach {1} {2} bei {3} {4}')
+          .replace('{0}', usd(r.start, 0)).replace('{1}', dec(r.n, 0)).replace('{2}', e.viele)
+          .replace('{3}', pctn(r.p * 100, 2)).replace('{4}', e.je) +
+        ' <b>' + usd(r.wert, 2) + '</b>.'
+      : t('Um nach {0} {1} bei {2} {3} auf {4} zu kommen, musst du mit')
+          .replace('{0}', dec(r.n, 0)).replace('{1}', e.viele)
+          .replace('{2}', pctn(r.p * 100, 2)).replace('{3}', e.je)
+          .replace('{4}', usd(r.ziel, 0)) +
+        ' <b>' + usd(r.wert, 2) + '</b> ' + t('starten') + '.';
+
+  // Dieselbe Rendite in anderen Takten – das relativiert die meisten Annahmen
+  const um = zinsUmrechnen(r.p, e.proTag, r.zz);
+  const umText = um
+    ? t('Das sind {0}{1} im Jahr.')
+        .replace('{0}', e.proTag < 30 ? t('{0} im Monat und').replace('{0}', pctn(um.monat * 100, 1)) + ' ' : '')
+        .replace('{1}', pctn(um.jahr * 100, um.jahr > 10 ? 0 : 1))
+    : '';
+
+  // Ein ehrliches Wort zur Größenordnung
+  let warnung = '';
+  const faktor = r.start > 0 ? r.ziel / r.start : 0;
+  if(um && r.p > 0 && um.jahr > 4){
+    warnung = t('Das entspricht {0} im Jahr. Über mehrere Jahre hat das noch niemand ' +
+      'durchgehalten — die Rechnung stimmt, die Annahme nicht.')
+      .replace('{0}', pctn(um.jahr * 100, 0));
+  }else if(r.zz && !e.proTag && r.p > 0.03){
+    warnung = 'Über 3 % je Trade dauerhaft zu erreichen, schafft fast niemand. ' +
+      'Die Rechnung stimmt, die Annahme selten.';
+  }else if(faktor > 50){
+    warnung = 'Das ist mehr als eine Verfünfzigfachung. Rechnerisch geht das auf, ' +
+      'praktisch scheitert es meist nicht an der Rendite, sondern an einer Serie, ' +
+      'die das Kapital zwischendurch halbiert.';
+  }else if(!r.zz){
+    warnung = 'Ohne Zinseszins bleibt die Rendite immer auf das Startkapital bezogen — ' +
+      'so handelt kaum jemand, aber als Untergrenze taugt es.';
+  }
+
+  box.innerHTML =
+    '<div style="font-size:30px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px" class="' +
+      (gesucht === 'schritte' ? '' : 'up') + '">' + gross + '</div>' +
+    '<div style="font-size:14px;line-height:1.65;color:var(--muted)">' + satz +
+      (umText ? ' ' + esc(umText) : '') + '</div>' +
+    (warnung ? '<div class="mut" style="font-size:12.5px;line-height:1.6;margin-top:10px;' +
+      'padding-top:10px;border-top:1px solid var(--line)">' + esc(warnung) + '</div>' : '');
+
+  // Verlauf
+  const pts = zinsVerlauf(r.start, r.p, Math.max(1, r.n), r.zz, 120);
+  mkChart('chZins', {
+    type:'line',
+    data:{labels: pts.map(x => x.i),
+      datasets:[
+        {label:'Kapital', data: pts.map(x => +x.wert.toFixed(2)),
+         borderColor:C.acc, backgroundColor:C.upFill, borderWidth:2.4,
+         pointRadius:0, tension:.15, fill:true},
+        {label:'Ziel', data: pts.map(() => r.ziel),
+         borderColor:C.faint, borderWidth:1, borderDash:[5,5], pointRadius:0, fill:false}
+      ]},
+    options:{responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{legend:{display:false}},
+      scales:{x:Object.assign({}, AXIS, {title:{display:true,
+        text:'Anzahl ' + e.viele, color:C.tick, font:{size:10}},
+        ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:8})}), y:moneyAxis()}}
+  });
+
+  // Meilensteine
+  const marken = [2, 3, 5, 10].map(f => ({f, ziel: r.start * f}))
+    .filter(x => x.ziel <= r.ziel * 1.0001);
+  const zeile = (name, wert, n) => {
+    const g = Math.ceil(n - 1e-9);
+    const tage = e.proTag ? g * e.proTag : 0;
+    return '<div class="dl"><span>' + name + ' · ' + usd(wert, 0) + '</span>' +
+      '<span>' + t('nach') + ' ' + g + ' ' + (g === 1 ? e.eins : e.viele) +
+      (tage ? ' <span class="mut">· ' + zinsDatum(tage) + '</span>' : '') +
+      '</span></div>';
+  };
+  const zeilen = marken.map(x => {
+    const n = zinsSchritteFuer(r.start, x.ziel, r.p, r.zz);
+    if(n === null || !(n > 0)) return '';
+    return zeile(t('{0}× Startkapital').replace('{0}', x.f), x.ziel, n);
+  }).filter(Boolean).join('');
+  $('#zMeilen').innerHTML = zeilen
+    ? zeilen + '<div class="dl"><span><b>' + t('Ziel') + '</b> · ' + usd(r.ziel, 0) +
+        '</span><span><b>' + t('nach') + ' ' +
+        ganz + ' ' + (ganz === 1 ? e.eins : e.viele) +
+        (dauer ? ' · ' + zinsDatum(dauer) : '') + '</b></span></div>'
+    : '<div class="mut" style="font-size:13px">Keine Zwischenmarken auf diesem Weg.</div>';
+}
+
 /* ---------- Labor ---------- */
 function riskUnit(){
   const el = document.getElementById('riskPct');
@@ -8946,7 +9301,8 @@ const GROUPS = [
   {id:'facts', label:'Fakten', tabs:[['dashboard','Dashboard'],['overview','Übersicht'],['trades','Trades'],
     ['longshort','Long / Short'],['setups','Setups'],['behavior','Verhalten'],
     ['excursion','Ausschläge'],['progress','Fortschritt']]},
-  {id:'plan', label:'Planung', tabs:[['plans','Pläne'],['calendar','Kalender'],['review','Rückblick']]},
+  {id:'plan', label:'Planung', tabs:[['plans','Pläne'],['calendar','Kalender'],
+    ['calc','Rechner'],['review','Rückblick']]},
   {id:'lab', label:'Labor', tabs:[['labimpact','Wirkung'],['labexit','Exit & Stop'],
     ['discipline','Disziplin'],['sim','Simulator']]},
   {id:'acct', label:'Konto', tabs:[['positions','Guthaben'],['costs','Gebühren & Funding'],
@@ -8972,6 +9328,7 @@ function renderNav(){
 }
 
 function switchTab(t){
+  if(t === 'calc') setTimeout(renderZins, 0);
   if(ALL_TABS.indexOf(t) < 0) t = 'dashboard';
   S.tab = t;
   renderNav();
@@ -9330,6 +9687,18 @@ $('#btnClearCache').addEventListener('click', async () => {
 });
 ['#simCap','#simRisk','#simWin','#simRR','#simN','#simRuns','#simCompound','#simEcht'].forEach(sel =>
   $(sel).addEventListener('change', renderSim));
+
+/* Zinseszinsrechner: bei jeder Eingabe neu rechnen */
+$$('[data-zins]').forEach(el => el.addEventListener('click', () => {
+  S.zinsZiel = el.dataset.zins;
+  renderZins();
+}));
+['#zStart','#zRendite','#zSchritte','#zZiel','#zZinseszins','#zEinheit'].forEach(sel => {
+  const el = $(sel);
+  if(!el) return;
+  el.addEventListener('input', renderZins);
+  el.addEventListener('change', renderZins);
+});
 
 /* ---------- Start ---------- */
 applyTheme();
