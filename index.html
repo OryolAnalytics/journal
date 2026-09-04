@@ -1193,6 +1193,18 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <div class="mut" style="font-size:12.5px" id="langHint"></div>
     </div>
     <div class="panel">
+      <h2>Karte zum Teilen</h2>
+      <div class="f">
+        <label>Referral-Link (steht mit QR-Code auf jeder Karte)</label>
+        <input type="text" id="cardRef" placeholder="https://app.hyperliquid.xyz/join/DEINCODE"
+          spellcheck="false" autocomplete="off" autocapitalize="off">
+      </div>
+      <div class="mut" style="font-size:12.5px;line-height:1.6">
+        Der QR-Code wird auf deinem Gerät erzeugt, nichts geht nach draußen.
+        Feld leer lassen, wenn keine Karte einen Link tragen soll.
+      </div>
+    </div>
+    <div class="panel">
       <h2>Synchronisation Handy ↔ PC</h2>
       <div id="syncStatus" style="font-size:13px;margin-bottom:12px"></div>
       <div id="syncBox"></div>
@@ -1238,7 +1250,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 04.09.2026, 19:40</span><br>
+    <span class="build">Fassung 04.09.2026, 23:05</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1504,6 +1516,9 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
 let LANG = 'de';
 const EN = {
   /* --- Karte zum Teilen --- */
+  "Referral-Link (steht mit QR-Code auf jeder Karte)": "Referral link (shown with a QR code on every card)",
+  "Der QR-Code wird auf deinem Gerät erzeugt, nichts geht nach draußen. Feld leer lassen, wenn keine Karte einen Link tragen soll.":
+    "The QR code is generated on your device, nothing leaves it. Leave the field empty if no card should carry a link.",
   "Ohne Häkchen stehen nur Prozent und R darauf. Dann sagt die Karte nichts über die Größe deines Kontos aus.":
     "Without the tick, only percent and R appear on it. Then the card says nothing about the size of your account.",
   "Beträge sind im Journal verdeckt — dann bleiben sie auch auf der Karte weg.":
@@ -1516,22 +1531,15 @@ const EN = {
     "This browser cannot put images on the clipboard.",
   "In der Zwischenablage — jetzt einfügen.": "On the clipboard — paste it now.",
   "Karte zum Teilen erstellen": "Create a card to share",
-  "kein Kursverlauf gemessen": "no price history measured",
   "Teilen abgebrochen.": "Sharing cancelled.",
   "Dollarbetrag mit auf die Karte": "Put the dollar amount on the card",
-  "RENDITE AUF POSITIONSGRÖSSE": "RETURN ON POSITION SIZE",
-  "Einstieg im Schnitt": "Average entry",
-  "Ausstieg im Schnitt": "Average exit",
   "Karte zum Teilen": "Card to share",
   "Hat nicht geklappt:": "Didn't work:",
-  "Handelsjournal": "Trading journal",
   "Herunterladen": "Download",
-  "läuft noch": "still running",
   "Gespeichert:": "Saved:",
   "Geteilt.": "Shared.",
   "Kopieren": "Copy",
   "Teilen": "Share",
-  "jetzt": "now",
 
   /* --- Vaults --- */
   "In keinem Vault liegt gerade Geld. Sobald du einzahlst, steht hier, wie viel drin ist und wie der Vault läuft.":
@@ -3012,7 +3020,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '04.09.2026, 19:40';
+const BUILD = '04.09.2026, 23:05';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -3026,7 +3034,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 04.09.2026, 19:40';
+      ' · Fassung 04.09.2026, 23:05';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -6433,6 +6441,8 @@ function renderSync(){
 /* ---------- Render: Daten ---------- */
 function renderSettings(){
   renderSync();
+  const cr = $('#cardRef');
+  if(cr && document.activeElement !== cr) cr.value = karteReferral();
   const ys = taxYears(), sel = $('#taxYear'), cur = sel.value;
   sel.innerHTML = ys.map(y => '<option value="' + y + '">Steuerjahr ' + y + '</option>').join('') +
     '<option value="all">Alle Jahre zusammen</option>';
@@ -6711,12 +6721,14 @@ function malKerzen(cv, p, t, linien, marken){
 const KARTE = {
   W:1080,
   thema:{
-    dunkel:{bg:'#100f0e', fg:'#f3f2f2', mut:'#8d8a87', up:'#25c281', down:'#f0596c',
-            band:'rgba(243,242,242,.065)', linie:'rgba(243,242,242,.13)', rand:'#100f0e'},
-    hell:  {bg:'#ffffff', fg:'#111418', mut:'#6b7280', up:'#0f8a5f', down:'#c9354a',
-            band:'rgba(17,20,24,.05)',   linie:'rgba(17,20,24,.10)',   rand:'#ffffff'}
+    dunkel:{bg:'#0b0d12', bgOben:'rgba(255,255,255,.035)', bgKlar:'rgba(11,13,18,0)',
+            fg:'#f5f6f7', mut:'#8b929c', linie:'rgba(255,255,255,.09)', linie2:'rgba(255,255,255,.18)',
+            up:'#22c48a', down:'#f24f64'},
+    hell:  {bg:'#f7f8fa', bgOben:'rgba(255,255,255,.6)', bgKlar:'rgba(247,248,250,0)',
+            fg:'#111418', mut:'#6b7280', linie:'rgba(17,20,24,.10)', linie2:'rgba(17,20,24,.2)',
+            up:'#0f8a5f', down:'#c9354a'}
   },
-  look:'dunkel', geld:false, trade:null, pfad:null
+  look:'dunkel', geld:false, trade:null
 };
 
 /* Die Zahlen der Karte – für abgeschlossene wie für laufende Positionen.
@@ -6736,9 +6748,19 @@ function kartenDaten(t){
   }else{
     netto = num(t.net);
   }
+  /* Der Hebel steht nur an der laufenden Position. Bei einem abgeschlossenen
+     Trade weiß Hyperliquid ihn nicht mehr – dann bleibt die Plakette kurz,
+     statt eine Zahl zu erfinden.                                          */
+  let hebel = 0;
+  const ap = ((S.positions || {}).assetPositions || []).find(a =>
+    (a.position || {}).coin === t.coin &&
+    (!t.wallet || !a.wallet || a.wallet === t.wallet));
+  if(laeuft && ap) hebel = Math.round(num((ap.position.leverage || {}).value)) || 0;
+
   const {R} = riskUnit();
   return {
     laeuft, coin:coinName(t.coin), side:t.side, liq:!!t.liquidated,
+    hebel, markt: LIVE.market(t.coin) || '',
     netto, pct: basis > 0 ? netto / basis * 100 : 0,
     r: R > 0 ? netto / R : null,
     entry:num(t.avgEntry), exit: laeuft ? kurs : num(t.avgExit),
@@ -6747,86 +6769,271 @@ function kartenDaten(t){
   };
 }
 
-/* Der Kursverlauf als schmales Band: Kerzen, Ø-Einstieg, Ein- und Ausstiege.
-   Bewusst ohne Achsen und Beschriftung – auf einer Karte zählt die Form.   */
-function karteChart(g, r, p, t, marken, F){
-  const n = p.t.length;
-  if(!n) return;
-  let hi = -Infinity, lo = Infinity;
-  for(let i = 0; i < n; i++){ hi = Math.max(hi, p.h[i]); lo = Math.min(lo, p.l[i]); }
-  (marken || []).forEach(m => { if(m.px > 0){ hi = Math.max(hi, m.px); lo = Math.min(lo, m.px); } });
-  if(isFinite(t.avgEntry) && t.avgEntry > 0){ hi = Math.max(hi, t.avgEntry); lo = Math.min(lo, t.avgEntry); }
-  if(!(hi > lo)) return;
-  const spanne = hi - lo;
-  hi += spanne * 0.12; lo -= spanne * 0.12;
-  const y = v => r.y + (hi - v) / (hi - lo) * r.h;
-  const x = i => r.x + (i + 0.5) * (r.w / n);
-  const bw = Math.max(2, Math.min(16, r.w / n * 0.62));
-  const xAt = ms => {
-    if(ms <= p.t[0]) return x(0);
-    if(ms >= p.t[n-1]) return x(n-1);
-    let i = 0;
-    while(i < n - 1 && p.t[i+1] <= ms) i++;
-    return x(i) + ((ms - p.t[i]) / ((p.t[i+1] - p.t[i]) || 1)) * (r.w / n);
-  };
-
-  // Haltedauer hinterlegen
-  let vonI = 0, bisI = n - 1;
-  for(let i = 0; i < n; i++){
-    if(p.t[i] <= p.open) vonI = i;
-    if(p.t[i] <= p.close) bisI = i;
-  }
-  g.fillStyle = F.band;
-  g.fillRect(x(vonI) - bw, r.y, Math.max(3, x(bisI) - x(vonI) + bw * 2), r.h);
-
-  // Ø-Einstieg als ruhige Linie
-  if(t.avgEntry > 0){
-    g.strokeStyle = F.linie; g.lineWidth = 2; g.setLineDash([7,7]);
-    g.beginPath(); g.moveTo(r.x, y(t.avgEntry)); g.lineTo(r.x + r.w, y(t.avgEntry)); g.stroke();
-    g.setLineDash([]);
-  }
-
-  for(let i = 0; i < n; i++){
-    const auf = p.c[i] >= p.o[i];
-    g.strokeStyle = auf ? F.up : F.down;
-    g.fillStyle   = auf ? F.up : F.down;
-    g.lineWidth = 2;
-    g.beginPath();
-    g.moveTo(Math.round(x(i)), y(p.h[i]));
-    g.lineTo(Math.round(x(i)), y(p.l[i]));
-    g.stroke();
-    const oy = y(p.o[i]), cy = y(p.c[i]);
-    g.fillRect(x(i) - bw/2, Math.min(oy, cy), bw, Math.max(2, Math.abs(cy - oy)));
-  }
-
-  // Ein- und Ausstiege: Dreieck in Handelsrichtung, Raute beim Ausstieg
-  (marken || []).forEach(m => {
-    const xx = xAt(m.t), yy = y(m.px);
-    if(yy < r.y - 10 || yy > r.y + r.h + 10) return;
-    const rad = 9 + m.anteil * 7;
-    g.beginPath();
-    if(m.auf){
-      if(t.side === 'long'){
-        g.moveTo(xx, yy - rad); g.lineTo(xx + rad, yy + rad*.8); g.lineTo(xx - rad, yy + rad*.8);
-      }else{
-        g.moveTo(xx, yy + rad); g.lineTo(xx + rad, yy - rad*.8); g.lineTo(xx - rad, yy - rad*.8);
-      }
-      g.fillStyle = F.fg;
-    }else{
-      g.moveTo(xx, yy - rad); g.lineTo(xx + rad, yy);
-      g.lineTo(xx, yy + rad);  g.lineTo(xx - rad, yy);
-      g.fillStyle = m.gewinn >= 0 ? F.up : F.down;
+/* ---------- QR-Code, eigenständig ----------
+   Byte-Modus, Fehlerkorrektur M, Fassungen 1–6 (bis 106 Zeichen). Mehr braucht
+   ein Referral-Link nicht, und so bleibt die Versionsinformation der größeren
+   Fassungen außen vor. Ergebnis: ein Feld aus 0/1, Zeile für Zeile.        */
+const QR = (() => {
+  /* GF(256) mit dem QR-Polynom 0x11d */
+  const EXP = new Array(512), LOG = new Array(256);
+  (function(){
+    let x = 1;
+    for(let i = 0; i < 255; i++){
+      EXP[i] = x; LOG[x] = i;
+      x <<= 1; if(x & 0x100) x ^= 0x11d;
     }
-    g.closePath();
-    g.fill();
-    g.lineWidth = 3.5; g.strokeStyle = F.bg; g.stroke();
-  });
+    for(let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+  })();
+  const mul = (a, b) => (a && b) ? EXP[LOG[a] + LOG[b]] : 0;
+  /* Generatorpolynom für n Prüfzeichen */
+  function generator(n){
+    let g = [1];
+    for(let i = 0; i < n; i++){
+      const ng = new Array(g.length + 1).fill(0);
+      for(let j = 0; j < g.length; j++){
+        ng[j] ^= g[j];
+        ng[j + 1] ^= mul(g[j], EXP[i]);
+      }
+      g = ng;
+    }
+    return g;
+  }
+  function rs(data, n){
+    const g = generator(n);
+    const out = data.concat(new Array(n).fill(0));
+    for(let i = 0; i < data.length; i++){
+      const c = out[i];
+      if(!c) continue;
+      for(let j = 1; j < g.length; j++) out[i + j] ^= mul(g[j], c);
+    }
+    return out.slice(data.length);
+  }
+
+  /* Stufe M: [Gesamt-Codewörter, Prüfzeichen je Block, Blöcke, Datenwörter je Block] */
+  const TAB = {
+    1:[26, 10, 1, 16], 2:[44, 16, 1, 28], 3:[70, 26, 1, 44],
+    4:[100, 18, 2, 32], 5:[134, 24, 2, 43], 6:[172, 16, 4, 27]
+  };
+  const ALIGN = {1:[], 2:[6, 18], 3:[6, 22], 4:[6, 26], 5:[6, 30], 6:[6, 34]};
+
+  function encode(text){
+    const bytes = [];
+    for(const ch of unescape(encodeURIComponent(text))) bytes.push(ch.charCodeAt(0));
+    let v = 0;
+    for(let i = 1; i <= 6; i++){
+      const cap = TAB[i][2] * TAB[i][3] - 2;        // Modus + Länge kosten zwei Bytes
+      if(bytes.length <= cap){ v = i; break; }
+    }
+    if(!v) return null;
+    const [total, ecN, blocks, dataPer] = TAB[v];
+    const dataTotal = blocks * dataPer;
+
+    // Bitstrom: 0100, 8-Bit-Länge, Daten, Ende, Auffüllen
+    const bits = [];
+    const put = (val, n) => { for(let i = n - 1; i >= 0; i--) bits.push((val >> i) & 1); };
+    put(4, 4); put(bytes.length, 8);
+    bytes.forEach(b => put(b, 8));
+    put(0, Math.min(4, dataTotal * 8 - bits.length));
+    while(bits.length % 8) bits.push(0);
+    const cw = [];
+    for(let i = 0; i < bits.length; i += 8){
+      let b = 0; for(let j = 0; j < 8; j++) b = (b << 1) | bits[i + j];
+      cw.push(b);
+    }
+    for(let k = 0; cw.length < dataTotal; k++) cw.push(k % 2 ? 0x11 : 0xec);
+
+    // Blöcke, Prüfzeichen, Verschränkung
+    const dBl = [], eBl = [];
+    for(let b = 0; b < blocks; b++){
+      const d = cw.slice(b * dataPer, (b + 1) * dataPer);
+      dBl.push(d); eBl.push(rs(d, ecN));
+    }
+    const seq = [];
+    for(let i = 0; i < dataPer; i++) for(let b = 0; b < blocks; b++) seq.push(dBl[b][i]);
+    for(let i = 0; i < ecN; i++)    for(let b = 0; b < blocks; b++) seq.push(eBl[b][i]);
+
+    // Matrix
+    const n = 17 + 4 * v;
+    const m = Array.from({length:n}, () => new Array(n).fill(null));   // null = noch frei
+    const setz = (r, c, val) => { if(r >= 0 && r < n && c >= 0 && c < n) m[r][c] = val; };
+    const finder = (r0, c0) => {
+      for(let r = -1; r <= 7; r++) for(let c = -1; c <= 7; c++){
+        const innen = r >= 0 && r <= 6 && c >= 0 && c <= 6;
+        const dunkel = innen && (r === 0 || r === 6 || c === 0 || c === 6 ||
+          (r >= 2 && r <= 4 && c >= 2 && c <= 4));
+        setz(r0 + r, c0 + c, dunkel ? 1 : 0);
+      }
+    };
+    finder(0, 0); finder(0, n - 7); finder(n - 7, 0);
+    for(let i = 8; i < n - 8; i++){ m[6][i] = i % 2 === 0 ? 1 : 0; m[i][6] = i % 2 === 0 ? 1 : 0; }
+    const al = ALIGN[v];
+    for(const r of al) for(const c of al){
+      if(m[r][c] !== null && !(r === 6 && c === 6)) continue;   // liegt auf einem Finder
+      if(r === 6 && c === 6) continue;
+      for(let dr = -2; dr <= 2; dr++) for(let dc = -2; dc <= 2; dc++){
+        const ring = Math.max(Math.abs(dr), Math.abs(dc));
+        setz(r + dr, c + dc, ring === 1 ? 0 : 1);
+      }
+    }
+    m[n - 8][8] = 1;                                  // das immer dunkle Modul
+    // Formatbereiche reservieren
+    for(let i = 0; i < 9; i++){ if(m[8][i] === null) m[8][i] = 0; if(m[i][8] === null) m[i][8] = 0; }
+    for(let i = 0; i < 8; i++){ if(m[8][n - 1 - i] === null) m[8][n - 1 - i] = 0;
+      if(m[n - 1 - i][8] === null) m[n - 1 - i][8] = 0; }
+    const fest = m.map(row => row.map(x => x !== null));
+
+    // Daten im Zickzack einsetzen
+    let bi = 0;
+    const gesamt = seq.length * 8;
+    const bit = i => i < gesamt ? (seq[i >> 3] >> (7 - (i & 7))) & 1 : 0;
+    let auf = true;                                   // erste Spalte von unten nach oben
+    for(let c = n - 1; c > 0; c -= 2, auf = !auf){
+      if(c === 6) c--;                                // die Taktspalte wird übersprungen
+      for(let k = 0; k < n; k++){
+        const r = auf ? n - 1 - k : k;
+        for(const cc of [c, c - 1]){
+          if(m[r][cc] === null){ m[r][cc] = bit(bi++); }
+        }
+      }
+    }
+
+    // Maske wählen: alle acht ausprobieren, die mit der geringsten Strafe nehmen
+    const MASK = [
+      (r, c) => (r + c) % 2 === 0, (r, c) => r % 2 === 0, (r, c) => c % 3 === 0,
+      (r, c) => (r + c) % 3 === 0, (r, c) => (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0,
+      (r, c) => (r * c) % 2 + (r * c) % 3 === 0,
+      (r, c) => ((r * c) % 2 + (r * c) % 3) % 2 === 0,
+      (r, c) => ((r + c) % 2 + (r * c) % 3) % 2 === 0
+    ];
+    const format = mask => {
+      let d = (0 << 3) | mask;                        // Stufe M = 00
+      let bch = d << 10;
+      const G = 0x537;
+      for(let i = 14; i >= 10; i--) if((bch >> i) & 1) bch ^= G << (i - 10);
+      return ((d << 10) | bch) ^ 0x5412;
+    };
+    const anwenden = mask => {
+      const g = m.map((row, r) => row.map((val, c) =>
+        fest[r][c] ? val : (MASK[mask](r, c) ? val ^ 1 : val)));
+      const f = format(mask);
+      const fb = i => (f >> i) & 1;
+      // waagerecht/senkrecht um den linken oberen Finder
+      const pos1 = [[8,0],[8,1],[8,2],[8,3],[8,4],[8,5],[8,7],[8,8],[7,8],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8]];
+      const pos2 = [[n-1,8],[n-2,8],[n-3,8],[n-4,8],[n-5,8],[n-6,8],[n-7,8],
+                    [8,n-8],[8,n-7],[8,n-6],[8,n-5],[8,n-4],[8,n-3],[8,n-2],[8,n-1]];
+      for(let i = 0; i < 15; i++){
+        g[pos1[i][0]][pos1[i][1]] = fb(14 - i);
+        g[pos2[i][0]][pos2[i][1]] = fb(14 - i);
+      }
+      g[n - 8][8] = 1;
+      return g;
+    };
+    const strafe = g => {
+      let s = 0;
+      // 1: Läufe gleicher Farbe
+      for(let r = 0; r < n; r++){
+        let lauf = 1;
+        for(let c = 1; c <= n; c++){
+          if(c < n && g[r][c] === g[r][c-1]) lauf++;
+          else { if(lauf >= 5) s += lauf - 2; lauf = 1; }
+        }
+      }
+      for(let c = 0; c < n; c++){
+        let lauf = 1;
+        for(let r = 1; r <= n; r++){
+          if(r < n && g[r][c] === g[r-1][c]) lauf++;
+          else { if(lauf >= 5) s += lauf - 2; lauf = 1; }
+        }
+      }
+      // 2: Blöcke 2×2
+      for(let r = 0; r < n - 1; r++) for(let c = 0; c < n - 1; c++){
+        const v0 = g[r][c];
+        if(g[r][c+1] === v0 && g[r+1][c] === v0 && g[r+1][c+1] === v0) s += 3;
+      }
+      // 3: Findermuster-ähnliche Folgen
+      const P1 = [1,0,1,1,1,0,1,0,0,0,0], P2 = [0,0,0,0,1,0,1,1,1,0,1];
+      const passt = (arr, p) => p.every((x, i) => arr[i] === x);
+      for(let r = 0; r < n; r++) for(let c = 0; c <= n - 11; c++){
+        const zeile = g[r].slice(c, c + 11);
+        if(passt(zeile, P1) || passt(zeile, P2)) s += 40;
+        const spalte = []; for(let k = 0; k < 11; k++) spalte.push(g[c + k][r]);
+        if(passt(spalte, P1) || passt(spalte, P2)) s += 40;
+      }
+      // 4: Anteil dunkler Module
+      let dunkel = 0; g.forEach(row => row.forEach(x => { dunkel += x; }));
+      const anteil = dunkel * 100 / (n * n);
+      s += Math.floor(Math.abs(anteil - 50) / 5) * 10;
+      return s;
+    };
+    let best = null, bestS = Infinity, bestMask = 0;
+    for(let mk = 0; mk < 8; mk++){
+      const g = anwenden(mk);
+      const s = strafe(g);
+      if(s < bestS){ bestS = s; best = g; bestMask = mk; }
+    }
+    return {n, version:v, mask:bestMask, m:best};
+  }
+
+  /* Auf eine Zeichenfläche malen, mit ruhiger Zone drumherum */
+  function malen(g, code, x, y, groesse, vorder, hinter, rahmen){
+    const n = code.n, rand = 2;
+    const zelle = groesse / (n + 2 * rand);
+    g.fillStyle = hinter;
+    if(g.roundRect){ g.beginPath(); g.roundRect(x, y, groesse, groesse, 12); g.fill(); }
+    else g.fillRect(x, y, groesse, groesse);
+    if(rahmen && g.roundRect){
+      g.strokeStyle = rahmen; g.lineWidth = 1.5;
+      g.beginPath(); g.roundRect(x + .75, y + .75, groesse - 1.5, groesse - 1.5, 12); g.stroke();
+    }
+    g.fillStyle = vorder;
+    for(let r = 0; r < n; r++) for(let c = 0; c < n; c++){
+      if(!code.m[r][c]) continue;
+      const px = x + (c + rand) * zelle, py = y + (r + rand) * zelle;
+      g.fillRect(Math.round(px), Math.round(py), Math.ceil(zelle), Math.ceil(zelle));
+    }
+  }
+  return {encode, malen};
+})();
+
+/* Die Karte ist immer englisch – sie geht nach draußen, das Journal nicht.
+   Deshalb eigene Formate: Punkt als Dezimaltrenner, englisches Datum.      */
+const KLOC = 'en-US';
+const kZahl = (v, n) => v.toLocaleString(KLOC, {minimumFractionDigits:n, maximumFractionDigits:n});
+const kPreis = v => {
+  if(!isFinite(v)) return '–';
+  const n = Math.abs(v) >= 1000 ? 2 : Math.abs(v) >= 1 ? 4 : 6;
+  return kZahl(v, n);
+};
+const kUsd = v => '$' + kZahl(Math.abs(v), 2);
+const kDatum = ms => new Date(ms).toLocaleDateString(KLOC, {day:'numeric', month:'short', year:'numeric'});
+const kR = v => (v > 0 ? '+' : (v < 0 ? '−' : '')) + Math.abs(v).toFixed(2) + 'R';
+function kDauer(ms){
+  if(!isFinite(ms) || ms < 0) return '';
+  const m = Math.round(ms / 60000);
+  if(m < 60) return m + 'm';
+  const h = Math.floor(m / 60), rm = m % 60;
+  if(h < 24) return h + 'h' + (rm ? ' ' + rm + 'm' : '');
+  const d = Math.floor(h / 24), rh = h % 24;
+  return d + 'd' + (rh ? ' ' + rh + 'h' : '');
+}
+/* Prozent: bei dreistelligen Werten eine Nachkommastelle weniger */
+function kProzent(v){
+  const a = Math.abs(v);
+  return (v > 0 ? '+' : (v < 0 ? '−' : '')) + a.toFixed(a >= 100 ? 1 : 2) + '%';
+}
+const SANS = '-apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+const SERIF = '"Oryol Mark", Georgia, "Times New Roman", Times, serif';
+
+/* Der Referral-Link aus den Einstellungen */
+function karteReferral(){
+  let v = '';
+  try{ v = localStorage.getItem('hlj_card_ref') || ''; }catch(e){}
+  return String(v).trim();
 }
 
 /* Der Schriftzug – dieselbe Schrift und Laufweite wie in der Startanimation */
 function karteWortmarke(g, x, y, groesse, farbe){
-  g.save();
-  g.font = '400 ' + groesse + 'px "Oryol Mark", Georgia, "Times New Roman", serif';
+  g.font = '400 ' + groesse + 'px ' + SERIF;
   g.fillStyle = farbe;
   g.textBaseline = 'alphabetic';
   g.textAlign = 'left';
@@ -6836,133 +7043,163 @@ function karteWortmarke(g, x, y, groesse, farbe){
     g.fillText(ch, cx, y);
     cx += g.measureText(ch).width + sperre;
   }
-  g.restore();
-  return cx - sperre - x;                       // die gezeichnete Breite
+  return cx - sperre - x;
 }
 
-const SANS = '-apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+/* Eine Plakette wie „LONG 10X“. Der Text sitzt senkrecht in der Mitte der
+   Box – über die Mittellinie der Schrift, nicht über die Grundlinie, sonst
+   hängt er je nach Schrift oben oder unten.                               */
+function karteChip(g, x, cy, text, farbe, alpha){
+  g.font = '700 25px ' + SANS;
+  g.textBaseline = 'middle';
+  g.textAlign = 'left';
+  const br = g.measureText(text).width;
+  const h = 48, pad = 18, w = br + 2 * pad;
+  g.globalAlpha = alpha;
+  g.fillStyle = farbe;
+  if(g.roundRect){ g.beginPath(); g.roundRect(x, cy - h / 2, w, h, 12); g.fill(); }
+  else g.fillRect(x, cy - h / 2, w, h);
+  g.globalAlpha = 1;
+  g.fillStyle = farbe;
+  g.fillText(text, x + pad, cy + 1);
+  g.textBaseline = 'alphabetic';
+  return w;
+}
+
 function zeichneKarte(cv, t, opt){
   if(!cv || !cv.getContext) return false;
   const g = cv.getContext('2d');
   if(!g) return false;
   const o = opt || {};
-  const F = KARTE.thema[o.look === 'hell' ? 'hell' : 'dunkel'];
+  const hell = o.look === 'hell';
+  const F = KARTE.thema[hell ? 'hell' : 'dunkel'];
   const W = KARTE.W;
   cv.width = W; cv.height = W;
   const d = kartenDaten(t);
   const gut = d.netto >= 0;
   const akzent = gut ? F.up : F.down;
-  const P = 78;                                  // Rand
+  const P = 80;
 
-  g.fillStyle = F.bg;
-  g.fillRect(0, 0, W, W);
-
-  /* --- Kopf: Markt und Richtung --- */
+  g.globalAlpha = 1;
   g.textBaseline = 'alphabetic';
   g.textAlign = 'left';
+
+  /* --- Grund: dunkel, oben eine Spur heller, dazu der Lichtschein --- */
+  g.fillStyle = F.bg;
+  g.fillRect(0, 0, W, W);
+  if(g.createLinearGradient){
+    const lg = g.createLinearGradient(0, 0, 0, W);
+    lg.addColorStop(0, F.bgOben);
+    lg.addColorStop(1, F.bgKlar);
+    g.fillStyle = lg;
+    g.fillRect(0, 0, W, W);
+  }
+  if(g.createRadialGradient){
+    const schein = (cx, cy, r, a) => {
+      const rg = g.createRadialGradient(cx, cy, 0, cx, cy, r);
+      rg.addColorStop(0, akzent + a);
+      rg.addColorStop(0.55, akzent + '22');
+      rg.addColorStop(1, akzent + '00');
+      g.fillStyle = rg;
+      g.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+    };
+    schein(300, 520, 620, hell ? '3a' : '55');
+    schein(900, 150, 420, hell ? '14' : '24');
+  }
+
+  /* --- Schriftzug --- */
+  karteWortmarke(g, P, 150, 52, F.fg);
+
+  /* --- Markt, Richtung, Hebel --- */
+  const zeileM = 306;
   g.fillStyle = F.fg;
-  g.font = '700 62px ' + SANS;
-  g.fillText(d.coin, P, P + 56);
-  const breiteCoin = g.measureText(d.coin).width;
+  g.font = '700 54px ' + SANS;
+  g.textBaseline = 'middle';
+  const ticker = LIVE.base(d.coin).toUpperCase();
+  g.fillText(ticker, P, zeileM);
+  let x = P + g.measureText(ticker).width + 24;
+  g.textBaseline = 'alphabetic';
+  const seiteText = (d.side === 'long' ? 'Long' : 'Short') + (d.hebel ? ' ' + d.hebel + 'x' : '');
+  x += karteChip(g, x, zeileM, seiteText, d.side === 'long' ? F.up : F.down, hell ? 0.13 : 0.2) + 12;
+  if(d.markt) x += karteChip(g, x, zeileM, d.markt.toUpperCase(), F.mut, hell ? 0.12 : 0.18) + 12;
+  if(d.laeuft) karteChip(g, x, zeileM, 'Open', F.mut, hell ? 0.12 : 0.18);
+  else if(d.liq) karteChip(g, x, zeileM, 'Liquidated', F.down, hell ? 0.13 : 0.2);
 
-  // Richtung als Plakette
-  const label = d.side === 'long' ? 'LONG' : 'SHORT';
-  g.font = '700 28px ' + SANS;
-  const lw = g.measureText(label).width;
-  const px0 = P + breiteCoin + 22, py0 = P + 20, ph = 44, pw = lw + 32;
-  g.fillStyle = d.side === 'long' ? F.up : F.down;
-  if(g.roundRect){ g.beginPath(); g.roundRect(px0, py0, pw, ph, 10); g.fill(); }
-  else g.fillRect(px0, py0, pw, ph);
-  g.fillStyle = '#ffffff';
-  g.fillText(label, px0 + 16, py0 + 31);
-
-  if(d.laeuft){
-    g.font = '600 26px ' + SANS;
-    g.fillStyle = F.mut;
-    g.fillText(txt('läuft noch'), px0 + pw + 18, py0 + 31);
-  }else if(d.liq){
-    g.font = '700 26px ' + SANS;
-    g.fillStyle = F.down;
-    g.fillText(txt('LIQUIDIERT'), px0 + pw + 18, py0 + 31);
-  }
-
-  // Zeitzeile
-  g.font = '400 26px ' + SANS;
+  /* --- Kennzahl: ROI auf die Margin, wo der Hebel bekannt ist --- */
+  const aufMargin = d.hebel > 0;
+  const roi = aufMargin ? d.pct * d.hebel : d.pct;
+  g.font = '600 24px ' + SANS;
   g.fillStyle = F.mut;
-  g.fillText(dt(d.von) + '  →  ' + (d.laeuft ? txt('jetzt') : dt(d.bis)) +
-    '   ·   ' + dur(d.dauer), P, P + 106);
+  g.fillText(aufMargin ? 'ROI' : 'RETURN', P, 402);
 
-  /* --- Die große Zahl ---
-     Bewusst die Rendite auf die Positionsgröße, nicht auf die Margin. Sie steht
-     so auch im Trade-Detail; eine gehebelte Zahl sähe größer aus und würde
-     jeden, der sie liest, in die Irre führen. Deshalb steht das auch dabei. */
-  g.font = '600 21px ' + SANS;
-  g.fillStyle = F.mut;
-  const marke = txt('RENDITE AUF POSITIONSGRÖSSE');
-  let mx = P;
-  for(const ch of marke){ g.fillText(ch, mx, 236); mx += g.measureText(ch).width + 2.4; }
-
-  const vz = d.pct > 0 ? '+' : (d.pct < 0 ? '−' : '');
-  const gross = vz + Math.abs(d.pct).toFixed(2).replace('.', LANG === 'en' ? '.' : ',') + ' %';
+  const zahl = kProzent(roi);
+  let gr = 192;
+  const setzGross = () => { g.font = '800 ' + gr + 'px ' + SANS; };
+  setzGross();
+  while(gr > 110 && g.measureText(zahl).width > W - 2 * P - 20){ gr -= 8; setzGross(); }
+  if('letterSpacing' in g) g.letterSpacing = '-0.035em';
   g.fillStyle = akzent;
-  g.font = '700 150px ' + SANS;
-  g.fillText(gross, P, 376);
+  g.fillText(zahl, P - 4, 578);
+  if('letterSpacing' in g) g.letterSpacing = '0px';
 
-  // R links, Betrag rechts – nebeneinander gerät zu leicht durcheinander
-  const zeileY = 444;
-  if(d.r !== null && isFinite(d.r)){
+  // Zweite Zeile: Betrag und R – und woher die Zahl kommt
+  let y2 = 646;
+  const teile = [];
+  if(o.geld) teile.push({s:(d.netto >= 0 ? '+' : '−') + kUsd(d.netto), f:F.fg});
+  if(d.r !== null && isFinite(d.r)) teile.push({s:kR(d.r), f:F.mut});
+  if(teile.length){
     g.font = '600 40px ' + SANS;
-    g.fillStyle = akzent;
-    g.fillText(fmtR(d.r), P, zeileY);
+    let cx = P;
+    teile.forEach((p, i) => {
+      if(i){ g.fillStyle = F.linie2; g.fillRect(cx + 28, y2 - 30, 2, 34); cx += 72; }
+      g.fillStyle = p.f;
+      g.fillText(p.s, cx, y2);
+      cx += g.measureText(p.s).width;
+    });
+    y2 += 44;
   }
-  if(o.geld){
-    g.font = '600 40px ' + SANS;
-    g.fillStyle = F.fg;
-    g.textAlign = 'right';
-    g.fillText((d.netto >= 0 ? '+' : '−') + usdRaw(Math.abs(d.netto), 2), W - P, zeileY);
-    g.textAlign = 'left';
-  }
-
-  /* --- Kursverlauf --- */
-  const chartY = 500, chartH = 300;
-  const p = KARTE.pfad;
-  if(p && p.t && p.t.length){
-    karteChart(g, {x:P, y:chartY, w:W - 2*P, h:chartH}, p, t, tradeMarken(t), F);
-  }else{
-    g.fillStyle = F.mut;
-    g.font = '400 26px ' + SANS;
-    g.textAlign = 'center';
-    g.fillText(txt('kein Kursverlauf gemessen'), W/2, chartY + chartH/2);
-    g.textAlign = 'left';
-  }
-
-  /* --- Ein- und Ausstieg --- */
-  const fussY = 900;
-  g.strokeStyle = F.linie;
-  g.lineWidth = 2;
-  g.beginPath(); g.moveTo(P, fussY - 52); g.lineTo(W - P, fussY - 52); g.stroke();
-
-  const paar = (beschriftung, wert, x) => {
-    g.font = '400 22px ' + SANS;
-    g.fillStyle = F.mut;
-    g.fillText(beschriftung, x, fussY - 6);
-    g.font = '600 34px ' + SANS;
-    g.fillStyle = F.fg;
-    g.fillText(wert, x, fussY + 34);
-  };
-  paar(txt('Einstieg im Schnitt'), d.entry > 0 ? price(d.entry) : '–', P);
-  paar(d.laeuft ? txt('Aktueller Kurs') : txt('Ausstieg im Schnitt'),
-       d.exit > 0 ? price(d.exit) : '–', P + 340);
-
-  /* --- Fuß: Schriftzug --- */
-  const wm = karteWortmarke(g, P, W - 62, 68, F.fg);
-  g.font = '400 22px ' + SANS;
+  g.font = '400 23px ' + SANS;
   g.fillStyle = F.mut;
-  g.textAlign = 'right';
-  g.fillText('Hyperliquid', W - P, W - 72);
-  g.font = '400 20px ' + SANS;
-  g.fillText(txt('Handelsjournal'), W - P, W - 44);
-  g.textAlign = 'left';
+  g.fillText(aufMargin ? 'on margin at ' + d.hebel + 'x' : 'on position size, before leverage', P, y2 + 2);
+
+  /* --- Ein- und Ausstieg, Haltedauer --- */
+  const lin = y => { g.fillStyle = F.linie; g.fillRect(P, y, W - 2 * P, 1); };
+  lin(748);
+  const sp = (beschriftung, wert, x0) => {
+    g.font = '400 23px ' + SANS;
+    g.fillStyle = F.mut;
+    g.fillText(beschriftung, x0, 800);
+    g.font = '600 36px ' + SANS;
+    g.fillStyle = F.fg;
+    g.fillText(wert, x0, 848);
+  };
+  sp('Entry price', d.entry > 0 ? kPreis(d.entry) : '–', P);
+  sp(d.laeuft ? 'Mark price' : 'Exit price', d.exit > 0 ? kPreis(d.exit) : '–', P + 300);
+  sp('Held', kDauer(d.dauer) || '–', P + 600);
+  lin(904);
+
+  /* --- Fuß: Datum links, Referral mit QR rechts --- */
+  g.font = '400 23px ' + SANS;
+  g.fillStyle = F.mut;
+  g.fillText(kDatum(d.von) + (d.laeuft ? ' – open' : ' – ' + kDatum(d.bis)), P, 958);
+  const ref = karteReferral();
+  const code = ref ? QR.encode(ref) : null;
+  if(code){
+    const qs = 132, qx = W - P - qs, qy = 926;
+    QR.malen(g, code, qx, qy, qs, '#0b0d12', '#ffffff', hell ? F.linie : null);
+    g.textAlign = 'right';
+    g.font = '400 21px ' + SANS;
+    g.fillStyle = F.mut;
+    g.fillText('Scan to join', qx - 22, 972);
+    g.font = '600 23px ' + SANS;
+    g.fillStyle = F.fg;
+    g.fillText(ref.replace(/^https?:\/\//, ''), qx - 22, 1006);
+    g.textAlign = 'left';
+  }else{
+    g.font = '400 21px ' + SANS;
+    g.fillStyle = F.mut;
+    g.fillText('Hyperliquid  ·  tracked with Oryol', P, 996);
+  }
   return true;
 }
 
@@ -7059,37 +7296,6 @@ function offenZeilen(t){
 }
 
 /* ---------- Karte: Dialog, Teilen, Sichern ---------- */
-/* Den Kursverlauf holen wir genauso wie für den Chart im Trade-Detail.
-   Bei einer laufenden Position immer frisch – sie ändert sich ja.        */
-async function kartePfad(t){
-  await PATHS.load();
-  if(!t.open){
-    const fertig = PATHS.get(t.id);
-    if(fertig) return fertig;
-  }
-  if(t.spot) return null;
-  try{
-    const ende = t.open ? Date.now() : t.closeTime;
-    const span = Math.max(60e3, ende - t.openTime);
-    const nach = t.open ? 0 : EXC.nachlaufFenster(t);
-    const bis = Math.min(Date.now(), ende + nach);
-    const [iv] = EXC.interval(span + (bis - ende), Date.now() - t.openTime);
-    const res = await info({type:'candleSnapshot', req:{coin:t.coin, interval:iv,
-      startTime:t.openTime - 60e3, endTime:bis + 60e3}});
-    if(Array.isArray(res) && res.length){
-      const p = PATHS.verdichten(res.slice().sort((a,b) => num(a.t) - num(b.t)), 140);
-      if(p){
-        p.open = t.openTime;
-        p.close = t.open ? Date.now() : t.closeTime;
-        p.iv = iv;
-        if(!t.open) PATHS.put(t.id, p);
-        return p;
-      }
-    }
-  }catch(e){}
-  return null;
-}
-
 function karteStatus(s, art){
   const el = $('#cardStatus');
   if(!el) return;
@@ -7103,7 +7309,6 @@ function karteMalen(){
 async function openKarte(t){
   if(!t) return;
   KARTE.trade = t;
-  KARTE.pfad = null;
   // Bei eingeschalteter Anonymisierung bleibt der Betrag aus – sonst wäre der
   // Schalter oben ausgehebelt, sobald man teilt
   if(ANON) KARTE.geld = false;
@@ -7123,12 +7328,10 @@ async function openKarte(t){
   try{ if(document.fonts && document.fonts.load) await document.fonts.load('68px "Oryol Mark"'); }
   catch(e){}
   karteMalen();
-  KARTE.pfad = await kartePfad(t);
-  if(KARTE.trade === t) karteMalen();
 }
 function closeKarte(){
   $('#cardModal').classList.remove('on');
-  KARTE.trade = null; KARTE.pfad = null;
+  KARTE.trade = null;
 }
 function karteName(){
   const t = KARTE.trade;
@@ -10808,6 +11011,11 @@ $('#cardGeld').addEventListener('change', ev => {
   karteMalen();
 });
 $('#cardShare').addEventListener('click', karteTeilen);
+$('#cardRef').addEventListener('change', ev => {
+  try{ localStorage.setItem('hlj_card_ref', String(ev.target.value || '').trim()); }catch(e){}
+  ev.target.value = karteReferral();
+  karteMalen();
+});
 $('#cardDownload').addEventListener('click', karteHerunterladen);
 $('#cardCopy').addEventListener('click', karteKopieren);
 $('#modal').addEventListener('click', e => { if(e.target.id === 'modal') closeModal(); });
