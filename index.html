@@ -1102,6 +1102,40 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     </div>
   </section>
 
+  <!-- VAULTS -->
+  <section id="v-vaults" class="hide">
+    <div class="kpis" id="vaultKpis"></div>
+    <div id="vaultEmpty" class="empty-state hide">
+      In keinem Vault liegt gerade Geld. Sobald du einzahlst, steht hier,
+      wie viel drin ist und wie der Vault läuft.
+    </div>
+    <div id="vaultList"></div>
+    <div class="panel hide" id="vaultCurvePanel">
+      <h2>Wertentwicklung</h2>
+      <div class="filters">
+        <button class="tab" data-vwin="week">7 Tage</button>
+        <button class="tab on" data-vwin="month">30 Tage</button>
+        <button class="tab" data-vwin="allTime">Gesamt</button>
+      </div>
+      <div class="chartbox"><canvas id="chVault"></canvas></div>
+      <p class="mut" style="font-size:12.5px;line-height:1.6;margin-bottom:0">
+        Gerechnet aus dem Ergebnis des Vaults im Verhältnis zu seiner Größe, Tag für Tag
+        aneinandergehängt. Ein- und Auszahlungen anderer Anleger verzerren die Kurve so nicht.
+        Start&nbsp;= 100. Das ist die Entwicklung des Vaults, nicht deine — deine hängt daran,
+        wann du eingestiegen bist.
+      </p>
+    </div>
+    <div class="panel hide" id="vaultFlowPanel">
+      <h2>Deine Ein- und Auszahlungen <span class="mut" id="vaultFlowCount"></span></h2>
+      <div class="scroll"><table id="tblVaultFlow">
+        <thead><tr>
+          <th>Zeitpunkt</th><th class="wcol">Wallet</th><th>Vault</th><th>Vorgang</th><th>Betrag</th>
+        </tr></thead><tbody></tbody>
+      </table></div>
+      <p class="mut" style="font-size:12.5px;line-height:1.6;margin-bottom:0" id="vaultFlowNote"></p>
+    </div>
+  </section>
+
   <!-- DATEN / EINSTELLUNGEN -->
   <section id="v-tax" class="hide">
     <div class="panel">
@@ -1202,7 +1236,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 16.08.2026, 20:25</span><br>
+    <span class="build">Fassung 04.09.2026, 16:30</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1429,6 +1463,58 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Vorteil: neue Texte funktionieren sofort weiter, nur eben zunächst deutsch.  */
 let LANG = 'de';
 const EN = {
+  /* --- Vaults --- */
+  "In keinem Vault liegt gerade Geld. Sobald du einzahlst, steht hier, wie viel drin ist und wie der Vault läuft.":
+    "There is no money in any vault right now. As soon as you deposit, this shows how much is in there and how the vault is doing.",
+  "Gerechnet aus dem Ergebnis des Vaults im Verhältnis zu seiner Größe, Tag für Tag aneinandergehängt. Ein- und Auszahlungen anderer Anleger verzerren die Kurve so nicht. Start = 100. Das ist die Entwicklung des Vaults, nicht deine — deine hängt daran, wann du eingestiegen bist.":
+    "Calculated from the vault's result relative to its size, chained day by day. Deposits and withdrawals by other investors therefore don't distort the curve. Start = 100. This is how the vault performed, not you — yours depends on when you got in.",
+  "Aus dem Kontobuch (userNonFundingLedgerUpdates). Reicht deine geladene Historie nicht weit genug zurück, fehlen ältere Buchungen — die Zahl von Hyperliquid oben ist dann die verlässlichere.":
+    "From the account ledger (userNonFundingLedgerUpdates). If your loaded history doesn't reach far enough back, older bookings are missing — the Hyperliquid figure above is then the more reliable one.",
+  "Dein Geld minus netto hineingegeben — Gegenprobe zur Zahl von Hyperliquid":
+    "Your money minus net put in — a cross-check against the Hyperliquid figure",
+  "braucht die Vault-Buchungen aus dem Kontobuch": "needs the vault bookings from the account ledger",
+  "{0} Buchung(en) nennen keinen Vault und sind keinem einzelnen Vault zugeordnet.":
+    "{0} booking(s) name no vault and are not assigned to a single vault.",
+  "{0} Buchung{1} in der geladenen Historie": "{0} booking{1} in the loaded history",
+  "Deine Ein- und Auszahlungen": "Your deposits and withdrawals",
+  "davon {0} auf die laufende Einlage": "of that {0} on the current stake",
+  "Ergebnis nach eigener Rechnung": "Result by our own maths",
+  "Einzahlungen minus Auszahlungen": "deposits minus withdrawals",
+  "liegt der Schnittstelle nicht vor": "not provided by the API",
+  "seit deiner ersten Einzahlung": "since your first deposit",
+  "gemessen am Gesamtguthaben": "measured against total balance",
+  "Dieser Vault ist geschlossen.": "This vault is closed.",
+  "bis dahin nicht abziehbar": "cannot be withdrawn until then",
+  "keine Buchung gefunden": "no booking found",
+  "keine": "none",
+  "{0} Tage laut Hyperliquid": "{0} days according to Hyperliquid",
+  "kein Verlauf vorhanden": "no history available",
+  "größter Rückgang {0}": "largest drawdown {0}",
+  "Angabe von Hyperliquid": "as stated by Hyperliquid",
+  "Rendite des Vaults": "Vault return",
+  "Netto hineingegeben": "Net put in",
+  "jederzeit abziehbar": "can be withdrawn any time",
+  "Nächste Sperrfrist": "Next lock-up ends",
+  "Wertentwicklung": "Performance",
+  "noch {0} gesperrt": "locked for another {0}",
+  "aktuelle Einlage": "current stake",
+  "Anteil am Konto": "Share of account",
+  "laut Hyperliquid": "according to Hyperliquid",
+  "Dein Ergebnis": "Your result",
+  "{0} des Vaults": "{0} of the vault",
+  "{0} Vault{1}": "{0} vault{1}",
+  "Vault gesamt": "Vault total",
+  "nichts gesperrt": "nothing locked",
+  "Betreiber {0}": "Run by {0}",
+  "Auszahlung": "Withdrawal",
+  "Einzahlung": "Deposit",
+  "Eingezahlt": "Paid in",
+  "Sperrfrist": "Lock-up",
+  "Dabei seit": "In since",
+  "In Vaults": "In vaults",
+  "Abgezogen": "Taken out",
+  "Dein Geld": "Your money",
+
   "läuft": "open",
   "seit": "since",
   "Schon kassiert": "Already banked",
@@ -2072,6 +2158,9 @@ const EN = {
   "Tatsächliches Ergebnis": "Actual result",
   "Bestes Raster-Ergebnis": "Best result in the grid",
   "Keine offene Position.": "No open position.",
+  "Die Positionen ließen sich gerade nicht abrufen.": "Positions could not be fetched just now.",
+  "Die Positionen ließen sich gerade nicht abrufen. Angezeigt wird der letzte bekannte Stand.":
+    "Positions could not be fetched just now. Showing the last known state.",
   "Anteil an allen Trades": "share of all trades",
   "großer Browserspeicher": "large browser storage",
   "Der Speicher ist voll.": "Storage is full.",
@@ -2853,7 +2942,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '16.08.2026, 20:25';
+const BUILD = '04.09.2026, 16:30';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -2867,7 +2956,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 16.08.2026, 20:25';
+      ' · Fassung 04.09.2026, 16:30';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -2893,7 +2982,8 @@ const DEFAULT_TAGS = ['Breakout','Reversal','Trend-Continuation','Range / Mean R
 let S = {
   addr:'', wallets:[], wdata:[], fills:[], trades:[], openTrades:[], positions:null, portfolio:null,
   funding:[], ledger:[], notes:{}, tags:[], curve:'equity',
-  spot:null, spotPrices:{USDC:1}, vaults:[], staking:null, totals:null,
+  spot:null, spotPrices:{USDC:1}, vaults:[], vaultInfo:{}, vaultWin:'month',
+  staking:null, totals:null,
   balOpts:{perp:false, spot:true, vault:true, stake:true}, subAccounts:[], riskPct:1,
   calDate:new Date(), calMode:'plan', calScale:'day', tab:'dashboard', dashWin:30, charts:{}, loading:false
 };
@@ -4036,6 +4126,13 @@ async function load(incremental){
     S.portfolio = [['allTime', {accountValueHistory: mergeHistories(data.map(d => acctHistoryOf(d.portfolio))),
       pnlHistory:[]}]];
     S.totals = computeTotals();
+    // Einzelheiten zu den Vaults, in denen wirklich Geld liegt
+    if((S.vaults || []).some(v => num(v.equity) > 0)){
+      setStatus('<span class="spin"></span> Lade Vaults…');
+      await loadVaultDetails();
+    }else{
+      S.vaultInfo = {};
+    }
     await CACHE.refreshInfo();
 
     fillCoinFilter();
@@ -4048,7 +4145,11 @@ async function load(incremental){
         esc(err.message) + '<br>Die Zahlen oben stimmen trotzdem.');
     }
     if(SYNC.active()) SYNC.run({});
+    // Frisch geladen: der nächste Positionsabruf soll deswegen nicht gleich
+    // wieder ein Nachladen auslösen
+    LIVE.posKey = undefined; LIVE.posFehler = false;
     LIVE.start();
+    LIVE.pull();
     const act2 = activeWallets();
     const cov0 = historyCoverage();
     // Wie viel musste diesmal wirklich über die Leitung?
@@ -4584,12 +4685,21 @@ function renderOpen(){
   const mkt = $('#fMarket').value;
   const list = aps.filter(a => mkt !== 'spot');
   $('#openCount').textContent = '(' + list.length + ')';
-  $('#openPanel').classList.toggle('hide', list.length === 0);
-  if(!list.length) return;
+  // Bei einer gescheiterten Abfrage lieber sagen, dass nichts geholt werden
+  // konnte, als stillschweigend „nichts offen“ zu zeigen
+  $('#openPanel').classList.toggle('hide', list.length === 0 && !LIVE.posFehler);
+  if(!list.length){
+    if(LIVE.posFehler){
+      $('#openKpis').innerHTML = '';
+      $('#tblOpen tbody').innerHTML = '<tr><td colspan="12" class="warn">' +
+        'Die Positionen ließen sich gerade nicht abrufen.</td></tr>';
+    }
+    return;
+  }
 
   // Eröffnungszeit aus den offenen Round-Trips holen
   const since = {};
-  for(const t of S.openTrades) since[(t.wallet || '') + '|' + t.coin] = t.openTime;
+  for(const t of (S.openTrades || [])) since[(t.wallet || '') + '|' + t.coin] = t.openTime;
 
   let uPnl = 0, notional = 0, marg = 0, funding = 0;
   const rows = list.map(a => {
@@ -5882,6 +5992,277 @@ function renderPositions(){
       '<td class="mut">' + sgn(-num(q.cumFunding && q.cumFunding.sinceOpen), 2) + '</td></tr>';
   }).join('');
   $('#posEmpty').classList.toggle('hide', aps.length > 0);
+}
+
+/* ---------- Vaults ---------- */
+/* Zu jedem Vault, in dem Geld liegt, die Einzelheiten holen. Nur mit „user“
+   steht der eigene Eintrag in „followers“ – Einstiegszeit, Sperrfrist und das
+   Ergebnis der eigenen Einlage gibt es sonst nirgends.                       */
+async function loadVaultDetails(){
+  const paare = [];
+  for(const v of (S.vaults || [])){
+    const va = String(v.vaultAddress || '').toLowerCase();
+    if(!va || num(v.equity) <= 0) continue;
+    const k = va + '|' + String(v.wallet || '').toLowerCase();
+    if(!paare.some(p => p.key === k)) paare.push({key:k, vault:va, user:v.wallet});
+  }
+  const out = {};
+  await Promise.all(paare.map(async p => {
+    try{
+      const d = await info({type:'vaultDetails', vaultAddress:p.vault, user:p.user});
+      if(d && d.vaultAddress) out[p.key] = d;
+    }catch(e){}
+  }));
+  S.vaultInfo = out;
+}
+
+const vaultKey = v => String(v.vaultAddress || '').toLowerCase() + '|' +
+  String(v.wallet || '').toLowerCase();
+function vaultDetails(v){ return (S.vaultInfo || {})[vaultKey(v)] || null; }
+/* Der eigene Eintrag in der Anlegerliste des Vaults */
+function vaultFolger(det, user){
+  const u = String(user || '').toLowerCase();
+  return ((det && det.followers) || [])
+    .find(f => String(f.user || '').toLowerCase() === u) || null;
+}
+function vaultName(v){
+  const d = vaultDetails(v);
+  if(d && d.name) return d.name;
+  const a = String(v.vaultAddress || '');
+  return a ? a.slice(0, 6) + '…' + a.slice(-4) : 'Vault';
+}
+
+/* Ein- und Auszahlungen in Vaults aus dem Kontobuch. Das Vorzeichen der
+   Schnittstelle ist nicht verlässlich, deshalb entscheidet die Vorgangsart
+   über die Richtung und der Betrag wird ohne Vorzeichen genommen.           */
+function vaultBuchungen(){
+  const out = [];
+  for(const l of (S.ledger || [])){
+    const d = l.delta || {};
+    const typ = String(d.type || '');
+    if(typ.toLowerCase().indexOf('vault') < 0) continue;
+    const betrag = Math.abs(num(d.usdc != null ? d.usdc : d.amount));
+    if(!betrag) continue;
+    const raus = /withdraw/i.test(typ);
+    out.push({time:num(l.time), wallet:l.wallet || '',
+      vault:String(d.vault || d.vaultAddress || '').toLowerCase(),
+      typ, raus, usd:betrag, hash:l.hash || ''});
+  }
+  return out.sort((a,b) => b.time - a.time);
+}
+/* Was du in diesen einen Vault netto hineingegeben hast */
+function vaultEinsatz(buch, v){
+  const va = String(v.vaultAddress || '').toLowerCase();
+  const wa = String(v.wallet || '').toLowerCase();
+  let rein = 0, raus = 0, n = 0, erste = null;
+  for(const b of buch){
+    if(b.vault && b.vault !== va) continue;
+    if(b.vault === '' ) continue;                 // ohne Vault-Adresse nicht zuordenbar
+    if(wa && String(b.wallet || '').toLowerCase() !== wa) continue;
+    n++;
+    if(b.raus) raus += b.usd; else rein += b.usd;
+    if(erste === null || b.time < erste) erste = b.time;
+  }
+  return {rein, raus, netto:rein - raus, n, erste};
+}
+
+/* Zeitgewichtete Wertentwicklung eines Vaults: Ergebnis je Abschnitt geteilt
+   durch die Größe des Vaults davor, aneinandergehängt. Ein- und Auszahlungen
+   anderer Anleger fallen dadurch heraus – anders als beim reinen Kontowert. */
+function vaultKurve(det, fenster){
+  const p = ((det || {}).portfolio || []).find(x => Array.isArray(x) && x[0] === fenster);
+  const box = (p || [])[1] || {};
+  const av = box.accountValueHistory || [], pn = box.pnlHistory || [];
+  if(av.length < 2 || pn.length !== av.length) return null;
+  let idx = 100, hoch = 100, dd = 0;
+  const punkte = [{t:num(av[0][0]), v:100}];
+  for(let i = 1; i < av.length; i++){
+    const basis = num(av[i-1][1]);
+    let r = basis > 0 ? (num(pn[i][1]) - num(pn[i-1][1])) / basis : 0;
+    if(!isFinite(r)) r = 0;
+    if(r < -0.95) r = -0.95;                       // gegen kaputte Einzelwerte
+    idx *= (1 + r);
+    if(idx > hoch) hoch = idx;
+    if(hoch > 0) dd = Math.max(dd, (hoch - idx) / hoch * 100);
+    punkte.push({t:num(av[i][0]), v:idx});
+  }
+  const tage = (punkte[punkte.length-1].t - punkte[0].t) / 86400000;
+  return {punkte, rendite: idx - 100, dd, tage};
+}
+
+const VAULT_WIN = {week:'7 Tage', month:'30 Tage', allTime:'Gesamt'};
+function renderVaults(){
+  const alle = (S.vaults || []).filter(v => num(v.equity) > 0.005);
+  const T = S.totals || {};
+  const buch = vaultBuchungen();
+  const gesamt = alle.reduce((s,v) => s + num(v.equity), 0);
+
+  $('#vaultEmpty').classList.toggle('hide', alle.length > 0);
+  $('#vaultCurvePanel').classList.toggle('hide', alle.length === 0);
+  $('#vaultFlowPanel').classList.toggle('hide', buch.length === 0);
+  if(!alle.length){
+    $('#vaultKpis').innerHTML = '';
+    $('#vaultList').innerHTML = '';
+    if(S.charts.chVault){ S.charts.chVault.destroy(); delete S.charts.chVault; }
+  }
+
+  // ---- Kopfzahlen
+  let ergebnis = 0, ergebnisBekannt = false, sperreBis = null;
+  for(const v of alle){
+    const f = vaultFolger(vaultDetails(v), v.wallet);
+    if(f && f.allTimePnl != null){ ergebnis += num(f.allTimePnl); ergebnisBekannt = true; }
+    const bis = num((f && f.lockupUntil) || v.lockedUntilTimestamp);
+    if(bis > Date.now() && (sperreBis === null || bis < sperreBis)) sperreBis = bis;
+  }
+  if(alle.length){
+    const anteil = T.total > 0 ? gesamt / T.total * 100 : null;
+    const items = [
+      ['In Vaults', usd(gesamt, 2), alle.length + ' Vault' + (alle.length > 1 ? 's' : ''), ''],
+      ['Ergebnis gesamt', ergebnisBekannt ? sgn(ergebnis, 2) : '–',
+        ergebnisBekannt ? 'seit deiner ersten Einzahlung' : 'liegt der Schnittstelle nicht vor',
+        ergebnisBekannt ? cls(ergebnis) : ''],
+      ['Anteil am Konto', anteil === null ? '–' : pctn(anteil, 1),
+        'gemessen am Gesamtguthaben', ''],
+      ['Nächste Sperrfrist', sperreBis ? dt(sperreBis) : 'keine',
+        sperreBis ? 'bis dahin nicht abziehbar' : 'nichts gesperrt', sperreBis ? 'warn' : '']
+    ];
+    $('#vaultKpis').innerHTML = items.map(([k,v,s,c]) =>
+      '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
+      '<div class="s">' + s + '</div></div>').join('');
+  }
+
+  // ---- Eine Karte je Vault
+  const fenster = S.vaultWin || 'month';
+  $('#vaultList').innerHTML = alle.map(v => {
+    const det = vaultDetails(v);
+    const f = vaultFolger(det, v.wallet);
+    const eq = num(v.equity);
+    const e = vaultEinsatz(buch, v);
+    const k = vaultKurve(det, fenster) || vaultKurve(det, 'allTime');
+    const grosse = (() => {
+      const p = ((det || {}).portfolio || []).find(x => Array.isArray(x) && x[0] === 'allTime');
+      const av = ((p || [])[1] || {}).accountValueHistory || [];
+      return av.length ? num(av[av.length - 1][1]) : 0;
+    })();
+    const bis = num((f && f.lockupUntil) || v.lockedUntilTimestamp);
+    const gesperrt = bis > Date.now();
+    const seit = num(f && f.vaultEntryTime) || e.erste;
+    const eigenErg = e.n ? eq - e.netto : null;
+
+    const dl = (k2, v2, s) => '<div class="dl"><span>' + k2 +
+      (s ? '<br><span class="mut" style="font-size:11px">' + s + '</span>' : '') +
+      '</span><span class="mono">' + v2 + '</span></div>';
+
+    return '<div class="panel">' +
+      '<h2 style="margin-bottom:4px">' + esc(vaultName(v)) +
+        (activeWallets().length > 1
+          ? ' <span class="mut" style="font-size:12px;font-weight:400">' +
+            esc(walletLabel(v.wallet)) + '</span>' : '') + '</h2>' +
+      '<div class="mut mono" style="font-size:11.5px;margin-bottom:10px">' +
+        esc(String(v.vaultAddress || '')) + '</div>' +
+      (det && det.description
+        ? '<p class="mut" style="font-size:12.5px;line-height:1.6;margin:0 0 12px">' +
+          esc(String(det.description).slice(0, 240)) + '</p>' : '') +
+
+      '<div class="kpis" style="margin-bottom:12px">' +
+        '<div class="kpi"><div class="k">Dein Geld</div><div class="v">' + usd(eq, 2) + '</div>' +
+          '<div class="s">' + (grosse > 0 ? pctn(eq / grosse * 100, 2) + ' des Vaults' : 'aktuelle Einlage') + '</div></div>' +
+        '<div class="kpi"><div class="k">Dein Ergebnis</div>' +
+          '<div class="v ' + (f ? cls(num(f.allTimePnl)) : '') + '">' +
+            (f && f.allTimePnl != null ? sgn(num(f.allTimePnl), 2) : '–') + '</div>' +
+          '<div class="s">' + (f && f.pnl != null
+            ? 'davon ' + sgn(num(f.pnl), 2) + ' auf die laufende Einlage' : 'laut Hyperliquid') + '</div></div>' +
+        '<div class="kpi"><div class="k">Rendite des Vaults</div>' +
+          '<div class="v ' + (k ? cls(k.rendite) : '') + '">' +
+            (k ? pct(k.rendite, 2) : '–') + '</div>' +
+          '<div class="s"><span>' + esc(VAULT_WIN[fenster] || VAULT_WIN.month) + '</span> · <span>' +
+            (k ? 'größter Rückgang ' + pctn(k.dd, 1) : 'kein Verlauf vorhanden') +
+            '</span></div></div>' +
+        '<div class="kpi"><div class="k">APR</div><div class="v">' +
+          (det && det.apr != null ? pctn(num(det.apr) * 100, 1) : '–') + '</div>' +
+          '<div class="s">Angabe von Hyperliquid</div></div>' +
+      '</div>' +
+
+      dl('Eingezahlt', e.n ? usd(e.rein, 2) : '<span class="mut">–</span>',
+         e.n ? e.n + ' Buchung' + (e.n > 1 ? 'en' : '') + ' in der geladenen Historie' : 'keine Buchung gefunden') +
+      dl('Abgezogen', e.n ? usd(e.raus, 2) : '<span class="mut">–</span>', '') +
+      dl('Netto hineingegeben', e.n ? usd(e.netto, 2) : '<span class="mut">–</span>',
+         'Einzahlungen minus Auszahlungen') +
+      dl('Ergebnis nach eigener Rechnung',
+         eigenErg === null ? '<span class="mut">–</span>'
+           : '<span class="' + cls(eigenErg) + '">' + sgn(eigenErg, 2) + '</span>',
+         eigenErg === null ? 'braucht die Vault-Buchungen aus dem Kontobuch'
+           : 'Dein Geld minus netto hineingegeben — Gegenprobe zur Zahl von Hyperliquid') +
+      dl('Dabei seit', seit ? dt(seit) + ' <span class="mut">(' + dur(Date.now() - seit) + ')</span>' : '–',
+         f && f.daysFollowing != null ? f.daysFollowing + ' Tage laut Hyperliquid' : '') +
+      dl('Sperrfrist', gesperrt
+           ? '<span class="warn">' + dt(bis) + '</span>'
+           : '<span class="mut">keine</span>',
+         gesperrt ? 'noch ' + dur(bis - Date.now()) + ' gesperrt' : 'jederzeit abziehbar') +
+      dl('Vault gesamt', grosse > 0 ? usd(grosse, 0) : '–',
+         det && det.leader ? 'Betreiber ' + esc(String(det.leader).slice(0,6) + '…' + String(det.leader).slice(-4)) : '') +
+      (det && det.isClosed
+        ? '<div class="err" style="margin-top:10px">Dieser Vault ist geschlossen.</div>' : '') +
+      '</div>';
+  }).join('');
+
+  // ---- Kurven aller Vaults in einem Diagramm
+  if(alle.length){
+    const farben = [C.acc, C.up, C.warn, C.down, C.faint];
+    const sets = [], marken = new Set();
+    alle.forEach((v, i) => {
+      const k = vaultKurve(vaultDetails(v), fenster);
+      if(!k) return;
+      k.punkte.forEach(p => marken.add(p.t));
+      sets.push({v, k, i});
+    });
+    const zeiten = Array.from(marken).sort((a,b) => a - b);
+    const daten = sets.map(({v, k, i}) => {
+      const map = {};
+      k.punkte.forEach(p => { map[p.t] = p.v; });
+      let letzt = null;
+      return {
+        label: vaultName(v),
+        data: zeiten.map(t => { if(map[t] != null) letzt = map[t]; return letzt; }),
+        borderColor: farben[i % farben.length],
+        backgroundColor: 'transparent',
+        borderWidth:2, pointRadius:0, tension:.25, spanGaps:true
+      };
+    });
+    mkChart('chVault', {
+      type:'line',
+      data:{labels: zeiten.map(t => dt(t)), datasets: daten},
+      options:{responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index', intersect:false},
+        plugins:{legend:{display: daten.length > 1, labels:{boxWidth:10, font:{size:11}}}},
+        scales:{x:Object.assign({}, AXIS, {ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:8})}),
+          y:Object.assign({}, AXIS, {ticks:Object.assign({}, AXIS.ticks,
+            {callback: v => v.toFixed(0)})})}}
+    });
+  }
+
+  // ---- Buchungen
+  $('#vaultFlowCount').textContent = buch.length ? '(' + buch.length + ')' : '';
+  const nameVon = adr => {
+    const v = (S.vaults || []).find(x => String(x.vaultAddress || '').toLowerCase() === adr);
+    if(v) return vaultName(v);
+    return adr ? adr.slice(0, 6) + '…' + adr.slice(-4) : '–';
+  };
+  $('#tblVaultFlow tbody').innerHTML = buch.map(b =>
+    '<tr><td class="mut">' + dt(b.time) + '</td>' +
+    '<td class="wcol mut">' + esc(walletLabel(b.wallet)) + '</td>' +
+    '<td>' + esc(nameVon(b.vault)) + '</td>' +
+    '<td><span class="pill ' + (b.raus ? 'short' : 'long') + '">' +
+      (b.raus ? 'Auszahlung' : 'Einzahlung') + '</span></td>' +
+    '<td class="' + (b.raus ? 'down' : 'up') + '">' + (b.raus ? '−' : '+') + usd(b.usd, 2) + '</td></tr>').join('');
+  const ohneAdresse = buch.filter(b => !b.vault).length;
+  $('#vaultFlowNote').innerHTML = buch.length
+    ? '<span>Aus dem Kontobuch (userNonFundingLedgerUpdates). Reicht deine geladene Historie nicht ' +
+      'weit genug zurück, fehlen ältere Buchungen — die Zahl von Hyperliquid oben ist dann die ' +
+      'verlässlichere.</span>' +
+      (ohneAdresse ? ' <span>' + ohneAdresse + ' Buchung(en) nennen keinen Vault und sind keinem ' +
+        'einzelnen Vault zugeordnet.</span>' : '')
+    : '';
 }
 
 /* ---------- Render: Sync-Einstellungen ---------- */
@@ -8521,6 +8902,7 @@ const DEFAULT_WATCH = ['BTC','ETH','SOL','HYPE'];
 const LIVE = {
   mids:{}, prev:{}, universe:[], at:0, tick:0, timer:null, prevMids:{},
   dexes:null, index:{}, dexMeta:{},
+  posFehler:false, posKey:undefined, nachTimer:null, busy:false,
 
   /* Aktien und andere Sondermärkte laufen bei Hyperliquid über HIP-3 auf eigenen
      Perp-Märkten. Deren Symbole heißen {markt}:{coin}, z.B. xyz:SNDK.            */
@@ -8593,6 +8975,8 @@ const LIVE = {
 
   async pull(){
     if(document.hidden) return;
+    if(this.busy) return;              // zwei Abrufe gleichzeitig würden sich ins Gehege kommen
+    this.busy = true;
     const first = !this.at;
     try{
       this.prevMids = this.mids;
@@ -8626,22 +9010,18 @@ const LIVE = {
         await this.loadCtx('');
         for(const dex of extra) await this.loadCtx(dex);
       }
-      if(!first && this.tick % 6 === 3 && activeWallets().length){
-        const data = await Promise.all(activeWallets().map(w =>
-          info({type:'clearinghouseState', user:w.addr})
-            .then(r => ({addr:w.addr, positions:r})).catch(() => null)));
-        const ok = data.filter(Boolean);
-        if(ok.length){
-          S.wdata.forEach(d => {
-            const f = ok.find(x => x.addr === d.addr);
-            if(f && f.positions) d.positions = f.positions;
-          });
-          S.positions = mergePositions(S.wdata);
-        }
-      }
+      /* Laufende Positionen bei jedem Durchlauf mitnehmen. Die Abfrage ist die
+         günstigste, die Hyperliquid anbietet (Gewicht 2). Vorher lief sie nur
+         jeden sechsten Takt – eine gerade eröffnete Position stand deshalb bis
+         zu einer Minute nirgends, und in der Trade-Liste sogar erst nach dem
+         nächsten „Aktualisieren“.                                            */
+      if(!first) await this.pullPositions();
       this.at = Date.now();
       this.tick++;
       renderLive();
+      // Die Tabelle „Offen“ unter Trades hängt an denselben Zahlen
+      try{ renderOpen(); }catch(e){}
+      if(this.tick % 3 === 0) this.pullOrders();
 
       // Erst wenn ein beobachtetes Symbol auf dem Hauptmarkt fehlt, die
       // Sondermärkte nachladen – im Hintergrund, ohne die Anzeige aufzuhalten
@@ -8652,7 +9032,59 @@ const LIVE = {
     }catch(e){
       const dot = document.getElementById('liveDot');
       if(dot) dot.style.background = 'var(--down)';
+    }finally{
+      this.busy = false;
     }
+  },
+  /* Die laufenden Positionen frisch holen – für jede aktive Wallet einzeln,
+     weil Positionen kontobezogen sind.                                      */
+  async pullPositions(){
+    const ws = activeWallets();
+    if(!ws.length){ this.posFehler = false; return; }
+    const data = await Promise.all(ws.map(w =>
+      info({type:'clearinghouseState', user:w.addr})
+        .then(r => ({addr:w.addr, positions:r})).catch(() => null)));
+    const ok = data.filter(Boolean);
+    // Scheitert die Abfrage, wird das angezeigt statt „keine offene Position“
+    this.posFehler = ok.length < ws.length;
+    if(!ok.length) return;
+    for(const x of ok){
+      let d = S.wdata.find(y => y.addr === x.addr);
+      if(!d){ d = {addr:x.addr}; S.wdata.push(d); }
+      if(x.positions) d.positions = x.positions;
+    }
+    S.positions = mergePositions(S.wdata);
+    // Hat sich der Bestand geändert, fehlen dazu die Ausführungen
+    const jetzt = ((S.positions || {}).assetPositions || [])
+      .map(a => (a.wallet || '') + '|' + ((a.position || {}).coin || '') +
+                '|' + (num((a.position || {}).szi) >= 0 ? 'L' : 'S')).sort().join(',');
+    if(this.posKey !== undefined && this.posKey !== jetzt) this.fillsNachziehen();
+    this.posKey = jetzt;
+  },
+  /* Eine Position ist neu dazugekommen oder verschwunden: dann fehlen die
+     Ausführungen dazu, und damit Eröffnungszeit, Teilgewinne und Chart.
+     Deshalb einmal leise nachladen – gebündelt, nicht bei jedem Tick.       */
+  fillsNachziehen(){
+    if(this.nachTimer) return;
+    this.nachTimer = setTimeout(() => {
+      this.nachTimer = null;
+      if(!S.loading) load(true);
+    }, 4000);
+  },
+  /* Offene Orders alle 30 Sekunden – die Abfrage ist teurer als die anderen */
+  async pullOrders(){
+    const ws = activeWallets();
+    if(!ws.length) return;
+    try{
+      const res = await Promise.all(ws.map(w =>
+        info({type:'frontendOpenOrders', user:w.addr})
+          .then(list => (Array.isArray(list) ? list : [])
+            .map(o => Object.assign({wallet:w.addr}, o)))
+          .catch(() => null)));
+      if(res.some(x => x === null)) return;   // lieber der alte Stand als ein halber
+      S.orders = [].concat.apply([], res);
+      renderOrders();
+    }catch(e){}
   },
   /* Tagesveränderung und Symbolnamen eines Marktes */
   async loadCtx(dex){
@@ -8749,7 +9181,10 @@ function renderLive(){
         ? '<div class="dl" style="border:0;padding-top:4px"><span><b>Gesamt unrealisiert</b></span>' +
           '<span class="' + cls(total) + '"><b>' + sgn(total, 2) + '</b></span></div>'
         : '')
-    : '<div class="mut" style="font-size:13.5px">Keine offene Position.</div>';
+    : (LIVE.posFehler
+        ? '<div class="warn" style="font-size:13.5px">Die Positionen ließen sich gerade nicht abrufen. ' +
+          'Angezeigt wird der letzte bekannte Stand.</div>'
+        : '<div class="mut" style="font-size:13.5px">Keine offene Position.</div>');
 
   // Beobachtungsliste
   const wl = LIVE.watch();
@@ -9626,8 +10061,8 @@ const GROUPS = [
     ['calc','Rechner'],['review','Rückblick']]},
   {id:'lab', label:'Labor', tabs:[['labimpact','Wirkung'],['labexit','Exit & Stop'],
     ['discipline','Disziplin'],['sim','Simulator']]},
-  {id:'acct', label:'Konto', tabs:[['positions','Guthaben'],['costs','Gebühren & Funding'],
-    ['tax','Steuer'],['settings','Daten']]}
+  {id:'acct', label:'Konto', tabs:[['positions','Guthaben'],['vaults','Vaults'],
+    ['costs','Gebühren & Funding'],['tax','Steuer'],['settings','Daten']]}
 ];
 const ALL_TABS = GROUPS.reduce((a,g) => a.concat(g.tabs.map(t => t[0])), []);
 function groupOf(tab){ return GROUPS.find(g => g.tabs.some(t => t[0] === tab)) || GROUPS[0]; }
@@ -9658,7 +10093,7 @@ function switchTab(t){
     if(el) el.classList.toggle('hide', v !== t);
   });
   $('#globalFilters').classList.toggle('hide',
-    ['settings','tax','positions','plans','calendar','sim','dashboard'].indexOf(t) >= 0);
+    ['settings','tax','positions','vaults','plans','calendar','sim','dashboard'].indexOf(t) >= 0);
   if(t === 'sim' && !S.simDone){ S.simDone = true; renderSim(); }
   if(t === 'labexit') renderGrid(filtered());
   window.scrollTo(0, 0);
@@ -9700,6 +10135,7 @@ function renderAll(){
   renderCosts(tr);
   renderFeeAudit(tr);
   renderPositions();
+  renderVaults();
   renderSettings();
   renderArchive();
   renderLive();
@@ -9714,6 +10150,12 @@ $$('[data-dash]').forEach(el => el.addEventListener('click', () => {
   el.classList.add('on');
   S.dashWin = parseInt(el.dataset.dash, 10) || 30;
   renderDashboard();
+}));
+$$('[data-vwin]').forEach(el => el.addEventListener('click', () => {
+  $$('[data-vwin]').forEach(x => x.classList.remove('on'));
+  el.classList.add('on');
+  S.vaultWin = el.dataset.vwin;
+  renderVaults();
 }));
 $$('[data-nach]').forEach(el => el.addEventListener('click', () => {
   S.nachWin = el.dataset.nach;
