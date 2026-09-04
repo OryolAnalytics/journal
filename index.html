@@ -258,6 +258,8 @@ tbody tr:hover{background:var(--panel2)}
 .lpos.now{background:var(--winBg);border-color:var(--winLine)}
 .lpos.now:hover{border-color:var(--up)}
 .lpos .lr b{font-size:16px;display:block}
+.lpos .lshare{flex:0 0 auto;padding:5px 9px;font-size:14px;line-height:1;opacity:.55}
+.lpos .lshare:hover{opacity:1}
 .flash{animation:fl .6s ease-out}
 @keyframes fl{from{background:rgba(13,125,111,.16)}to{background:transparent}}
 .stat{display:flex;gap:5px;flex:0 0 auto}
@@ -1236,7 +1238,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 04.09.2026, 16:30</span><br>
+    <span class="build">Fassung 04.09.2026, 19:40</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1377,6 +1379,43 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </div>
 </div>
 
+<!-- KARTE ZUM TEILEN -->
+<div class="modal" id="cardModal">
+  <div class="sheet" style="max-width:540px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+      <div>
+        <h3 style="margin:0">Karte zum Teilen</h3>
+        <div class="mut" style="font-size:12.5px" id="cardSub">–</div>
+      </div>
+      <button id="cardClose">✕</button>
+    </div>
+    <div style="margin:14px 0;background:var(--panel2);border:1px solid var(--line);
+      border-radius:12px;padding:10px">
+      <canvas id="cardCanvas" style="display:block;width:100%;border-radius:8px"></canvas>
+    </div>
+    <div class="filters">
+      <button class="tab on" data-cardlook="dunkel">Dunkel</button>
+      <button class="tab" data-cardlook="hell">Hell</button>
+    </div>
+    <div class="f" style="margin-top:10px">
+      <label style="cursor:pointer;user-select:none;font-size:13.5px">
+        <input type="checkbox" id="cardGeld" style="margin-right:8px;vertical-align:-1px">
+        Dollarbetrag mit auf die Karte
+      </label>
+      <div class="mut" style="font-size:12px;line-height:1.55;margin-top:4px" id="cardGeldHint">
+        Ohne Häkchen stehen nur Prozent und R darauf. Dann sagt die Karte nichts
+        über die Größe deines Kontos aus.
+      </div>
+    </div>
+    <div class="filters" style="margin-top:12px">
+      <button class="primary" id="cardShare">Teilen</button>
+      <button id="cardDownload">Herunterladen</button>
+      <button id="cardCopy">Kopieren</button>
+    </div>
+    <div class="mut" id="cardStatus" style="font-size:12.5px;margin-top:10px;min-height:18px"></div>
+  </div>
+</div>
+
 <!-- TRADE DETAIL SHEET -->
 <div class="modal" id="modal">
   <div class="sheet">
@@ -1386,6 +1425,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         <div class="mut" style="font-size:12.5px" id="mSub">–</div>
       </div>
       <div style="display:flex;gap:6px;flex:0 0 auto">
+        <button id="mShare" title="Karte zum Teilen erstellen">Teilen</button>
         <button id="mPrev" title="Neuerer Trade">‹</button>
         <button id="mNext" title="Älterer Trade">›</button>
         <button id="mClose">✕</button>
@@ -1463,6 +1503,36 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Vorteil: neue Texte funktionieren sofort weiter, nur eben zunächst deutsch.  */
 let LANG = 'de';
 const EN = {
+  /* --- Karte zum Teilen --- */
+  "Ohne Häkchen stehen nur Prozent und R darauf. Dann sagt die Karte nichts über die Größe deines Kontos aus.":
+    "Without the tick, only percent and R appear on it. Then the card says nothing about the size of your account.",
+  "Beträge sind im Journal verdeckt — dann bleiben sie auch auf der Karte weg.":
+    "Amounts are hidden in the journal — so they stay off the card too.",
+  "Dein Gerät kennt keinen Teilen-Dialog — das Bild ist stattdessen im Download-Ordner.":
+    "Your device has no share dialog — the image went to your downloads folder instead.",
+  "Zu dieser Position sind noch keine Ausführungen geladen. Tipp einmal auf „Aktualisieren“, dann geht die Karte.":
+    "No fills have been loaded for this position yet. Tap “Refresh” once and the card will work.",
+  "Dieser Browser kann keine Bilder in die Zwischenablage legen.":
+    "This browser cannot put images on the clipboard.",
+  "In der Zwischenablage — jetzt einfügen.": "On the clipboard — paste it now.",
+  "Karte zum Teilen erstellen": "Create a card to share",
+  "kein Kursverlauf gemessen": "no price history measured",
+  "Teilen abgebrochen.": "Sharing cancelled.",
+  "Dollarbetrag mit auf die Karte": "Put the dollar amount on the card",
+  "RENDITE AUF POSITIONSGRÖSSE": "RETURN ON POSITION SIZE",
+  "Einstieg im Schnitt": "Average entry",
+  "Ausstieg im Schnitt": "Average exit",
+  "Karte zum Teilen": "Card to share",
+  "Hat nicht geklappt:": "Didn't work:",
+  "Handelsjournal": "Trading journal",
+  "Herunterladen": "Download",
+  "läuft noch": "still running",
+  "Gespeichert:": "Saved:",
+  "Geteilt.": "Shared.",
+  "Kopieren": "Copy",
+  "Teilen": "Share",
+  "jetzt": "now",
+
   /* --- Vaults --- */
   "In keinem Vault liegt gerade Geld. Sobald du einzahlst, steht hier, wie viel drin ist und wie der Vault läuft.":
     "There is no money in any vault right now. As soon as you deposit, this shows how much is in there and how the vault is doing.",
@@ -2942,7 +3012,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '04.09.2026, 16:30';
+const BUILD = '04.09.2026, 19:40';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -2956,7 +3026,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 04.09.2026, 16:30';
+      ' · Fassung 04.09.2026, 19:40';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -6634,6 +6704,268 @@ function malKerzen(cv, p, t, linien, marken){
   }
 }
 
+/* ---------- Karte zum Teilen ----------
+   Ein Bild, 1080 × 1080, das man verschicken kann. Alles wird auf eine
+   Zeichenfläche gemalt – kein fremder Dienst, nichts verlässt das Gerät,
+   bis du auf Teilen tippst.                                              */
+const KARTE = {
+  W:1080,
+  thema:{
+    dunkel:{bg:'#100f0e', fg:'#f3f2f2', mut:'#8d8a87', up:'#25c281', down:'#f0596c',
+            band:'rgba(243,242,242,.065)', linie:'rgba(243,242,242,.13)', rand:'#100f0e'},
+    hell:  {bg:'#ffffff', fg:'#111418', mut:'#6b7280', up:'#0f8a5f', down:'#c9354a',
+            band:'rgba(17,20,24,.05)',   linie:'rgba(17,20,24,.10)',   rand:'#ffffff'}
+  },
+  look:'dunkel', geld:false, trade:null, pfad:null
+};
+
+/* Die Zahlen der Karte – für abgeschlossene wie für laufende Positionen.
+   Prozent immer auf die größte Positionsgröße, damit hier dieselbe Zahl
+   steht wie im Trade-Detail und nicht plötzlich eine gehebelte.          */
+function kartenDaten(t){
+  const laeuft = !!t.open;
+  const basis = t.maxNotional || t.entryNotional || 0;
+  let netto = 0, kurs = 0;
+  if(laeuft){
+    kurs = LIVE.price(t.coin) || 0;
+    const offen = Math.abs(num(t.pos));
+    const kassiert = num(t.closedPnl) - num(t.fees) + num(t.funding);
+    const laufend = (kurs > 0 && offen > 0 && t.avgEntry > 0)
+      ? (t.side === 'long' ? kurs - t.avgEntry : t.avgEntry - kurs) * offen : 0;
+    netto = kassiert + laufend;
+  }else{
+    netto = num(t.net);
+  }
+  const {R} = riskUnit();
+  return {
+    laeuft, coin:coinName(t.coin), side:t.side, liq:!!t.liquidated,
+    netto, pct: basis > 0 ? netto / basis * 100 : 0,
+    r: R > 0 ? netto / R : null,
+    entry:num(t.avgEntry), exit: laeuft ? kurs : num(t.avgExit),
+    von:t.openTime, bis: laeuft ? Date.now() : t.closeTime,
+    dauer: laeuft ? Date.now() - t.openTime : t.durationMs
+  };
+}
+
+/* Der Kursverlauf als schmales Band: Kerzen, Ø-Einstieg, Ein- und Ausstiege.
+   Bewusst ohne Achsen und Beschriftung – auf einer Karte zählt die Form.   */
+function karteChart(g, r, p, t, marken, F){
+  const n = p.t.length;
+  if(!n) return;
+  let hi = -Infinity, lo = Infinity;
+  for(let i = 0; i < n; i++){ hi = Math.max(hi, p.h[i]); lo = Math.min(lo, p.l[i]); }
+  (marken || []).forEach(m => { if(m.px > 0){ hi = Math.max(hi, m.px); lo = Math.min(lo, m.px); } });
+  if(isFinite(t.avgEntry) && t.avgEntry > 0){ hi = Math.max(hi, t.avgEntry); lo = Math.min(lo, t.avgEntry); }
+  if(!(hi > lo)) return;
+  const spanne = hi - lo;
+  hi += spanne * 0.12; lo -= spanne * 0.12;
+  const y = v => r.y + (hi - v) / (hi - lo) * r.h;
+  const x = i => r.x + (i + 0.5) * (r.w / n);
+  const bw = Math.max(2, Math.min(16, r.w / n * 0.62));
+  const xAt = ms => {
+    if(ms <= p.t[0]) return x(0);
+    if(ms >= p.t[n-1]) return x(n-1);
+    let i = 0;
+    while(i < n - 1 && p.t[i+1] <= ms) i++;
+    return x(i) + ((ms - p.t[i]) / ((p.t[i+1] - p.t[i]) || 1)) * (r.w / n);
+  };
+
+  // Haltedauer hinterlegen
+  let vonI = 0, bisI = n - 1;
+  for(let i = 0; i < n; i++){
+    if(p.t[i] <= p.open) vonI = i;
+    if(p.t[i] <= p.close) bisI = i;
+  }
+  g.fillStyle = F.band;
+  g.fillRect(x(vonI) - bw, r.y, Math.max(3, x(bisI) - x(vonI) + bw * 2), r.h);
+
+  // Ø-Einstieg als ruhige Linie
+  if(t.avgEntry > 0){
+    g.strokeStyle = F.linie; g.lineWidth = 2; g.setLineDash([7,7]);
+    g.beginPath(); g.moveTo(r.x, y(t.avgEntry)); g.lineTo(r.x + r.w, y(t.avgEntry)); g.stroke();
+    g.setLineDash([]);
+  }
+
+  for(let i = 0; i < n; i++){
+    const auf = p.c[i] >= p.o[i];
+    g.strokeStyle = auf ? F.up : F.down;
+    g.fillStyle   = auf ? F.up : F.down;
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(Math.round(x(i)), y(p.h[i]));
+    g.lineTo(Math.round(x(i)), y(p.l[i]));
+    g.stroke();
+    const oy = y(p.o[i]), cy = y(p.c[i]);
+    g.fillRect(x(i) - bw/2, Math.min(oy, cy), bw, Math.max(2, Math.abs(cy - oy)));
+  }
+
+  // Ein- und Ausstiege: Dreieck in Handelsrichtung, Raute beim Ausstieg
+  (marken || []).forEach(m => {
+    const xx = xAt(m.t), yy = y(m.px);
+    if(yy < r.y - 10 || yy > r.y + r.h + 10) return;
+    const rad = 9 + m.anteil * 7;
+    g.beginPath();
+    if(m.auf){
+      if(t.side === 'long'){
+        g.moveTo(xx, yy - rad); g.lineTo(xx + rad, yy + rad*.8); g.lineTo(xx - rad, yy + rad*.8);
+      }else{
+        g.moveTo(xx, yy + rad); g.lineTo(xx + rad, yy - rad*.8); g.lineTo(xx - rad, yy - rad*.8);
+      }
+      g.fillStyle = F.fg;
+    }else{
+      g.moveTo(xx, yy - rad); g.lineTo(xx + rad, yy);
+      g.lineTo(xx, yy + rad);  g.lineTo(xx - rad, yy);
+      g.fillStyle = m.gewinn >= 0 ? F.up : F.down;
+    }
+    g.closePath();
+    g.fill();
+    g.lineWidth = 3.5; g.strokeStyle = F.bg; g.stroke();
+  });
+}
+
+/* Der Schriftzug – dieselbe Schrift und Laufweite wie in der Startanimation */
+function karteWortmarke(g, x, y, groesse, farbe){
+  g.save();
+  g.font = '400 ' + groesse + 'px "Oryol Mark", Georgia, "Times New Roman", serif';
+  g.fillStyle = farbe;
+  g.textBaseline = 'alphabetic';
+  g.textAlign = 'left';
+  const sperre = groesse * 0.34;
+  let cx = x;
+  for(const ch of 'oryol'){
+    g.fillText(ch, cx, y);
+    cx += g.measureText(ch).width + sperre;
+  }
+  g.restore();
+  return cx - sperre - x;                       // die gezeichnete Breite
+}
+
+const SANS = '-apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+function zeichneKarte(cv, t, opt){
+  if(!cv || !cv.getContext) return false;
+  const g = cv.getContext('2d');
+  if(!g) return false;
+  const o = opt || {};
+  const F = KARTE.thema[o.look === 'hell' ? 'hell' : 'dunkel'];
+  const W = KARTE.W;
+  cv.width = W; cv.height = W;
+  const d = kartenDaten(t);
+  const gut = d.netto >= 0;
+  const akzent = gut ? F.up : F.down;
+  const P = 78;                                  // Rand
+
+  g.fillStyle = F.bg;
+  g.fillRect(0, 0, W, W);
+
+  /* --- Kopf: Markt und Richtung --- */
+  g.textBaseline = 'alphabetic';
+  g.textAlign = 'left';
+  g.fillStyle = F.fg;
+  g.font = '700 62px ' + SANS;
+  g.fillText(d.coin, P, P + 56);
+  const breiteCoin = g.measureText(d.coin).width;
+
+  // Richtung als Plakette
+  const label = d.side === 'long' ? 'LONG' : 'SHORT';
+  g.font = '700 28px ' + SANS;
+  const lw = g.measureText(label).width;
+  const px0 = P + breiteCoin + 22, py0 = P + 20, ph = 44, pw = lw + 32;
+  g.fillStyle = d.side === 'long' ? F.up : F.down;
+  if(g.roundRect){ g.beginPath(); g.roundRect(px0, py0, pw, ph, 10); g.fill(); }
+  else g.fillRect(px0, py0, pw, ph);
+  g.fillStyle = '#ffffff';
+  g.fillText(label, px0 + 16, py0 + 31);
+
+  if(d.laeuft){
+    g.font = '600 26px ' + SANS;
+    g.fillStyle = F.mut;
+    g.fillText(txt('läuft noch'), px0 + pw + 18, py0 + 31);
+  }else if(d.liq){
+    g.font = '700 26px ' + SANS;
+    g.fillStyle = F.down;
+    g.fillText(txt('LIQUIDIERT'), px0 + pw + 18, py0 + 31);
+  }
+
+  // Zeitzeile
+  g.font = '400 26px ' + SANS;
+  g.fillStyle = F.mut;
+  g.fillText(dt(d.von) + '  →  ' + (d.laeuft ? txt('jetzt') : dt(d.bis)) +
+    '   ·   ' + dur(d.dauer), P, P + 106);
+
+  /* --- Die große Zahl ---
+     Bewusst die Rendite auf die Positionsgröße, nicht auf die Margin. Sie steht
+     so auch im Trade-Detail; eine gehebelte Zahl sähe größer aus und würde
+     jeden, der sie liest, in die Irre führen. Deshalb steht das auch dabei. */
+  g.font = '600 21px ' + SANS;
+  g.fillStyle = F.mut;
+  const marke = txt('RENDITE AUF POSITIONSGRÖSSE');
+  let mx = P;
+  for(const ch of marke){ g.fillText(ch, mx, 236); mx += g.measureText(ch).width + 2.4; }
+
+  const vz = d.pct > 0 ? '+' : (d.pct < 0 ? '−' : '');
+  const gross = vz + Math.abs(d.pct).toFixed(2).replace('.', LANG === 'en' ? '.' : ',') + ' %';
+  g.fillStyle = akzent;
+  g.font = '700 150px ' + SANS;
+  g.fillText(gross, P, 376);
+
+  // R links, Betrag rechts – nebeneinander gerät zu leicht durcheinander
+  const zeileY = 444;
+  if(d.r !== null && isFinite(d.r)){
+    g.font = '600 40px ' + SANS;
+    g.fillStyle = akzent;
+    g.fillText(fmtR(d.r), P, zeileY);
+  }
+  if(o.geld){
+    g.font = '600 40px ' + SANS;
+    g.fillStyle = F.fg;
+    g.textAlign = 'right';
+    g.fillText((d.netto >= 0 ? '+' : '−') + usdRaw(Math.abs(d.netto), 2), W - P, zeileY);
+    g.textAlign = 'left';
+  }
+
+  /* --- Kursverlauf --- */
+  const chartY = 500, chartH = 300;
+  const p = KARTE.pfad;
+  if(p && p.t && p.t.length){
+    karteChart(g, {x:P, y:chartY, w:W - 2*P, h:chartH}, p, t, tradeMarken(t), F);
+  }else{
+    g.fillStyle = F.mut;
+    g.font = '400 26px ' + SANS;
+    g.textAlign = 'center';
+    g.fillText(txt('kein Kursverlauf gemessen'), W/2, chartY + chartH/2);
+    g.textAlign = 'left';
+  }
+
+  /* --- Ein- und Ausstieg --- */
+  const fussY = 900;
+  g.strokeStyle = F.linie;
+  g.lineWidth = 2;
+  g.beginPath(); g.moveTo(P, fussY - 52); g.lineTo(W - P, fussY - 52); g.stroke();
+
+  const paar = (beschriftung, wert, x) => {
+    g.font = '400 22px ' + SANS;
+    g.fillStyle = F.mut;
+    g.fillText(beschriftung, x, fussY - 6);
+    g.font = '600 34px ' + SANS;
+    g.fillStyle = F.fg;
+    g.fillText(wert, x, fussY + 34);
+  };
+  paar(txt('Einstieg im Schnitt'), d.entry > 0 ? price(d.entry) : '–', P);
+  paar(d.laeuft ? txt('Aktueller Kurs') : txt('Ausstieg im Schnitt'),
+       d.exit > 0 ? price(d.exit) : '–', P + 340);
+
+  /* --- Fuß: Schriftzug --- */
+  const wm = karteWortmarke(g, P, W - 62, 68, F.fg);
+  g.font = '400 22px ' + SANS;
+  g.fillStyle = F.mut;
+  g.textAlign = 'right';
+  g.fillText('Hyperliquid', W - P, W - 72);
+  g.font = '400 20px ' + SANS;
+  g.fillText(txt('Handelsjournal'), W - P, W - 44);
+  g.textAlign = 'left';
+  return true;
+}
+
 /* Zu welchem Plan gehört dieser Trade? */
 function planOfTrade(t){
   const id = (S.planLink || {})[t.id] || ((noteOf(t.id) || {}).plan);
@@ -6724,6 +7056,140 @@ function offenZeilen(t){
     ['Funding bisher', sgn(t.funding || 0, 2)],
     ['Anzahl Fills', (t.fills || []).length]
   ];
+}
+
+/* ---------- Karte: Dialog, Teilen, Sichern ---------- */
+/* Den Kursverlauf holen wir genauso wie für den Chart im Trade-Detail.
+   Bei einer laufenden Position immer frisch – sie ändert sich ja.        */
+async function kartePfad(t){
+  await PATHS.load();
+  if(!t.open){
+    const fertig = PATHS.get(t.id);
+    if(fertig) return fertig;
+  }
+  if(t.spot) return null;
+  try{
+    const ende = t.open ? Date.now() : t.closeTime;
+    const span = Math.max(60e3, ende - t.openTime);
+    const nach = t.open ? 0 : EXC.nachlaufFenster(t);
+    const bis = Math.min(Date.now(), ende + nach);
+    const [iv] = EXC.interval(span + (bis - ende), Date.now() - t.openTime);
+    const res = await info({type:'candleSnapshot', req:{coin:t.coin, interval:iv,
+      startTime:t.openTime - 60e3, endTime:bis + 60e3}});
+    if(Array.isArray(res) && res.length){
+      const p = PATHS.verdichten(res.slice().sort((a,b) => num(a.t) - num(b.t)), 140);
+      if(p){
+        p.open = t.openTime;
+        p.close = t.open ? Date.now() : t.closeTime;
+        p.iv = iv;
+        if(!t.open) PATHS.put(t.id, p);
+        return p;
+      }
+    }
+  }catch(e){}
+  return null;
+}
+
+function karteStatus(s, art){
+  const el = $('#cardStatus');
+  if(!el) return;
+  el.innerHTML = s ? '<span class="' + (art || 'mut') + '">' + s + '</span>' : '';
+}
+function karteMalen(){
+  const t = KARTE.trade;
+  if(!t) return;
+  zeichneKarte($('#cardCanvas'), t, {look:KARTE.look, geld:KARTE.geld});
+}
+async function openKarte(t){
+  if(!t) return;
+  KARTE.trade = t;
+  KARTE.pfad = null;
+  // Bei eingeschalteter Anonymisierung bleibt der Betrag aus – sonst wäre der
+  // Schalter oben ausgehebelt, sobald man teilt
+  if(ANON) KARTE.geld = false;
+  const box = $('#cardGeld');
+  if(box){ box.checked = KARTE.geld; box.disabled = ANON; }
+  const hint = $('#cardGeldHint');
+  if(hint) hint.textContent = ANON
+    ? txt('Beträge sind im Journal verdeckt — dann bleiben sie auch auf der Karte weg.')
+    : txt('Ohne Häkchen stehen nur Prozent und R darauf. Dann sagt die Karte nichts ' +
+          'über die Größe deines Kontos aus.');
+  $$('[data-cardlook]').forEach(el => el.classList.toggle('on', el.dataset.cardlook === KARTE.look));
+  $('#cardSub').textContent = coinName(t.coin) + ' · ' +
+    (t.open ? txt('laufende Position') : dt(t.closeTime));
+  $('#cardModal').classList.add('on');
+  karteStatus('');
+  // Schrift bereitstellen, sonst malt die Zeichenfläche eine Ersatzschrift
+  try{ if(document.fonts && document.fonts.load) await document.fonts.load('68px "Oryol Mark"'); }
+  catch(e){}
+  karteMalen();
+  KARTE.pfad = await kartePfad(t);
+  if(KARTE.trade === t) karteMalen();
+}
+function closeKarte(){
+  $('#cardModal').classList.remove('on');
+  KARTE.trade = null; KARTE.pfad = null;
+}
+function karteName(){
+  const t = KARTE.trade;
+  if(!t) return 'oryol.png';
+  const tag = new Date(t.open ? Date.now() : t.closeTime).toISOString().slice(0, 10);
+  return 'oryol-' + LIVE.base(t.coin).toLowerCase() + '-' + tag + '.png';
+}
+function karteBlob(){
+  return new Promise((auf, ab) => {
+    const cv = $('#cardCanvas');
+    if(!cv || !cv.toBlob) return ab(new Error('Zeichenfläche nicht verfügbar'));
+    cv.toBlob(b => b ? auf(b) : ab(new Error('Bild konnte nicht erzeugt werden')), 'image/png');
+  });
+}
+function karteSpeichern(blob){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = karteName();
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+async function karteTeilen(){
+  try{
+    const blob = await karteBlob();
+    const datei = new File([blob], karteName(), {type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[datei]}) && navigator.share){
+      try{
+        await navigator.share({files:[datei]});
+        karteStatus(txt('Geteilt.'), 'up');
+      }catch(e){
+        if(!e || e.name !== 'AbortError') karteStatus(txt('Teilen abgebrochen.'));
+        else karteStatus('');
+      }
+      return;
+    }
+    // Kein Teilen-Dialog (meist am Rechner): dann eben herunterladen
+    karteSpeichern(blob);
+    karteStatus(txt('Dein Gerät kennt keinen Teilen-Dialog — das Bild ist stattdessen ' +
+      'im Download-Ordner.'), 'up');
+  }catch(e){
+    karteStatus(txt('Hat nicht geklappt:') + ' ' + esc(e.message), 'down');
+  }
+}
+async function karteHerunterladen(){
+  try{
+    karteSpeichern(await karteBlob());
+    karteStatus(txt('Gespeichert:') + ' ' + esc(karteName()), 'up');
+  }catch(e){
+    karteStatus(txt('Hat nicht geklappt:') + ' ' + esc(e.message), 'down');
+  }
+}
+async function karteKopieren(){
+  try{
+    const blob = await karteBlob();
+    if(!navigator.clipboard || !window.ClipboardItem)
+      throw new Error(txt('Dieser Browser kann keine Bilder in die Zwischenablage legen.'));
+    await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
+    karteStatus(txt('In der Zwischenablage — jetzt einfügen.'), 'up');
+  }catch(e){
+    karteStatus(txt('Hat nicht geklappt:') + ' ' + esc(e.message), 'down');
+  }
 }
 
 /* ---------- Trade-Detail ---------- */
@@ -9176,6 +9642,7 @@ function renderLive(){
         '<span class="lr"><b class="' + cls(r.uPnl) + '">' + sgn(r.uPnl, 2) + '</b>' +
           '<span class="' + cls(r.roe) + '" style="font-size:12.5px">' + pct(r.roe, 1) +
           ' <span class="mut">(' + pct(r.movePct, 2) + ' Kurs)</span></span></span>' +
+        '<button class="lshare" data-share="' + esc(r.coin) + '" title="Karte zum Teilen">↗</button>' +
       '</div>').join('') +
       (rows.length > 1
         ? '<div class="dl" style="border:0;padding-top:4px"><span><b>Gesamt unrealisiert</b></span>' +
@@ -9208,6 +9675,15 @@ function renderLive(){
   // Kacheln und offene Positionen öffnen die Statistik zu diesem Markt
   $$('#livePos [data-coin], #liveWatch [data-coin]').forEach(el =>
     el.addEventListener('click', () => openCoin(el.dataset.coin)));
+  // Der kleine Pfeil daneben macht direkt die Karte zum aktuellen Stand
+  $$('#livePos [data-share]').forEach(el => el.addEventListener('click', ev => {
+    ev.stopPropagation();
+    const base = LIVE.base(el.dataset.share).toUpperCase();
+    const t = (S.openTrades || []).find(x => LIVE.base(x.coin).toUpperCase() === base);
+    if(t) openKarte(t);
+    else showErr('Zu dieser Position sind noch keine Ausführungen geladen. ' +
+      'Tipp einmal auf „Aktualisieren“, dann geht die Karte.');
+  }));
   // Die Kacheln oben im Dashboard hängen an denselben Zahlen
   try{ renderDashTop(); }catch(e){}
 }
@@ -10316,6 +10792,24 @@ $('#btnCsv').addEventListener('click', () => exportCsv(filtered()));
 $('#mClose').addEventListener('click', closeModal);
 $('#mPrev').addEventListener('click', () => stepTrade(-1));
 $('#mNext').addEventListener('click', () => stepTrade(1));
+
+/* Karte zum Teilen */
+$('#mShare').addEventListener('click', () => { if(mCurrent) openKarte(mCurrent); });
+$('#cardClose').addEventListener('click', closeKarte);
+$('#cardModal').addEventListener('click', ev => { if(ev.target.id === 'cardModal') closeKarte(); });
+$$('[data-cardlook]').forEach(el => el.addEventListener('click', () => {
+  $$('[data-cardlook]').forEach(x => x.classList.remove('on'));
+  el.classList.add('on');
+  KARTE.look = el.dataset.cardlook;
+  karteMalen();
+}));
+$('#cardGeld').addEventListener('change', ev => {
+  KARTE.geld = !!ev.target.checked && !ANON;
+  karteMalen();
+});
+$('#cardShare').addEventListener('click', karteTeilen);
+$('#cardDownload').addEventListener('click', karteHerunterladen);
+$('#cardCopy').addEventListener('click', karteKopieren);
 $('#modal').addEventListener('click', e => { if(e.target.id === 'modal') closeModal(); });
 $('#mImg').addEventListener('input', () => { mImgData = $('#mImg').value.trim(); drawMImg(); });
 $('#mImgPick').addEventListener('click', () => $('#mImgFile').click());
