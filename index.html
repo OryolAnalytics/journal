@@ -1267,7 +1267,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 05.09.2026, 02:10</span><br>
+    <span class="build">Fassung 05.09.2026, 17:20</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1409,7 +1409,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
 </div>
 
 <!-- KARTE ZUM TEILEN -->
-<div class="modal" id="cardModal">
+<div class="modal" id="cardModal" style="z-index:320">
   <div class="sheet" style="max-width:540px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
       <div>
@@ -1473,6 +1473,13 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <div class="chips" id="mTags"></div>
     </div>
     <div class="f">
+      <label>Hebel</label>
+      <div style="display:flex;gap:10px;align-items:center">
+        <input type="number" id="mHebel" min="1" max="100" step="1" style="max-width:110px" placeholder="z. B. 10">
+        <span class="mut" style="font-size:12px;line-height:1.5" id="mHebelHint"></span>
+      </div>
+    </div>
+    <div class="f">
       <label>Gehört zu welcher Idee?</label>
       <select id="mPlan"></select>
       <div class="mut" style="font-size:11.5px;margin-top:5px" id="mPlanHint"></div>
@@ -1533,6 +1540,8 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
 let LANG = 'de';
 const EN = {
   /* --- Karte zum Teilen --- */
+  "Steht so auf der Karte. Bei laufenden Positionen liest das Journal ihn selbst ab.": "Shown like this on the card. For open positions the journal reads it by itself.",
+  "Hyperliquid nennt den Hebel nur an laufenden Positionen. Trag ihn ein, dann steht er auf der Karte.": "Hyperliquid only reports leverage on open positions. Enter it and it appears on the card.",
   "Wochenkarte zum Teilen": "Share this week as a card",
   "Karte für den gewählten Zeitraum": "Card for the selected period",
   "Ergebnis in R": "Result in R",
@@ -3044,7 +3053,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '05.09.2026, 02:10';
+const BUILD = '05.09.2026, 17:20';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -3058,7 +3067,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 05.09.2026, 02:10';
+      ' · Fassung 05.09.2026, 17:20';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -3702,7 +3711,10 @@ function noteOf(id){
 function noteKey(t){
   if(!t) return '';
   const f = (t.fills || []).find(x => x && x.tid != null);
-  return f ? 'f:' + t.coin + '#' + f.tid : t.id;
+  if(f) return 'f:' + t.coin + '#' + f.tid;
+  // Ohne Kennung der Ausführung: ihre Zeit – auch die ändert sich beim Schließen nicht
+  const e = (t.fills || []).find(x => x && x.time);
+  return e ? 'f:' + t.coin + '@' + num(e.time) : t.id;
 }
 /* Lesen: erst der stabile Schlüssel, dann die frühere Kennung */
 function noteOfTrade(t){
@@ -4417,6 +4429,7 @@ async function load(incremental){
     S.feeRates = fr ? {cross:num(fr.fees.userCrossRate) || 0.00045,
                        add:num(fr.fees.userAddRate) || 0.00015} : null;
     S.positions = mergePositions(data);
+    try{ HEBEL.merken(); }catch(e){}
     S.spot = mergeSpot(data);
     S.staking = mergeStaking(data);
     S.portfolio = [['allTime', {accountValueHistory: mergeHistories(data.map(d => acctHistoryOf(d.portfolio))),
@@ -7018,6 +7031,7 @@ function kartenDaten(t){
     (a.position || {}).coin === t.coin &&
     (!t.wallet || !a.wallet || a.wallet === t.wallet));
   if(laeuft && ap) hebel = Math.round(num((ap.position.leverage || {}).value)) || 0;
+  if(!hebel) hebel = HEBEL.von(t);          // gemerkt oder von Hand eingetragen
 
   const {R} = riskOf(t);
   return {
@@ -7813,6 +7827,7 @@ function openTrade(id){
     ['Ø Entry', '<span class="mono">' + price(t.avgEntry) + '</span>'],
     ['Ø Exit', '<span class="mono">' + price(t.avgExit) + '</span>'],
     ['Größte Position', usd(size, 2)],
+    HEBEL.von(t) ? ['Hebel', HEBEL.von(t) + 'x'] : null,
     ['Roh-PnL (vor Gebühren)', sgn(t.closedPnl, 2)],
     ['Gebühren', usd(t.fees, 4)],
     ['Anzahl Fills', t.fills.length],
@@ -7857,6 +7872,11 @@ function openTrade(id){
   $('#mImg').value = mImgData.indexOf('data:') === 0 ? '' : mImgData;
   drawMImg();
   renderStars(n.rating || 0);
+  const hv = HEBEL.von(t);
+  $('#mHebel').value = hv || '';
+  $('#mHebelHint').textContent = hv
+    ? txt('Steht so auf der Karte. Bei laufenden Positionen liest das Journal ihn selbst ab.')
+    : txt('Hyperliquid nennt den Hebel nur an laufenden Positionen. Trag ihn ein, dann steht er auf der Karte.');
 
   $('#mFills tbody').innerHTML = t.fills.map(f =>
     '<tr><td class="mut">' + dt(f.time) + '</td><td>' + esc(f.dir || (f.side === 'B' ? 'Buy' : 'Sell')) +
@@ -9418,6 +9438,42 @@ function riskUnit(){
   const acct = (S.totals && S.totals.total) || 0;
   return {pct, R: acct * pct / 100, acct};
 }
+/* ---- Hebel-Gedächtnis ----
+   Hyperliquid nennt den Hebel nur an der laufenden Position, nie an der
+   Historie. Solange das Journal offen ist, sieht es die Position aber –
+   und merkt sich den Hebel am Trade. Was es nicht gesehen hat, kannst du
+   von Hand eintragen.                                                       */
+const HEBEL = {
+  key:'hlj_hebel', map:null,
+  lade(){
+    if(!this.map){ try{ this.map = JSON.parse(localStorage.getItem(this.key) || '{}') || {}; }catch(e){ this.map = {}; } }
+    return this.map;
+  },
+  speichern(){ try{ localStorage.setItem(this.key, JSON.stringify(this.lade())); }catch(e){} },
+  von(t){ return t ? (num(this.lade()[noteKey(t)]) || 0) : 0; },
+  setze(t, v){
+    if(!t) return;
+    const k = noteKey(t), m = this.lade();
+    const n = Math.round(num(v));
+    if(n > 0) m[k] = n; else delete m[k];
+    this.speichern();
+  },
+  /* Aus den laufenden Positionen ablesen und an den offenen Trades vermerken */
+  merken(){
+    const aps = ((S.positions || {}).assetPositions || []);
+    if(!aps.length) return;
+    const m = this.lade();
+    let neu = false;
+    for(const t of (S.openTrades || [])){
+      const ap = aps.find(a => (a.position || {}).coin === t.coin &&
+        (!t.wallet || !a.wallet || a.wallet === t.wallet));
+      const v = ap ? Math.round(num((ap.position.leverage || {}).value)) : 0;
+      if(v > 0 && m[noteKey(t)] !== v){ m[noteKey(t)] = v; neu = true; }
+    }
+    if(neu) this.speichern();
+  }
+};
+
 /* Risiko eines einzelnen Trades in Dollar.
    Hängt er an einem Plan mit Stop, ist es der Abstand Einstieg–Stop mal
    Größe – also das, was du wirklich riskiert hast. Sonst der eingestellte
@@ -10137,6 +10193,7 @@ const LIVE = {
       if(x.positions) d.positions = x.positions;
     }
     S.positions = mergePositions(S.wdata);
+    try{ HEBEL.merken(); }catch(e){}
     // Hat sich der Bestand geändert, fehlen dazu die Ausführungen
     const jetzt = ((S.positions || {}).assetPositions || [])
       .map(a => (a.wallet || '') + '|' + ((a.position || {}).coin || '') +
@@ -11468,6 +11525,7 @@ $('#mSave').addEventListener('click', () => {
   const tags = chipValue('#mTags'), note = $('#mNote').value.trim(), rating = currentRating();
   const img = mImgData || $('#mImg').value.trim();
   const planSel = $('#mPlan').value;
+  HEBEL.setze(mCurrent, $('#mHebel').value);
   if(!tags.length && !note && !rating && !img && !planSel){
     setTradeNote(mCurrent, {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()});
   }else{
