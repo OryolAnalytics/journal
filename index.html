@@ -184,6 +184,17 @@ tbody tr:hover{background:var(--panel2)}
 .bar i{display:block;height:100%;border-radius:4px}
 #status{font-size:12px;color:var(--muted);padding:0 14px 8px;max-width:1240px;margin:0 auto}
 .empty-state{text-align:center;padding:40px 16px;color:var(--muted);font-size:14px;line-height:1.6}
+/* Am Handy werden breite Tabellen zu Karten: jede Zeile ein Kästchen,
+   jede Zelle eine Zeile mit ihrer Überschrift davor.                     */
+@media (max-width:640px){
+  table.karten thead{display:none}
+  table.karten,table.karten tbody,table.karten tr,table.karten td{display:block;width:100%;box-sizing:border-box}
+  table.karten tr{border:1px solid var(--line);border-radius:12px;padding:6px 12px;margin-bottom:10px;background:var(--panel2)}
+  table.karten td{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:5px 0;border:0;text-align:right;white-space:normal}
+  table.karten td::before{content:attr(data-l);color:var(--muted);font-size:12px;text-align:left;flex:0 0 auto}
+  table.karten td:not([data-l])::before{content:none}
+  table.karten td.leer,table.karten td.wcol.hide{display:none}
+}
 .err{background:var(--errBg);border:1px solid var(--errLine);color:var(--errTxt);
   padding:12px 14px;border-radius:11px;font-size:13px;line-height:1.5;margin-bottom:12px}
 .hide{display:none!important}
@@ -482,6 +493,9 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   <!-- ÜBERSICHT -->
   <section id="v-overview" class="hide">
     <div id="coverWarn"></div>
+    <div class="filters" style="justify-content:flex-end;margin-bottom:8px">
+      <button id="btnZeitraumKarte" title="Karte für den gewählten Zeitraum">Karte zum Teilen</button>
+    </div>
     <div class="kpis" id="kpis"></div>
     <div class="mut" id="cmpNote" style="font-size:12px;margin:-14px 0 22px"></div>
     <div class="panel" style="margin-top:14px">
@@ -505,7 +519,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <h2>Offen <span class="mut" id="openCount"></span></h2>
       <div class="kpis" id="openKpis" style="margin-bottom:12px"></div>
       <div class="scroll">
-        <table id="tblOpen">
+        <table id="tblOpen" class="karten">
           <thead><tr>
             <th>Seit</th><th class="wcol">Wallet</th><th>Coin</th><th>Seite</th><th>Entry</th>
             <th>Größe (USD)</th><th>Unreal. PnL</th><th>ROE</th><th>Liq.-Preis</th>
@@ -518,7 +532,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     <div class="panel" id="orderPanel">
       <h2>Offene Orders <span class="mut" id="orderCount"></span></h2>
       <div class="scroll">
-        <table id="tblOrders">
+        <table id="tblOrders" class="karten">
           <thead><tr>
             <th>Aufgegeben</th><th class="wcol">Wallet</th><th>Markt</th><th>Art</th><th>Seite</th>
             <th>Preis</th><th>Menge</th><th>Wert</th><th>Abstand</th>
@@ -549,7 +563,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         <button id="btnCsv">CSV export</button>
       </div>
       <div class="scroll">
-        <table id="tblTrades">
+        <table id="tblTrades" class="karten">
           <thead><tr>
             <th>Geschlossen</th><th class="wcol">Wallet</th><th>Coin</th><th>Seite</th><th>Entry</th><th>Exit</th>
             <th>Größe (USD)</th><th>PnL netto</th><th>R</th><th>%</th><th>Gebühr</th><th>Funding</th><th>Dauer</th><th>Setup</th><th>📝</th>
@@ -809,6 +823,9 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         <button id="revPrev">‹</button>
         <h2 style="margin:0" id="revTitle"></h2>
         <button id="revNext">›</button>
+      </div>
+      <div class="filters" style="justify-content:flex-end">
+        <button id="revKarte">Wochenkarte zum Teilen</button>
       </div>
       <div class="kpis" id="revKpis"></div>
       <div id="revTrades" style="margin-top:12px"></div>
@@ -1094,7 +1111,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     </div>
     <div class="panel">
       <h2>Offene Positionen</h2>
-      <div class="scroll"><table id="tblPos">
+      <div class="scroll"><table id="tblPos" class="karten">
         <thead><tr>
           <th>Coin</th><th class="wcol">Wallet</th><th>Seite</th><th>Größe</th><th>Wert (USD)</th><th>Entry</th>
           <th>Liq.-Preis</th><th>Hebel</th><th>Unreal. PnL</th><th>ROE</th><th>Funding</th>
@@ -1250,7 +1267,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 04.09.2026, 23:05</span><br>
+    <span class="build">Fassung 05.09.2026, 02:10</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1516,6 +1533,12 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
 let LANG = 'de';
 const EN = {
   /* --- Karte zum Teilen --- */
+  "Wochenkarte zum Teilen": "Share this week as a card",
+  "Karte für den gewählten Zeitraum": "Card for the selected period",
+  "Ergebnis in R": "Result in R",
+  "1 R = {0} · aus dem Stop deines Plans": "1 R = {0} · from the stop in your plan",
+  "1 R = {0} · {1} % vom Konto": "1 R = {0} · {1}% of the account",
+  "Was du hier einträgst, bleibt am Trade – auch nach dem Schließen.": "Whatever you enter here stays with the trade – even after it closes.",
   "Referral-Link (steht mit QR-Code auf jeder Karte)": "Referral link (shown with a QR code on every card)",
   "Der QR-Code wird auf deinem Gerät erzeugt, nichts geht nach draußen. Feld leer lassen, wenn keine Karte einen Link tragen soll.":
     "The QR code is generated on your device, nothing leaves it. Leave the field empty if no card should carry a link.",
@@ -1542,6 +1565,8 @@ const EN = {
   "Teilen": "Share",
 
   /* --- Vaults --- */
+  "Vault-Rendite über {0} Tage, größter Rückgang {1}": "vault return over {0} days, largest drawdown {1}",
+  "Seit deinem Einstieg": "Since you joined",
   "In keinem Vault liegt gerade Geld. Sobald du einzahlst, steht hier, wie viel drin ist und wie der Vault läuft.":
     "There is no money in any vault right now. As soon as you deposit, this shows how much is in there and how the vault is doing.",
   "Gerechnet aus dem Ergebnis des Vaults im Verhältnis zu seiner Größe, Tag für Tag aneinandergehängt. Ein- und Auszahlungen anderer Anleger verzerren die Kurve so nicht. Start = 100. Das ist die Entwicklung des Vaults, nicht deine — deine hängt daran, wann du eingestiegen bist.":
@@ -2530,7 +2555,6 @@ const EN = {
   "Älterer Trade": "Older trade",
   "FOMO-Einstieg": "FOMO entry",
   "Revenge Trade": "Revenge trade",
-  "Ergebnis in R": "Result in R",
   "Schlechtester": "Worst",
   "auf PnL-Kurve": "on PnL curve",
   "Positionswert": "Position value",
@@ -3020,7 +3044,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '04.09.2026, 23:05';
+const BUILD = '05.09.2026, 02:10';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -3034,7 +3058,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 04.09.2026, 23:05';
+      ' · Fassung 05.09.2026, 02:10';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -3613,6 +3637,7 @@ function loadNotes(){
   return merged;
 }
 function saveNotes(fromSync){
+  S.notesVer = (S.notesVer || 0) + 1;
   try{ localStorage.setItem(LS.notesAll, JSON.stringify(S.notes)); }
   catch(e){ showErr('Notiz konnte nicht gespeichert werden: ' + e.message); }
   if(!fromSync) syncSoon();
@@ -3666,11 +3691,34 @@ function chipValue(sel){
 }
 
 function noteOf(id){
-  if(isMeta(id)) return null;
+  if(!id || isMeta(id)) return null;
   const n = S.notes[id];
   return (n && !n.deleted) ? n : null;
 }
-function isMeta(k){ return k.indexOf('plan:') === 0 || k.indexOf('event:') === 0 ||
+/* Stabiler Schlüssel für Notizen: die erste Ausführung des Trades.
+   Die alte Kennung enthält die Schlusszeit – eine laufende Position hat noch
+   keine, und beim Schließen änderte sie sich. So bleibt eine Notiz, die du
+   während des Trades schreibst, nach dem Schließen am selben Trade.       */
+function noteKey(t){
+  if(!t) return '';
+  const f = (t.fills || []).find(x => x && x.tid != null);
+  return f ? 'f:' + t.coin + '#' + f.tid : t.id;
+}
+/* Lesen: erst der stabile Schlüssel, dann die frühere Kennung */
+function noteOfTrade(t){
+  if(!t) return null;
+  return noteOf(noteKey(t)) || noteOf(t.id);
+}
+/* Schreiben: immer unter dem stabilen Schlüssel. Lag unter der alten Kennung
+   schon etwas, wird es dort als gelöscht markiert – sonst zählt es doppelt. */
+function setTradeNote(t, n){
+  const k = noteKey(t);
+  S.notes[k] = n;
+  if(k !== t.id && S.notes[t.id] && !S.notes[t.id].deleted){
+    S.notes[t.id] = {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()};
+  }
+}
+function isMeta(k){ k = String(k || ''); return k.indexOf('plan:') === 0 || k.indexOf('event:') === 0 ||
   k.indexOf('review:') === 0 || k.indexOf('__') === 0; }
 function liveNotes(){
   const out = {};
@@ -3697,6 +3745,82 @@ const SYNC = {
       'Content-Type':'application/json'}, extra || {});
   },
   url(c){ return String(c.url).replace(/\/+$/, '') + '/rest/v1/journal_notes'; },
+  urlFills(c){ return String(c.url).replace(/\/+$/, '') + '/rest/v1/journal_fills'; },
+
+  /* ---- Sicherung der Ausführungen ----
+     Hyperliquid gibt nur die letzten 10.000 Ausführungen heraus. Alles davor
+     lebt sonst nur im Browserspeicher. Hier wandert jede Ausführung einmal
+     nach Supabase – nur die neuen, nie die ganze Historie noch einmal.     */
+  fillKey(f){ return f.tid != null ? String(f.tid) : (f.hash + '|' + f.oid + '|' + f.time + '|' + f.px + '|' + f.sz); },
+  standKey(addr){ return 'hlj_sync_fills_' + String(addr).toLowerCase(); },
+  stand(addr){ return num(localStorage.getItem(this.standKey(addr))) || 0; },
+  setStand(addr, t){ try{ localStorage.setItem(this.standKey(addr), String(t)); }catch(e){} },
+  fillsTabelleFehlt:false,
+
+  async sichern(addr, fills){
+    if(!this.active() || !Array.isArray(fills) || !fills.length) return {gesendet:0};
+    const c = this.cfg();
+    const ab = this.stand(addr);
+    const neu = fills.filter(f => num(f.time) > ab);
+    if(!neu.length) return {gesendet:0};
+    neu.sort((a,b) => num(a.time) - num(b.time));
+    let gesendet = 0;
+    for(let i = 0; i < neu.length; i += 400){
+      const teil = neu.slice(i, i + 400);
+      const rows = teil.map(f => ({journal_id:c.jid, wallet:String(addr).toLowerCase(),
+        tid:this.fillKey(f), t:num(f.time), fill:f}));
+      const r = await fetch(this.urlFills(c) + '?on_conflict=journal_id,wallet,tid', {
+        method:'POST',
+        headers:this.hdr(c, {Prefer:'resolution=merge-duplicates,return=minimal'}),
+        body:JSON.stringify(rows)
+      });
+      if(!r.ok){
+        const text = (await r.text()).slice(0, 200);
+        // Tabelle noch nicht angelegt: das ist kein Fehler, sondern ein Hinweis
+        if(r.status === 404 || /journal_fills/.test(text)){ this.fillsTabelleFehlt = true; return {gesendet, fehlt:true}; }
+        throw new Error('Sicherung fehlgeschlagen (HTTP ' + r.status + '): ' + text);
+      }
+      gesendet += teil.length;
+      this.setStand(addr, num(teil[teil.length - 1].time));
+    }
+    this.fillsTabelleFehlt = false;
+    return {gesendet};
+  },
+  /* Alles, was für diese Wallet gesichert ist, seitenweise zurückholen */
+  async holen(addr, onProgress){
+    if(!this.active()) return [];
+    const c = this.cfg();
+    const out = [];
+    const seite = 1000;
+    for(let off = 0; off < 200000; off += seite){
+      const u = this.urlFills(c) + '?journal_id=eq.' + encodeURIComponent(c.jid) +
+        '&wallet=eq.' + encodeURIComponent(String(addr).toLowerCase()) +
+        '&select=fill&order=t.asc&limit=' + seite + '&offset=' + off;
+      const r = await fetch(u, {headers:this.hdr(c)});
+      if(!r.ok){
+        const text = (await r.text()).slice(0, 200);
+        if(r.status === 404 || /journal_fills/.test(text)){ this.fillsTabelleFehlt = true; return []; }
+        throw new Error('Abruf der Sicherung fehlgeschlagen (HTTP ' + r.status + '): ' + text);
+      }
+      const rows = await r.json();
+      for(const row of rows) if(row && row.fill) out.push(row.fill);
+      if(onProgress) onProgress(out.length);
+      if(rows.length < seite) break;
+    }
+    return out;
+  },
+  /* Wie viele Ausführungen liegen in der Sicherung? */
+  async anzahl(addr){
+    if(!this.active()) return null;
+    const c = this.cfg();
+    const u = this.urlFills(c) + '?journal_id=eq.' + encodeURIComponent(c.jid) +
+      '&wallet=eq.' + encodeURIComponent(String(addr).toLowerCase()) + '&select=tid';
+    const r = await fetch(u, {headers:this.hdr(c, {Prefer:'count=exact', Range:'0-0'})});
+    if(!r.ok) return null;
+    const cr = r.headers.get('content-range') || '';
+    const m = /\/(\d+)$/.exec(cr);
+    return m ? parseInt(m[1], 10) : null;
+  },
 
   async pull(c){
     const u = this.url(c) + '?journal_id=eq.' + encodeURIComponent(c.jid) + '&select=*';
@@ -3788,13 +3912,91 @@ const SYNC = {
       if(changed) renderAll();
       return {sent, received:remote.length};
     }catch(e){
-      setSyncStatus('<span class="down">Sync-Fehler:</span> ' + esc(e.message));
+      setSyncStatus('<span class="down">Sync-Fehler:</span> ' + esc(this.erklaeren(e)));
       if(opts.loud) throw e;
     }finally{
       this.busy = false;
     }
+  },
+  /* Ein Netzfehler bei Supabase heißt meist: das kostenlose Projekt wurde nach
+     einer Woche ohne Zugriff schlafen gelegt. Das ist kein Datenverlust.     */
+  erklaeren(e){
+    const m = String(e && e.message || e);
+    if(/Failed to fetch|NetworkError|Load failed|HTTP 5\d\d/.test(m)){
+      return m + ' — Wahrscheinlich schläft das Supabase-Projekt (kostenlose Projekte pausieren ' +
+        'nach 7 Tagen ohne Zugriff). Im Supabase-Dashboard auf „Restore project“ tippen, ' +
+        'eine Minute warten, dann hier erneut synchronisieren. Die Daten bleiben erhalten.';
+    }
+    return m;
   }
 };
+
+/* Nach dem Laden: neue Ausführungen sichern und den Stand anzeigen */
+async function fillsSichern(){
+  if(!SYNC.active()) return;
+  let gesamt = 0, fehlt = false;
+  for(const d of (S.wdata || [])){
+    try{
+      const r = await SYNC.sichern(d.addr, d.fills || []);
+      gesamt += r.gesendet || 0;
+      if(r.fehlt) fehlt = true;
+    }catch(e){
+      setSyncStatus('<span class="down">Sicherung:</span> ' + esc(SYNC.erklaeren(e)));
+      return;
+    }
+  }
+  S.fillsGesichert = {wann:Date.now(), neu:gesamt, fehlt};
+  renderSicherung();
+}
+/* Auf einem neuen Gerät: die Historie aus der Sicherung in den Zwischenspeicher holen */
+async function fillsHolen(){
+  if(!SYNC.active()) return;
+  const btn = $('#fillsHolen');
+  if(btn) btn.disabled = true;
+  try{
+    let dazu = 0;
+    for(const w of activeWallets()){
+      const alt = (await CACHE.get(w.addr)) || {fills:[]};
+      const aus = await SYNC.holen(w.addr, n =>
+        setSyncStatus('<span class="spin"></span> ' + esc(w.label) + ': ' + n + ' Ausführungen aus der Sicherung…'));
+      if(SYNC.fillsTabelleFehlt) break;
+      const vorher = (alt.fills || []).length;
+      const zusammen = mergeFills(alt.fills || [], aus);
+      dazu += zusammen.length - vorher;
+      await CACHE.put(w.addr, zusammen, {funding:alt.funding, ledger:alt.ledger,
+        fundUntil:alt.fundUntil, ledgerUntil:alt.ledgerUntil});
+    }
+    if(SYNC.fillsTabelleFehlt){
+      setSyncStatus('<span class="warn">Die Tabelle journal_fills gibt es in deinem Supabase-Projekt noch nicht — ' +
+        'siehe SYNC-ANLEITUNG, Teil B.</span>');
+    }else{
+      setSyncStatus('<span class="up">✓</span> ' + dazu + ' Ausführungen aus der Sicherung übernommen. Lade neu…');
+      setTimeout(() => load(true), 400);
+    }
+  }catch(e){
+    setSyncStatus('<span class="down">Sicherung:</span> ' + esc(SYNC.erklaeren(e)));
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
+function renderSicherung(){
+  const el = $('#fillsStand');
+  if(!el) return;
+  const g = S.fillsGesichert;
+  if(!SYNC.active()){ el.innerHTML = ''; return; }
+  if(SYNC.fillsTabelleFehlt || (g && g.fehlt)){
+    el.innerHTML = '<span class="warn">Sicherung der Ausführungen noch nicht eingerichtet:</span> ' +
+      'die Tabelle <span class="mono">journal_fills</span> fehlt in deinem Supabase-Projekt. ' +
+      'SQL dafür steht in der SYNC-ANLEITUNG, Teil B.';
+    return;
+  }
+  const lokal = (S.wdata || []).reduce((n, d) => n + (d.fills || []).length, 0);
+  el.innerHTML = g
+    ? '<span class="up">✓</span> Ausführungen gesichert · ' + lokal + ' auf diesem Gerät, ' +
+      (g.neu ? g.neu + ' gerade hochgeladen' : 'nichts Neues') + ' · ' +
+      new Date(g.wann).toLocaleTimeString(loc(), {hour:'2-digit', minute:'2-digit'})
+    : 'Ausführungen werden nach dem nächsten Laden gesichert.';
+}
 
 let syncTimer = null;
 function syncSoon(){
@@ -4069,6 +4271,21 @@ function renderWalletBtn(){
 async function loadOne(addr, incremental){
   const cache = incremental ? await CACHE.get(addr) : null;
   let base = cache ? cache.fills : [];
+  /* Leerer Speicher, aber eine Sicherung eingerichtet – ein neues Gerät.
+     Dann kommt die Historie zuerst von dort, bevor Hyperliquid gefragt wird. */
+  if(!base.length && SYNC.active()){
+    const marke = 'hlj_sync_fills_geholt_' + String(addr).toLowerCase();
+    let geholt = false;
+    try{ geholt = localStorage.getItem(marke) === '1'; }catch(e){}
+    if(!geholt){
+      try{
+        const aus = await SYNC.holen(addr, n =>
+          setStatus('<span class="spin"></span> ' + walletLabel(addr) + ': ' + n + ' aus der Sicherung…'));
+        if(aus.length) base = mergeFills([], aus);
+        try{ localStorage.setItem(marke, '1'); }catch(e){}
+      }catch(e){ /* dann eben nur Hyperliquid */ }
+    }
+  }
   let from = 0;
   if(base.length){
     from = base[base.length - 1].time - 60000;
@@ -4168,6 +4385,7 @@ async function load(incremental){
   if(S.loading) return;
   S.loading = true; showErr('');
   S.notes = loadNotes();
+  S.notesVer = (S.notesVer || 0) + 1;
 
   try{
     await CACHE.open();
@@ -4222,7 +4440,7 @@ async function load(incremental){
       showErr('<b>Die Daten sind geladen, aber beim Aufbauen der Ansicht ist etwas schiefgegangen.</b><br>' +
         esc(err.message) + '<br>Die Zahlen oben stimmen trotzdem.');
     }
-    if(SYNC.active()) SYNC.run({});
+    if(SYNC.active()){ SYNC.run({}); fillsSichern(); }
     // Frisch geladen: der nächste Positionsabruf soll deswegen nicht gleich
     // wieder ein Nachladen auslösen
     LIVE.posKey = undefined; LIVE.posFehler = false;
@@ -4377,7 +4595,7 @@ function filtered(von, bis){
     if(mkt === 'perp' && t.spot) return false;
     if(mkt === 'spot' && !t.spot) return false;
     if(tag){
-      const tl = tagsOf(noteOf(t.id));
+      const tl = tagsOf(noteOfTrade(t));
       if(tag === '__none'){ if(tl.length) return false; }
       else if(tl.indexOf(tag) < 0) return false;
     }
@@ -4712,20 +4930,20 @@ function renderTrades(tr){
   const q = ($('#fSearch').value || '').trim().toLowerCase();
   let list = tr.filter(t => {
     if(q){
-      const n = noteOf(t.id);
+      const n = noteOfTrade(t);
       const hay = (noteText(n) + ' ' + tagsOf(n).join(' ') + ' ' + coinName(t.coin)).toLowerCase();
       if(hay.indexOf(q) < 0) return false;
     }
     if(res === 'win') return t.net > 0;
     if(res === 'loss') return t.net < 0;
-    if(res === 'nonote'){ const n = noteOf(t.id); return !n || (!noteText(n) && !tagsOf(n).length); }
+    if(res === 'nonote'){ const n = noteOfTrade(t); return !n || (!noteText(n) && !tagsOf(n).length); }
     return true;
   });
   list = sortTrades(list);
   $('#tradeCount').textContent = '(' + list.length + ')';
   const tb = $('#tblTrades tbody');
   tb.innerHTML = list.map(t => {
-    const n = noteOf(t.id) || {};
+    const n = noteOfTrade(t) || {};
     const size = t.maxNotional || t.entryNotional;
     return '<tr data-id="' + esc(t.id) + '">' +
       '<td class="mut">' + dt(t.closeTime) + '</td>' +
@@ -4821,6 +5039,7 @@ function renderOpen(){
   $('#openKpis').innerHTML = items.map(([k,v,sub,c]) =>
     '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
     '<div class="s">' + sub + '</div></div>').join('');
+  mobilLabels('#tblOpen');
 }
 
 /* Offene Orders, die noch nicht ausgeführt sind */
@@ -4858,6 +5077,7 @@ function renderOrders(){
       '</tr>';
   }).join('');
   $$('#tblOrders .wcol').forEach(el => el.classList.toggle('hide', !multi));
+  mobilLabels('#tblOrders');
 }
 
 /* ---------- Render: Setups ---------- */
@@ -4865,7 +5085,7 @@ function renderTagEditor(tr){
   const ed = $('#tagEditor');
   if(ed && document.activeElement !== ed) ed.value = S.tags.join('\n');
   const used = {};
-  for(const t of tr) tagsOf(noteOf(t.id)).forEach(k => used[k] = (used[k] || 0) + 1);
+  for(const t of tr) tagsOf(noteOfTrade(t)).forEach(k => used[k] = (used[k] || 0) + 1);
   const unknown = Object.keys(used).filter(k => S.tags.indexOf(k) < 0);
   const unused = S.tags.filter(k => !used[k]);
   $('#tagUsage').innerHTML =
@@ -4883,7 +5103,7 @@ function renderSetups(tr){
   const groups = {};
   let multi = 0;
   for(const t of tr){
-    const tl = tagsOf(noteOf(t.id));
+    const tl = tagsOf(noteOfTrade(t));
     if(tl.length > 1) multi++;
     const keys = tl.length ? tl : ['— ohne Setup —'];
     keys.forEach(k => (groups[k] = groups[k] || []).push(t));
@@ -4891,10 +5111,10 @@ function renderSetups(tr){
   const {R: RE} = riskUnit();
   const rows = Object.keys(groups).map(tag => {
     const g = groups[tag], m = metrics(g);
-    const ratings = g.map(t => (noteOf(t.id) || {}).rating).filter(Boolean).map(Number);
+    const ratings = g.map(t => (noteOfTrade(t) || {}).rating).filter(Boolean).map(Number);
     const avgR = ratings.length ? (ratings.reduce((a,b) => a + b, 0) / ratings.length) : null;
     // Vertrauensbereich für den Erwartungswert je Trade
-    const b = bootstrap(g.map(t => RE > 0 ? t.net / RE : t.net));
+    const b = bootstrap(inRList(g));
     return {tag, m, avgR, b};
   }).sort((a,b) => b.m.net - a.m.net);
 
@@ -4924,7 +5144,7 @@ function renderSetups(tr){
   // Kombinationen: exakte Zusammenstellung der Setups je Trade
   const combos = {};
   for(const t of tr){
-    const tl = tagsOf(noteOf(t.id));
+    const tl = tagsOf(noteOfTrade(t));
     if(!tl.length) continue;
     const key = tl.slice().sort().join(' + ');
     (combos[key] = combos[key] || []).push(t);
@@ -4959,7 +5179,7 @@ function renderSetups(tr){
 
   const byR = {};
   for(const t of tr){
-    const r = (noteOf(t.id) || {}).rating;
+    const r = (noteOfTrade(t) || {}).rating;
     if(!r) continue;
     (byR[r] = byR[r] || []).push(t);
   }
@@ -5106,7 +5326,18 @@ function renderLongShort(tr){
 }
 
 /* ---------- Pläne & Termine (teilen sich die Sync-Tabelle) ---------- */
+/* Pläne werden je Trade nachgeschlagen – deshalb nur einmal je Notizstand
+   aus den Notizen gelesen, nicht bei jedem Aufruf neu.                    */
+let planCache = {sig:'', list:[]};
 function planEntries(){
+  // Fingerabdruck der Plan-Notizen: Schlüssel und Zeitstempel, ohne zu parsen
+  let sig = String(S.notesVer || 0) + '|';
+  for(const k in S.notes){
+    if(k.indexOf('plan:') !== 0) continue;
+    const n = S.notes[k];
+    sig += k + ':' + (n.updatedAt || 0) + (n.deleted ? 'x' : '') + ';';
+  }
+  if(sig === planCache.sig) return planCache.list;
   const out = [];
   for(const k in S.notes){
     if(k.indexOf('plan:') !== 0) continue;
@@ -5118,6 +5349,7 @@ function planEntries(){
       out.push(d);
     }catch(e){}
   }
+  planCache = {sig, list:out};
   return out;
 }
 function eventEntries(){
@@ -5630,7 +5862,7 @@ function renderSim(){
   if(ausEcht){
     const {R} = riskUnit();
     if(R > 0){
-      const liste = filtered().filter(t => !t.spot).map(t => t.net / R);
+      const liste = inRList(filtered().filter(t => !t.spot));
       if(liste.length >= 20) cfg.echte = liste;
     }
   }
@@ -6147,11 +6379,20 @@ function vaultEinsatz(buch, v){
 /* Zeitgewichtete Wertentwicklung eines Vaults: Ergebnis je Abschnitt geteilt
    durch die Größe des Vaults davor, aneinandergehängt. Ein- und Auszahlungen
    anderer Anleger fallen dadurch heraus – anders als beim reinen Kontowert. */
-function vaultKurve(det, fenster){
+function vaultKurve(det, fenster, ab){
   const p = ((det || {}).portfolio || []).find(x => Array.isArray(x) && x[0] === fenster);
   const box = (p || [])[1] || {};
-  const av = box.accountValueHistory || [], pn = box.pnlHistory || [];
+  let av = box.accountValueHistory || [], pn = box.pnlHistory || [];
   if(av.length < 2 || pn.length !== av.length) return null;
+  /* Ab einem Zeitpunkt – dem eigenen Einstieg: der letzte Punkt davor bleibt
+     als Ausgangswert stehen, damit der erste Tag nicht unter den Tisch fällt. */
+  if(ab){
+    let i = av.findIndex(x => num(x[0]) >= ab);
+    if(i < 0) return null;
+    if(i > 0) i--;
+    av = av.slice(i); pn = pn.slice(i);
+    if(av.length < 2) return null;
+  }
   let idx = 100, hoch = 100, dd = 0;
   const punkte = [{t:num(av[0][0]), v:100}];
   for(let i = 1; i < av.length; i++){
@@ -6259,6 +6500,15 @@ function renderVaults(){
         '<div class="kpi"><div class="k">APR</div><div class="v">' +
           (det && det.apr != null ? pctn(num(det.apr) * 100, 1) : '–') + '</div>' +
           '<div class="s">Angabe von Hyperliquid</div></div>' +
+        (function(){
+          // Die Entwicklung des Vaults ab dem Tag deines Einstiegs – die Zahl, die dich betrifft
+          const ks = seit ? vaultKurve(det, 'allTime', seit) : null;
+          if(!ks) return '';
+          return '<div class="kpi"><div class="k">Seit deinem Einstieg</div>' +
+            '<div class="v ' + cls(ks.rendite) + '">' + pct(ks.rendite, 2) + '</div>' +
+            '<div class="s">' + txt('Vault-Rendite über {0} Tage, größter Rückgang {1}')
+              .replace('{0}', Math.round(ks.tage)).replace('{1}', pctn(ks.dd, 1)) + '</div></div>';
+        })() +
       '</div>' +
 
       dl('Eingezahlt', e.n ? usd(e.rein, 2) : '<span class="mut">–</span>',
@@ -6363,6 +6613,15 @@ function renderSync(){
         '<button id="syncShow">Zugangsdaten zum Übertragen anzeigen</button>' +
         '<button id="syncOff">Trennen</button>' +
       '</div>' +
+      '<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:4px">Sicherung der Ausführungen</div>' +
+        '<div class="mut" style="font-size:12.5px;line-height:1.6">Hyperliquid gibt nur die letzten ' +
+        '10.000 Ausführungen heraus. Alles davor liegt sonst nur im Speicher dieses Geräts. ' +
+        'Mit der Sicherung wandert jede Ausführung einmal nach Supabase; ein neues Gerät holt ' +
+        'sie sich von dort.</div>' +
+        '<div id="fillsStand" style="font-size:12.5px;margin:8px 0"></div>' +
+        '<div class="filters"><button id="fillsHolen">Historie aus der Sicherung holen</button></div>' +
+      '</div>' +
       '<div id="syncCreds" class="hide" style="margin-top:12px">' +
         '<div class="f"><label>Diese drei Werte auf dem anderen Gerät eintragen</label>' +
         '<textarea readonly style="min-height:130px" class="mono" id="syncCredsText">' +
@@ -6373,7 +6632,10 @@ function renderSync(){
 
     $('#syncNow').addEventListener('click', async () => {
       try{ await SYNC.run({loud:true}); }catch(e){}
+      fillsSichern();
     });
+    $('#fillsHolen').addEventListener('click', fillsHolen);
+    renderSicherung();
     $('#syncShow').addEventListener('click', () => {
       $('#syncCreds').classList.toggle('hide');
       const t = $('#syncCredsText');
@@ -6757,7 +7019,7 @@ function kartenDaten(t){
     (!t.wallet || !a.wallet || a.wallet === t.wallet));
   if(laeuft && ap) hebel = Math.round(num((ap.position.leverage || {}).value)) || 0;
 
-  const {R} = riskUnit();
+  const {R} = riskOf(t);
   return {
     laeuft, coin:coinName(t.coin), side:t.side, liq:!!t.liquidated,
     hebel, markt: LIVE.market(t.coin) || '',
@@ -7084,30 +7346,7 @@ function zeichneKarte(cv, t, opt){
   g.textBaseline = 'alphabetic';
   g.textAlign = 'left';
 
-  /* --- Grund: dunkel, oben eine Spur heller, dazu der Lichtschein --- */
-  g.fillStyle = F.bg;
-  g.fillRect(0, 0, W, W);
-  if(g.createLinearGradient){
-    const lg = g.createLinearGradient(0, 0, 0, W);
-    lg.addColorStop(0, F.bgOben);
-    lg.addColorStop(1, F.bgKlar);
-    g.fillStyle = lg;
-    g.fillRect(0, 0, W, W);
-  }
-  if(g.createRadialGradient){
-    const schein = (cx, cy, r, a) => {
-      const rg = g.createRadialGradient(cx, cy, 0, cx, cy, r);
-      rg.addColorStop(0, akzent + a);
-      rg.addColorStop(0.55, akzent + '22');
-      rg.addColorStop(1, akzent + '00');
-      g.fillStyle = rg;
-      g.fillRect(cx - r, cy - r, 2 * r, 2 * r);
-    };
-    schein(300, 520, 620, hell ? '3a' : '55');
-    schein(900, 150, 420, hell ? '14' : '24');
-  }
-
-  /* --- Schriftzug --- */
+  karteGrund(g, F, akzent, hell);
   karteWortmarke(g, P, 150, 52, F.fg);
 
   /* --- Markt, Richtung, Hebel --- */
@@ -7178,10 +7417,42 @@ function zeichneKarte(cv, t, opt){
   sp('Held', kDauer(d.dauer) || '–', P + 600);
   lin(904);
 
-  /* --- Fuß: Datum links, Referral mit QR rechts --- */
+  karteFuss(g, F, hell, kDatum(d.von) + (d.laeuft ? ' – open' : ' – ' + kDatum(d.bis)));
+  return true;
+}
+
+/* Grund: dunkel, oben eine Spur heller, dazu der Lichtschein in der Ergebnisfarbe */
+function karteGrund(g, F, akzent, hell){
+  const W = KARTE.W;
+  g.fillStyle = F.bg;
+  g.fillRect(0, 0, W, W);
+  if(g.createLinearGradient){
+    const lg = g.createLinearGradient(0, 0, 0, W);
+    lg.addColorStop(0, F.bgOben);
+    lg.addColorStop(1, F.bgKlar);
+    g.fillStyle = lg;
+    g.fillRect(0, 0, W, W);
+  }
+  if(g.createRadialGradient){
+    const schein = (cx, cy, r, a) => {
+      const rg = g.createRadialGradient(cx, cy, 0, cx, cy, r);
+      rg.addColorStop(0, akzent + a);
+      rg.addColorStop(0.55, akzent + '22');
+      rg.addColorStop(1, akzent + '00');
+      g.fillStyle = rg;
+      g.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+    };
+    schein(300, 520, 620, hell ? '3a' : '55');
+    schein(900, 150, 420, hell ? '14' : '24');
+  }
+}
+/* Fuß: Datum links, Referral mit QR rechts */
+function karteFuss(g, F, hell, datumText){
+  const W = KARTE.W, P = 80;
+  g.textAlign = 'left';
   g.font = '400 23px ' + SANS;
   g.fillStyle = F.mut;
-  g.fillText(kDatum(d.von) + (d.laeuft ? ' – open' : ' – ' + kDatum(d.bis)), P, 958);
+  g.fillText(datumText, P, 958);
   const ref = karteReferral();
   const code = ref ? QR.encode(ref) : null;
   if(code){
@@ -7200,12 +7471,110 @@ function zeichneKarte(cv, t, opt){
     g.fillStyle = F.mut;
     g.fillText('Hyperliquid  ·  tracked with Oryol', P, 996);
   }
+}
+
+/* ---- Karte für einen Zeitraum ----
+   Kein einzelner Trade, sondern die Woche, der Monat, der gewählte Zeitraum.
+   Die große Zahl ist die Summe in R – sie sagt, was die Regeln gebracht
+   haben, ohne die Kontogröße zu verraten. Der Betrag kommt nur mit Häkchen. */
+function zeitraumDaten(tr, label, von, bis){
+  const m = metrics(tr);
+  const rl = inRList(tr);
+  const rSumme = rl.reduce((a, b) => a + b, 0);
+  const rVorhanden = tr.some(t => inR(t) !== null);
+  const best = tr.length ? tr.reduce((a, b) => (b.retPct > a.retPct ? b : a)) : null;
+  const schlecht = tr.length ? tr.reduce((a, b) => (b.retPct < a.retPct ? b : a)) : null;
+  const halte = tr.length ? tr.reduce((s, t) => s + (t.durationMs || 0), 0) / tr.length : 0;
+  return {zeitraum:true, label, von, bis, n:tr.length, netto:m.net, wins:m.wins, losses:m.losses,
+    winrate:m.winrate, pf:m.pf, rSumme, rVorhanden, best, schlecht, halte};
+}
+function zeichneZeitraumKarte(cv, z, opt){
+  if(!cv || !cv.getContext) return false;
+  const g = cv.getContext('2d');
+  if(!g) return false;
+  const o = opt || {};
+  const hell = o.look === 'hell';
+  const F = KARTE.thema[hell ? 'hell' : 'dunkel'];
+  const W = KARTE.W, P = 80;
+  cv.width = W; cv.height = W;
+  const gut = z.netto >= 0;
+  const akzent = gut ? F.up : F.down;
+  g.globalAlpha = 1; g.textBaseline = 'alphabetic'; g.textAlign = 'left';
+  karteGrund(g, F, akzent, hell);
+  karteWortmarke(g, P, 150, 52, F.fg);
+
+  /* --- Zeitraum und Anzahl --- */
+  const zeileM = 306;
+  g.fillStyle = F.fg;
+  g.font = '700 54px ' + SANS;
+  g.textBaseline = 'middle';
+  g.fillText(z.label, P, zeileM);
+  let x = P + g.measureText(z.label).width + 24;
+  g.textBaseline = 'alphabetic';
+  x += karteChip(g, x, zeileM, z.n + (z.n === 1 ? ' trade' : ' trades'), F.mut, hell ? 0.12 : 0.18) + 12;
+  if(z.n) karteChip(g, x, zeileM, Math.round(z.winrate) + '% win rate', gut ? F.up : F.down, hell ? 0.13 : 0.2);
+
+  /* --- Die große Zahl: Summe in R --- */
+  g.font = '600 24px ' + SANS;
+  g.fillStyle = F.mut;
+  const kopf = z.rVorhanden ? 'NET RESULT IN R' : 'NET RESULT';
+  g.fillText(kopf, P, 402);
+  const zahl = z.rVorhanden
+    ? (z.rSumme > 0 ? '+' : (z.rSumme < 0 ? '−' : '')) + Math.abs(z.rSumme).toFixed(1) + 'R'
+    : (o.geld ? (z.netto >= 0 ? '+' : '−') + kUsd(z.netto) : (z.netto >= 0 ? '+' : '−') + '$•••');
+  let gr = 192;
+  const setzGross = () => { g.font = '800 ' + gr + 'px ' + SANS; };
+  setzGross();
+  while(gr > 110 && g.measureText(zahl).width > W - 2 * P - 20){ gr -= 8; setzGross(); }
+  if('letterSpacing' in g) g.letterSpacing = '-0.035em';
+  g.fillStyle = akzent;
+  g.fillText(zahl, P - 4, 578);
+  if('letterSpacing' in g) g.letterSpacing = '0px';
+
+  let y2 = 646;
+  const teile = [];
+  if(o.geld && z.rVorhanden) teile.push({s:(z.netto >= 0 ? '+' : '−') + kUsd(z.netto), f:F.fg});
+  if(z.pf > 0 && isFinite(z.pf)) teile.push({s:'PF ' + z.pf.toFixed(2), f:F.mut});
+  if(z.n) teile.push({s:z.wins + 'W / ' + z.losses + 'L', f:F.mut});
+  if(teile.length){
+    g.font = '600 40px ' + SANS;
+    let cx = P;
+    teile.forEach((p, i) => {
+      if(i){ g.fillStyle = F.linie2; g.fillRect(cx + 28, y2 - 30, 2, 34); cx += 72; }
+      g.fillStyle = p.f;
+      g.fillText(p.s, cx, y2);
+      cx += g.measureText(p.s).width;
+    });
+    y2 += 44;
+  }
+  g.font = '400 23px ' + SANS;
+  g.fillStyle = F.mut;
+  g.fillText(z.rVorhanden ? 'sum of results in risk units, after fees and funding' : 'after fees and funding', P, y2 + 2);
+
+  /* --- Bester, schlechtester, Haltedauer --- */
+  const lin = y => { g.fillStyle = F.linie; g.fillRect(P, y, W - 2 * P, 1); };
+  lin(748);
+  const sp = (beschriftung, wert, x0, farbe) => {
+    g.font = '400 23px ' + SANS;
+    g.fillStyle = F.mut;
+    g.fillText(beschriftung, x0, 800);
+    g.font = '600 36px ' + SANS;
+    g.fillStyle = farbe || F.fg;
+    g.fillText(wert, x0, 848);
+  };
+  const tb = z.best, ts = z.schlecht;
+  sp('Best trade', tb ? LIVE.base(tb.coin).toUpperCase() + ' ' + kProzent(tb.retPct) : '–', P, tb && tb.retPct >= 0 ? F.up : F.fg);
+  sp('Worst trade', ts ? LIVE.base(ts.coin).toUpperCase() + ' ' + kProzent(ts.retPct) : '–', P + 300, ts && ts.retPct < 0 ? F.down : F.fg);
+  sp('Avg hold', z.n ? kDauer(z.halte) : '–', P + 600);
+  lin(904);
+
+  karteFuss(g, F, hell, kDatum(z.von) + ' – ' + kDatum(z.bis));
   return true;
 }
 
 /* Zu welchem Plan gehört dieser Trade? */
 function planOfTrade(t){
-  const id = (S.planLink || {})[t.id] || ((noteOf(t.id) || {}).plan);
+  const id = (S.planLink || {})[t.id] || ((noteOfTrade(t) || {}).plan);
   if(!id) return null;
   return planEntries().find(p => p.id === id) || null;
 }
@@ -7304,7 +7673,19 @@ function karteStatus(s, art){
 function karteMalen(){
   const t = KARTE.trade;
   if(!t) return;
-  zeichneKarte($('#cardCanvas'), t, {look:KARTE.look, geld:KARTE.geld});
+  if(t.zeitraum) zeichneZeitraumKarte($('#cardCanvas'), t, {look:KARTE.look, geld:KARTE.geld});
+  else zeichneKarte($('#cardCanvas'), t, {look:KARTE.look, geld:KARTE.geld});
+}
+/* Karte für den gerade gewählten Zeitraum (Filter oben) */
+function openZeitraumKarte(){
+  const tr = filtered().filter(t => !t.spot);
+  const tage = parseInt(($('#fRange') || {}).value || '0', 10) || 0;
+  const label = tage === 7 ? 'This week' : tage === 30 ? 'Last 30 days' : tage === 90 ? 'Last 90 days'
+    : tage === 365 ? 'Last 12 months' : 'All time';
+  const bis = Date.now();
+  const von = tage ? bis - tage * 86400000
+    : (tr.length ? Math.min.apply(null, tr.map(t => t.openTime)) : bis);
+  openKarte(zeitraumDaten(tr, label, von, bis));
 }
 async function openKarte(t){
   if(!t) return;
@@ -7320,8 +7701,9 @@ async function openKarte(t){
     : txt('Ohne Häkchen stehen nur Prozent und R darauf. Dann sagt die Karte nichts ' +
           'über die Größe deines Kontos aus.');
   $$('[data-cardlook]').forEach(el => el.classList.toggle('on', el.dataset.cardlook === KARTE.look));
-  $('#cardSub').textContent = coinName(t.coin) + ' · ' +
-    (t.open ? txt('laufende Position') : dt(t.closeTime));
+  $('#cardSub').textContent = t.zeitraum
+    ? t.label + ' · ' + t.n + ' ' + txt('Trades')
+    : coinName(t.coin) + ' · ' + (t.open ? txt('laufende Position') : dt(t.closeTime));
   $('#cardModal').classList.add('on');
   karteStatus('');
   // Schrift bereitstellen, sonst malt die Zeichenfläche eine Ersatzschrift
@@ -7336,6 +7718,8 @@ function closeKarte(){
 function karteName(){
   const t = KARTE.trade;
   if(!t) return 'oryol.png';
+  if(t.zeitraum) return 'oryol-' + t.label.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' +
+    new Date(t.bis).toISOString().slice(0, 10) + '.png';
   const tag = new Date(t.open ? Date.now() : t.closeTime).toISOString().slice(0, 10);
   return 'oryol-' + LIVE.base(t.coin).toLowerCase() + '-' + tag + '.png';
 }
@@ -7404,7 +7788,7 @@ function openTrade(id){
   if(!t) return;
   mCurrent = t;
   const laeuft = !!t.open;
-  const n = noteOf(id) || {};
+  const n = noteOfTrade(t) || {};
   $('#mTitle').innerHTML = coinName(t.coin) + ' <span class="pill ' + t.side + '">' +
     (t.side === 'long' ? 'LONG' : 'SHORT') + '</span>' +
     (laeuft ? ' <span class="pill jetzt">läuft</span>' : '') +
@@ -7417,6 +7801,15 @@ function openTrade(id){
   $('#mStats').innerHTML = (laeuft ? offenZeilen(t) : [
     ['Netto-PnL', '<b class="' + cls(t.net) + '">' + sgn(t.net, 2) + '</b>'],
     ['Rendite auf Positionsgröße', '<span class="' + cls(t.retPct) + '">' + pct(t.retPct, 2) + '</span>'],
+    (function(){
+      const rk = riskOf(t), r = inR(t);
+      if(r === null) return null;
+      return ['Ergebnis in R', '<span class="' + cls(r) + '">' + fmtR(r) + '</span> ' +
+        '<span class="mut">' + (rk.quelle === 'plan'
+          ? txt('1 R = {0} · aus dem Stop deines Plans').replace('{0}', usd(rk.R, 2))
+          : txt('1 R = {0} · {1} % vom Konto').replace('{0}', usd(rk.R, 2))
+              .replace('{1}', String(riskUnit().pct))) + '</span>'];
+    })(),
     ['Ø Entry', '<span class="mono">' + price(t.avgEntry) + '</span>'],
     ['Ø Exit', '<span class="mono">' + price(t.avgExit) + '</span>'],
     ['Größte Position', usd(size, 2)],
@@ -7427,13 +7820,13 @@ function openTrade(id){
   ]).filter(Boolean).map(([k, v]) => '<div class="dl"><span>' + k + '</span><span>' + v + '</span></div>').join('')
   + (laeuft ? '' : excursionBlock(t));
 
-  /* Eine laufende Position bekommt noch keine Notizen: ihre Kennung ändert
-     sich beim Schließen, alles Eingetragene wäre danach verwaist.        */
-  $('#mNotizen').classList.toggle('hide', laeuft);
+  /* Notizen gibt es auch während der Trade läuft – sie hängen an der ersten
+     Ausführung und überleben so das Schließen.                            */
+  $('#mNotizen').classList.remove('hide');
   $('#mOffenHint').classList.toggle('hide', !laeuft);
   if(laeuft){
-    $('#mOffenHint').textContent = txt('Notizen, Setups und Bewertung gibt es, sobald die ' +
-      'Position geschlossen ist — vorher hätten sie noch keine feste Kennung.');
+    $('#mOffenHint').textContent = txt('Was du hier einträgst, bleibt am Trade – auch nach ' +
+      'dem Schließen.');
   }
 
   chipBox('#mTags', tagsOf(n));
@@ -8033,7 +8426,7 @@ function exportCsv(tr){
   const head = ['Geschlossen','Eroeffnet','Wallet','Coin','Seite','AvgEntry','AvgExit','GroesseUSD',
     'PnLBrutto','Gebuehren','PnLNetto','RenditeProzent','DauerMin','Setup','Rating','Notiz'];
   const rows = sortTrades(tr).map(t => {
-    const n = noteOf(t.id) || {};
+    const n = noteOfTrade(t) || {};
     return [
       new Date(t.closeTime).toISOString(), new Date(t.openTime).toISOString(),
       walletLabel(t.wallet), t.coin, t.side, t.avgEntry.toFixed(8), t.avgExit.toFixed(8),
@@ -8702,7 +9095,7 @@ function renderBehavior(tr){
     const g = tr.filter(t => sessionOf(t.openTime).id === s.id);
     if(!g.length) return '';
     const m = metrics(g);
-    const b = R > 0 ? bootstrap(g.map(t => t.net / R)) : bootstrap(g.map(t => t.net));
+    const b = bootstrap(inRList(g));
     return '<tr><td><b>' + s.name + '</b></td>' +
       '<td class="mut">' + String(s.von).padStart(2,'0') + '–' +
         String(s.bis).padStart(2,'0') + ' UTC</td>' +
@@ -9025,10 +9418,31 @@ function riskUnit(){
   const acct = (S.totals && S.totals.total) || 0;
   return {pct, R: acct * pct / 100, acct};
 }
+/* Risiko eines einzelnen Trades in Dollar.
+   Hängt er an einem Plan mit Stop, ist es der Abstand Einstieg–Stop mal
+   Größe – also das, was du wirklich riskiert hast. Sonst der eingestellte
+   Anteil vom Konto, wie bisher.                                            */
+function riskOf(t){
+  const p = t ? planOfTrade(t) : null;
+  if(p && t.avgEntry > 0){
+    const stop = parseFloat(String(p.stop || '').replace(',', '.'));
+    const sz = t.maxSize || t.entrySize || 0;
+    if(isFinite(stop) && stop > 0 && sz > 0){
+      const d = Math.abs(t.avgEntry - stop);
+      if(d > 0) return {R: d * sz, quelle:'plan', stop};
+    }
+  }
+  const {R} = riskUnit();
+  return {R, quelle:'konto'};
+}
 /* Ergebnis eines Trades in Risikoeinheiten */
 function inR(t){
-  const {R} = riskUnit();
+  const {R} = riskOf(t);
   return R > 0 ? t.net / R : null;
+}
+/* Ergebnisse einer Gruppe in R, für Vertrauensbereiche und Verteilungen */
+function inRList(list){
+  return list.map(t => { const r = inR(t); return r === null ? t.net : r; });
 }
 function fmtR(v){
   if(v === null || !isFinite(v)) return '–';
@@ -9165,7 +9579,7 @@ function scenarios(tr){
 
   // Schlechteste Setups weglassen
   const byTag = {};
-  for(const t of tr) tagsOf(noteOf(t.id)).forEach(tag =>
+  for(const t of tr) tagsOf(noteOfTrade(t)).forEach(tag =>
     (byTag[tag] = byTag[tag] || []).push(t));
   const tags = Object.keys(byTag).filter(k => byTag[k].length >= 5)
     .map(k => ({k, net:byTag[k].reduce((s,t) => s + t.net, 0)}))
@@ -10012,7 +10426,7 @@ function openCoin(coin){
       : '';
 
     $('#coTrades').innerHTML = chron.slice().reverse().slice(0, 8).map(t => {
-      const n = noteOf(t.id);
+      const n = noteOfTrade(t);
       const tm = LIVE.market(t.coin);
       return '<div class="dl"><span>' + dt(t.closeTime) +
         ' <span class="pill ' + t.side + '">' + (t.side === 'long' ? 'L' : 'S') + '</span>' +
@@ -10392,7 +10806,7 @@ function linkPlans(tr){
   const gueltig = new Set(planEntries().map(p => p.id));
   for(const t of tr){
     // Was du von Hand zugeordnet hast, gilt immer
-    const n = noteOf(t.id);
+    const n = noteOfTrade(t);
     if(n && n.plan && gueltig.has(n.plan)){ map[t.id] = n.plan; continue; }
     const tick = baseTicker(t.coin);
     const hit = plans.find(p => {
@@ -10513,7 +10927,8 @@ function renderProgress(tr){
     const g = seq.slice(i - win + 1, i + 1);
     const mm = metrics(g);
     labels.push(i + 1);
-    vals.push(R > 0 ? +(mm.expectancy / R).toFixed(3) : null);
+    const rl = inRList(g);
+    vals.push(R > 0 ? +(rl.reduce((a,b) => a + b, 0) / rl.length).toFixed(3) : null);
     wr.push(+mm.winrate.toFixed(1));
   }
   if(seq.length >= win && R > 0){
@@ -10787,8 +11202,22 @@ function calendarTrades(){
   });
 }
 
+/* Überschriften an die Zellen hängen, damit die Handy-Ansicht sie zeigen kann */
+function mobilLabels(tabelle){
+  const t = typeof tabelle === 'string' ? $(tabelle) : tabelle;
+  if(!t) return;
+  const koepfe = Array.from(t.querySelectorAll('thead th')).map(th => th.textContent.trim());
+  t.querySelectorAll('tbody tr').forEach(tr => {
+    Array.from(tr.children).forEach((td, i) => {
+      if(koepfe[i]) td.setAttribute('data-l', koepfe[i]);
+      td.classList.toggle('leer', !td.textContent.trim() && !td.querySelector('img,button'));
+    });
+  });
+}
 function renderAll(){
   S.totals = computeTotals();
+  // Plan-Zuordnung über alle Trades zuerst – das Risiko je Trade hängt daran
+  try{ S.planLink = linkPlans(S.trades); }catch(e){}
   fillTagFilter();
   const tr = filtered();
   renderKpis(tr);
@@ -10820,6 +11249,7 @@ function renderAll(){
   renderLive();
   renderTheme();
   applyAnon();
+  $$('table.karten').forEach(mobilLabels);
 }
 
 /* ---------- Events ---------- */
@@ -10998,6 +11428,13 @@ $('#mNext').addEventListener('click', () => stepTrade(1));
 
 /* Karte zum Teilen */
 $('#mShare').addEventListener('click', () => { if(mCurrent) openKarte(mCurrent); });
+$('#btnZeitraumKarte').addEventListener('click', openZeitraumKarte);
+$('#revKarte').addEventListener('click', () => {
+  const ref = S.revWeek || Date.now();
+  const {from, to} = weekRange(ref);
+  const g = S.trades.filter(t => t.closeTime >= from && t.closeTime < to && !t.spot);
+  openKarte(zeitraumDaten(g, 'Week ' + weekKey(ref).slice(-2).replace('W', ''), from, to - 1));
+});
 $('#cardClose').addEventListener('click', closeKarte);
 $('#cardModal').addEventListener('click', ev => { if(ev.target.id === 'cardModal') closeKarte(); });
 $$('[data-cardlook]').forEach(el => el.addEventListener('click', () => {
@@ -11032,16 +11469,16 @@ $('#mSave').addEventListener('click', () => {
   const img = mImgData || $('#mImg').value.trim();
   const planSel = $('#mPlan').value;
   if(!tags.length && !note && !rating && !img && !planSel){
-    S.notes[mCurrent.id] = {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()};
+    setTradeNote(mCurrent, {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()});
   }else{
-    S.notes[mCurrent.id] = {tag:packTags(tags), note:packNote(note, img),
-      plan:$('#mPlan').value || '', rating, deleted:false, updatedAt:Date.now()};
+    setTradeNote(mCurrent, {tag:packTags(tags), note:packNote(note, img),
+      plan:$('#mPlan').value || '', rating, deleted:false, updatedAt:Date.now()});
   }
   saveNotes(); closeModal(); renderAll();
 });
 $('#mDel').addEventListener('click', () => {
   if(!mCurrent) return;
-  S.notes[mCurrent.id] = {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()};
+  setTradeNote(mCurrent, {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()});
   saveNotes(); closeModal(); renderAll();
 });
 
