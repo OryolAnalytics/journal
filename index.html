@@ -1496,7 +1496,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 04.10.2026, 16:27</span><br>
+    <span class="build">Fassung 04.10.2026, 16:57</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1819,6 +1819,24 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Vorteil: neue Texte funktionieren sofort weiter, nur eben zunächst deutsch.  */
 let LANG = 'de';
 const EN = {
+  /* --- en_krypto2 --- */
+  "Sicherung der Ausführungen": "Fill backup",
+  "Hyperliquid gibt nur die letzten 10.000 Ausführungen heraus. Alles davor liegt sonst nur im Speicher dieses Geräts. Mit der Sicherung wandert jede Ausführung einmal nach Supabase; ein neues Gerät holt sie sich von dort.": "Hyperliquid only hands out the last 10,000 fills. Everything older otherwise lives only in this device's storage. With the backup, every fill goes to Supabase once; a new device fetches it from there.",
+  "Historie aus der Sicherung holen": "Fetch history from the backup",
+  "{0} gerade hochgeladen": "{0} just uploaded",
+  "Ausführungen werden nach dem nächsten Laden gesichert.": "Fills are backed up after the next load.",
+  /* --- en_krypto --- */
+  "Verschlüsselung": "Encryption",
+  "Ende-zu-Ende (AES-256)": "End-to-end (AES-256)",
+  "Alles wird schon in diesem Browser mit deinem Journal-Schlüssel verschlüsselt, bevor es zu Supabase geht. Dort liegt nur Zeichensalat – ohne den Schlüssel kann es niemand lesen, auch Supabase nicht. Geht der Journal-Schlüssel verloren, ist die Sicherung nicht mehr lesbar; deine Daten auf den Geräten bleiben. Notizen gleichen sich beim Öffnen und nach jeder Änderung automatisch ab. Damit das zweite Gerät dieselben Daten sieht, trag dort exakt dieselben drei Werte ein.": "Everything is encrypted in this browser with your journal key before it goes to Supabase. All that sits there is gibberish – nobody can read it without the key, not even Supabase. If you lose the journal key, the backup can no longer be read; your data on your devices stays. Notes sync automatically on opening and after every change. For your second device to see the same data, enter exactly the same three values there.",
+  "Dein Journal-Schlüssel ist kurz und damit leichter zu erraten. Sicherer ist ein erzeugter mit 32 Zeichen.": "Your journal key is short and therefore easier to guess. A generated 32-character key is safer.",
+  "Ausführungen verschlüsselt gesichert · {0} auf diesem Gerät, {1} · {2}": "Fills backed up encrypted · {0} on this device, {1} · {2}",
+  "{0} Ausführungen aus der alten, unverschlüsselten Sicherung umgezogen und dort gelöscht.": "{0} fills moved from the old, unencrypted backup and deleted there.",
+  "Noch {0} unverschlüsselte Ausführungen von Wallets, die gerade nicht aktiv sind.": "{0} unencrypted fills left from wallets that are not active right now.",
+  "Schalte sie einmal ein und lade – dann werden auch sie verschlüsselt und der Klartext gelöscht.": "Turn them on once and load – then they get encrypted too and the plain text is deleted.",
+  "{0} alte Einträge verschlüsselt": "{0} old entries encrypted",
+  "{0} nicht lesbar – anderer Journal-Schlüssel?": "{0} unreadable – different journal key?",
+  "Dieser Browser bietet keine Verschlüsselung (WebCrypto). Ohne sie wird nichts an Supabase geschickt.": "This browser offers no encryption (WebCrypto). Without it, nothing is sent to Supabase.",
   /* --- en_y --- */
   "Einstieg → Kurs": "Entry → price",
   /* --- en_paper --- */
@@ -3590,7 +3608,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '04.10.2026, 16:27';
+const BUILD = '04.10.2026, 16:57';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -3604,7 +3622,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 04.10.2026, 16:27';
+      ' · Fassung 04.10.2026, 16:57';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -4281,6 +4299,68 @@ function setTags(list){
 }
 function tagsStamp(){ return num(localStorage.getItem(LS.tagsT)) || 0; }
 
+/* ---------- Verschlüsselung für die Synchronisation ----------
+   Alles, was zu Supabase geht, wird vorher hier im Browser verschlüsselt.
+   Aus dem Journal-Schlüssel entstehen drei Dinge (PBKDF2, 150.000 Runden):
+     – ein AES-256-GCM-Schlüssel für die Inhalte,
+     – ein HMAC-Schlüssel, der Trade-IDs, Wallets und Fill-IDs unkenntlich macht,
+     – eine Journal-Kennung für die Datenbank, aus der sich der Schlüssel nicht
+       zurückrechnen lässt.
+   In Supabase steht damit nur noch Zeichensalat: kein Text, keine Wallet,
+   kein Markt, keine Beträge, keine Zeitpunkte von Trades.                 */
+const KRYPTO = {
+  _cache:{},
+  sub(){
+    const c = (typeof window !== 'undefined' && window.crypto) || (typeof crypto !== 'undefined' ? crypto : null);
+    return c && c.subtle ? c.subtle : null;
+  },
+  b64(bytes){
+    let s = '';
+    for(let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(s);
+  },
+  unb64(s){
+    const b = atob(s), out = new Uint8Array(b.length);
+    for(let i = 0; i < b.length; i++) out[i] = b.charCodeAt(i);
+    return out;
+  },
+  hex(bytes){ return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(''); },
+  async schluessel(jid){
+    jid = String(jid);
+    if(this._cache[jid]) return this._cache[jid];
+    const s = this.sub();
+    if(!s) throw new Error('Dieser Browser bietet keine Verschlüsselung (WebCrypto). Ohne sie wird nichts an Supabase geschickt.');
+    const enc = new TextEncoder();
+    const basis = await s.importKey('raw', enc.encode(jid), 'PBKDF2', false, ['deriveBits']);
+    const bits = new Uint8Array(await s.deriveBits({name:'PBKDF2', hash:'SHA-256',
+      salt:enc.encode('oryol-sync-v2'), iterations:150000}, basis, 768));
+    const aes = await s.importKey('raw', bits.slice(0, 32), {name:'AES-GCM'}, false, ['encrypt', 'decrypt']);
+    const mac = await s.importKey('raw', bits.slice(32, 64), {name:'HMAC', hash:'SHA-256'}, false, ['sign']);
+    const k = {aes, mac, id:'v2_' + this.hex(bits.slice(64, 96))};
+    this._cache[jid] = k;
+    return k;
+  },
+  async verpacken(k, obj){
+    const iv = new Uint8Array(12);
+    (window.crypto || crypto).getRandomValues(iv);
+    const ct = new Uint8Array(await this.sub().encrypt({name:'AES-GCM', iv}, k.aes,
+      new TextEncoder().encode(JSON.stringify(obj))));
+    const all = new Uint8Array(12 + ct.length);
+    all.set(iv, 0); all.set(ct, 12);
+    return 'v2:' + this.b64(all);
+  },
+  async auspacken(k, s){
+    if(typeof s !== 'string' || s.indexOf('v2:') !== 0) throw new Error('kein verschlüsselter Eintrag');
+    const all = this.unb64(s.slice(3));
+    const pt = await this.sub().decrypt({name:'AES-GCM', iv:all.slice(0, 12)}, k.aes, all.slice(12));
+    return JSON.parse(new TextDecoder().decode(pt));
+  },
+  async marke(k, text){
+    const sig = new Uint8Array(await this.sub().sign('HMAC', k.mac, new TextEncoder().encode(String(text))));
+    return 'h:' + this.b64(sig).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+};
+
 /* ---------- Synchronisation über Supabase ---------- */
 const SYNC = {
   cfg(){
@@ -4289,38 +4369,45 @@ const SYNC = {
   store(c){ localStorage.setItem(LS.sync, JSON.stringify(c)); },
   clear(){ localStorage.removeItem(LS.sync); },
   active(){ const c = this.cfg(); return !!(c && c.url && c.key && c.jid); },
-  hdr(c, extra){
+  /* Die Kennung reist zusätzlich als Header mit: Die Regel in Supabase lässt
+     nur Zeilen durch, deren journal_id genau diesem Header entspricht.
+     Wer die Kennung nicht kennt, sieht nichts – auch nicht mit dem Anon-Key. */
+  hdr(c, id, extra){
     return Object.assign({apikey:c.key, Authorization:'Bearer ' + c.key,
-      'Content-Type':'application/json'}, extra || {});
+      'Content-Type':'application/json', 'x-journal-id':id}, extra || {});
   },
   url(c){ return String(c.url).replace(/\/+$/, '') + '/rest/v1/journal_notes'; },
   urlFills(c){ return String(c.url).replace(/\/+$/, '') + '/rest/v1/journal_fills'; },
+  async k(c){ return KRYPTO.schluessel(c.jid); },
 
   /* ---- Sicherung der Ausführungen ----
      Hyperliquid gibt nur die letzten 10.000 Ausführungen heraus. Alles davor
      lebt sonst nur im Browserspeicher. Hier wandert jede Ausführung einmal
-     nach Supabase – nur die neuen, nie die ganze Historie noch einmal.     */
+     verschlüsselt nach Supabase – nur die neuen, nie die ganze Historie noch einmal. */
   fillKey(f){ return f.tid != null ? String(f.tid) : (f.hash + '|' + f.oid + '|' + f.time + '|' + f.px + '|' + f.sz); },
-  standKey(addr){ return 'hlj_sync_fills_' + String(addr).toLowerCase(); },
+  // v2: nach der Umstellung wird alles einmal verschlüsselt neu gesichert
+  standKey(addr){ return 'hlj_sync_fills_v2_' + String(addr).toLowerCase(); },
   stand(addr){ return num(localStorage.getItem(this.standKey(addr))) || 0; },
   setStand(addr, t){ try{ localStorage.setItem(this.standKey(addr), String(t)); }catch(e){} },
   fillsTabelleFehlt:false,
+  altRest:0,
 
-  async sichern(addr, fills){
-    if(!this.active() || !Array.isArray(fills) || !fills.length) return {gesendet:0};
-    const c = this.cfg();
-    const ab = this.stand(addr);
-    const neu = fills.filter(f => num(f.time) > ab);
-    if(!neu.length) return {gesendet:0};
-    neu.sort((a,b) => num(a.time) - num(b.time));
+  async walletMarke(k, addr){ return KRYPTO.marke(k, 'w|' + String(addr).toLowerCase()); },
+  async hochladen(addr, liste){
+    const c = this.cfg(), k = await this.k(c);
+    const w = await this.walletMarke(k, addr);
     let gesendet = 0;
-    for(let i = 0; i < neu.length; i += 400){
-      const teil = neu.slice(i, i + 400);
-      const rows = teil.map(f => ({journal_id:c.jid, wallet:String(addr).toLowerCase(),
-        tid:this.fillKey(f), t:num(f.time), fill:f}));
+    for(let i = 0; i < liste.length; i += 400){
+      const teil = liste.slice(i, i + 400);
+      const rows = [];
+      for(const f of teil){
+        rows.push({journal_id:k.id, wallet:w,
+          tid:await KRYPTO.marke(k, 'f|' + String(addr).toLowerCase() + '|' + this.fillKey(f)),
+          t:0, fill:{v2:await KRYPTO.verpacken(k, f)}});
+      }
       const r = await fetch(this.urlFills(c) + '?on_conflict=journal_id,wallet,tid', {
         method:'POST',
-        headers:this.hdr(c, {Prefer:'resolution=merge-duplicates,return=minimal'}),
+        headers:this.hdr(c, k.id, {Prefer:'resolution=merge-duplicates,return=minimal'}),
         body:JSON.stringify(rows)
       });
       if(!r.ok){
@@ -4330,72 +4417,116 @@ const SYNC = {
         throw new Error('Sicherung fehlgeschlagen (HTTP ' + r.status + '): ' + text);
       }
       gesendet += teil.length;
-      this.setStand(addr, num(teil[teil.length - 1].time));
+      const tmax = Math.max.apply(null, teil.map(f => num(f.time)));
+      if(tmax > this.stand(addr)) this.setStand(addr, tmax);
     }
     this.fillsTabelleFehlt = false;
     return {gesendet};
   },
-  /* Alles, was für diese Wallet gesichert ist, seitenweise zurückholen */
-  async holen(addr, onProgress){
-    if(!this.active()) return [];
-    const c = this.cfg();
-    const out = [];
+  async sichern(addr, fills){
+    if(!this.active() || !Array.isArray(fills) || !fills.length) return {gesendet:0};
+    const ab = this.stand(addr);
+    const neu = fills.filter(f => num(f.time) > ab);
+    if(!neu.length) return {gesendet:0};
+    neu.sort((a,b) => num(a.time) - num(b.time));
+    return this.hochladen(addr, neu);
+  },
+  /* Seitenweise lesen – für die neue und die alte Ablage gleich */
+  async seiten(c, id, filter, onRow){
     const seite = 1000;
     for(let off = 0; off < 200000; off += seite){
-      const u = this.urlFills(c) + '?journal_id=eq.' + encodeURIComponent(c.jid) +
-        '&wallet=eq.' + encodeURIComponent(String(addr).toLowerCase()) +
-        '&select=fill&order=t.asc&limit=' + seite + '&offset=' + off;
-      const r = await fetch(u, {headers:this.hdr(c)});
+      const u = this.urlFills(c) + '?journal_id=eq.' + encodeURIComponent(id) + filter +
+        '&limit=' + seite + '&offset=' + off;
+      const r = await fetch(u, {headers:this.hdr(c, id)});
       if(!r.ok){
         const text = (await r.text()).slice(0, 200);
-        if(r.status === 404 || /journal_fills/.test(text)){ this.fillsTabelleFehlt = true; return []; }
+        if(r.status === 404 || /journal_fills/.test(text)){ this.fillsTabelleFehlt = true; return false; }
         throw new Error('Abruf der Sicherung fehlgeschlagen (HTTP ' + r.status + '): ' + text);
       }
       const rows = await r.json();
-      for(const row of rows) if(row && row.fill) out.push(row.fill);
-      if(onProgress) onProgress(out.length);
+      for(const row of rows) await onRow(row);
       if(rows.length < seite) break;
     }
+    return true;
+  },
+  /* Alles, was für diese Wallet gesichert ist, zurückholen – verschlüsselt und,
+     falls noch nicht umgezogen, auch die alte Klartext-Ablage */
+  async holen(addr, onProgress){
+    if(!this.active()) return [];
+    const c = this.cfg(), k = await this.k(c);
+    const out = [];
+    const w = await this.walletMarke(k, addr);
+    const ok = await this.seiten(c, k.id, '&wallet=eq.' + encodeURIComponent(w) + '&select=fill&order=tid.asc', async row => {
+      if(!row || !row.fill || !row.fill.v2) return;
+      try{ out.push(await KRYPTO.auspacken(k, row.fill.v2)); }catch(e){}
+      if(onProgress && out.length % 200 === 0) onProgress(out.length);
+    });
+    if(!ok) return [];
+    const alt = await this.holenAlt(addr);
+    if(onProgress) onProgress(out.length + alt.length);
+    return alt.length ? mergeFills(out, alt) : out;
+  },
+  /* Die alte, unverschlüsselte Ablage (vor der Umstellung) */
+  async holenAlt(addr){
+    const c = this.cfg(), out = [];
+    await this.seiten(c, c.jid, '&wallet=eq.' + encodeURIComponent(String(addr).toLowerCase()) +
+      '&select=fill&order=t.asc', async row => { if(row && row.fill && !row.fill.v2) out.push(row.fill); });
     return out;
   },
-  /* Wie viele Ausführungen liegen in der Sicherung? */
-  async anzahl(addr){
-    if(!this.active()) return null;
+  async loeschenAlt(addr){
     const c = this.cfg();
-    const u = this.urlFills(c) + '?journal_id=eq.' + encodeURIComponent(c.jid) +
-      '&wallet=eq.' + encodeURIComponent(String(addr).toLowerCase()) + '&select=tid';
-    const r = await fetch(u, {headers:this.hdr(c, {Prefer:'count=exact', Range:'0-0'})});
+    const r = await fetch(this.urlFills(c) + '?journal_id=eq.' + encodeURIComponent(c.jid) +
+      '&wallet=eq.' + encodeURIComponent(String(addr).toLowerCase()), {method:'DELETE', headers:this.hdr(c, c.jid)});
+    if(!r.ok) throw new Error('Alte Sicherung ließ sich nicht löschen (HTTP ' + r.status + ')');
+  },
+  async zaehlen(c, id, filter){
+    const u = this.urlFills(c) + '?journal_id=eq.' + encodeURIComponent(id) + filter + '&select=tid';
+    const r = await fetch(u, {headers:this.hdr(c, id, {Prefer:'count=exact', Range:'0-0'})});
     if(!r.ok) return null;
     const cr = r.headers.get('content-range') || '';
     const m = /\/(\d+)$/.exec(cr);
     return m ? parseInt(m[1], 10) : null;
   },
+  /* Wie viele Ausführungen liegen in der Sicherung? */
+  async anzahl(addr){
+    if(!this.active()) return null;
+    const c = this.cfg(), k = await this.k(c);
+    return this.zaehlen(c, k.id, '&wallet=eq.' + encodeURIComponent(await this.walletMarke(k, addr)));
+  },
 
-  async pull(c){
-    const u = this.url(c) + '?journal_id=eq.' + encodeURIComponent(c.jid) + '&select=*';
-    const r = await fetch(u, {headers:this.hdr(c)});
+  /* ---- Notizen, Pläne, Tags ---- */
+  async pull(c, id){
+    const u = this.url(c) + '?journal_id=eq.' + encodeURIComponent(id) + '&select=*';
+    const r = await fetch(u, {headers:this.hdr(c, id)});
     if(!r.ok) throw new Error('Abruf fehlgeschlagen (HTTP ' + r.status + '): ' +
       (await r.text()).slice(0, 180));
     return r.json();
   },
-  async push(c, rows){
+  async push(c, id, rows){
     if(!rows.length) return 0;
-    const r = await fetch(this.url(c) + '?on_conflict=journal_id,trade_id', {
-      method:'POST',
-      headers:this.hdr(c, {Prefer:'resolution=merge-duplicates,return=minimal'}),
-      body:JSON.stringify(rows)
-    });
-    if(!r.ok) throw new Error('Speichern fehlgeschlagen (HTTP ' + r.status + '): ' +
-      (await r.text()).slice(0, 180));
+    for(let i = 0; i < rows.length; i += 500){
+      const r = await fetch(this.url(c) + '?on_conflict=journal_id,trade_id', {
+        method:'POST',
+        headers:this.hdr(c, id, {Prefer:'resolution=merge-duplicates,return=minimal'}),
+        body:JSON.stringify(rows.slice(i, i + 500))
+      });
+      if(!r.ok) throw new Error('Speichern fehlgeschlagen (HTTP ' + r.status + '): ' +
+        (await r.text()).slice(0, 180));
+    }
     return rows.length;
   },
-  row(c, id, n){
-    // Die Zuordnung zur Idee reist im Feld für die Bewertung mit, damit die
-    // Tabelle in Supabase unverändert bleibt.
-    return {journal_id:c.jid, trade_id:id,
-      tag:n.plan ? (packTags(tagsOf(n)) + '\u241F' + n.plan) : (n.tag || null),
-      rating:n.rating || null,
-      note:n.note || null, deleted:!!n.deleted, updated_at:num(n.updatedAt) || Date.now()};
+  /* Eine Zeile für Supabase: alles Inhaltliche verschlüsselt im Feld note,
+     die Trade-ID nur als HMAC. Lesbar bleiben nur „gelöscht" und der Zeitstempel
+     der letzten Änderung – die braucht der Abgleich. */
+  async zeile(k, id, n){
+    const tag = n.plan ? (packTags(tagsOf(n)) + '␟' + n.plan) : (n.tag || null);
+    return {journal_id:k.id, trade_id:await KRYPTO.marke(k, 'n|' + id), tag:null, rating:null,
+      note:await KRYPTO.verpacken(k, {id, tag, rating:n.rating || null, note:n.note || null}),
+      deleted:!!n.deleted, updated_at:num(n.updatedAt) || Date.now()};
+  },
+  async lesen(k, r){
+    const p = await KRYPTO.auspacken(k, r.note);
+    return {trade_id:p.id, tag:p.tag, rating:p.rating, note:p.note, deleted:r.deleted, updated_at:r.updated_at};
   },
 
   /* Zwei-Wege-Abgleich: neuerer Zeitstempel gewinnt */
@@ -4407,12 +4538,21 @@ const SYNC = {
     this.busy = true;
     setSyncStatus('<span class="spin"></span> Synchronisiere…');
     try{
-      const remote = await this.pull(c);
+      const k = await this.k(c);
+      const roh = await this.pull(c, k.id);
+      const remote = [];
+      let unlesbar = 0;
+      for(const r of roh){
+        try{ remote.push(await this.lesen(k, r)); }catch(e){ unlesbar++; }
+      }
+      // Alte Klartext-Zeilen aus der Zeit vor der Verschlüsselung: übernehmen und danach löschen
+      let alt = [];
+      try{ alt = await this.pull(c, c.jid); }catch(e){ alt = []; }
       const rmap = {};
+      for(const r of remote) rmap[r.trade_id] = r;
       let changed = false;
 
-      for(const r of remote){
-        rmap[r.trade_id] = r;
+      for(const r of remote.concat(alt)){
         const rt = num(r.updated_at);
         if(r.trade_id === '__tags__'){
           if(rt > tagsStamp()){
@@ -4432,7 +4572,7 @@ const SYNC = {
         const lt = local ? num(local.updatedAt) : -1;
         if(rt > lt){
           let tg = r.tag || '', pl = '';
-          const cut = tg.indexOf('\u241F');
+          const cut = tg.indexOf('␟');
           if(cut >= 0){ pl = tg.slice(cut + 1); tg = tg.slice(0, cut); }
           S.notes[r.trade_id] = {tag:tg, plan:pl, note:r.note || '', rating:r.rating || 0,
             updatedAt:rt, deleted:!!r.deleted};
@@ -4443,23 +4583,31 @@ const SYNC = {
       const out = [];
       for(const id in S.notes){
         const n = S.notes[id], r = rmap[id];
-        if(!r || num(n.updatedAt) > num(r.updated_at)) out.push(this.row(c, id, n));
+        if(!r || num(n.updatedAt) > num(r.updated_at)) out.push(await this.zeile(k, id, n));
       }
       const rt = rmap['__tags__'] ? num(rmap['__tags__'].updated_at) : -1;
       if(tagsStamp() > rt){
-        out.push({journal_id:c.jid, trade_id:'__tags__', tag:null, rating:null,
-          note:JSON.stringify(S.tags), deleted:false, updated_at:tagsStamp()});
+        out.push(await this.zeile(k, '__tags__', {tag:null, rating:null,
+          note:JSON.stringify(S.tags), deleted:false, updatedAt:tagsStamp()}));
       }
 
-      const sent = await this.push(c, out);
+      const sent = await this.push(c, k.id, out);
+      if(alt.length){
+        // Erst jetzt, da alles verschlüsselt drüben liegt, verschwindet der Klartext
+        const r = await fetch(this.url(c) + '?journal_id=eq.' + encodeURIComponent(c.jid),
+          {method:'DELETE', headers:this.hdr(c, c.jid)});
+        if(!r.ok) throw new Error('Alte Notizen ließen sich nicht löschen (HTTP ' + r.status + ')');
+      }
       if(changed) saveNotes(true);
 
       S.lastSync = Date.now();
       setSyncStatus('<span class="up">✓ Synchron</span> · ' +
         new Date().toLocaleTimeString(loc(), {hour:'2-digit', minute:'2-digit'}) +
-        ' · ' + sent + ' gesendet, ' + remote.length + ' empfangen');
+        ' · ' + sent + ' gesendet, ' + remote.length + ' empfangen' +
+        (alt.length ? ' · ' + alt.length + ' alte Einträge verschlüsselt' : '') +
+        (unlesbar ? ' · <span class="warn">' + unlesbar + ' nicht lesbar – anderer Journal-Schlüssel?</span>' : ''));
       if(changed) renderAll();
-      return {sent, received:remote.length};
+      return {sent, received:remote.length, umgezogen:alt.length, unlesbar};
     }catch(e){
       setSyncStatus('<span class="down">Sync-Fehler:</span> ' + esc(this.erklaeren(e)));
       if(opts.loud) throw e;
@@ -4480,13 +4628,24 @@ const SYNC = {
   }
 };
 
-/* Nach dem Laden: neue Ausführungen sichern und den Stand anzeigen */
+/* Nach dem Laden: neue Ausführungen sichern und den Stand anzeigen.
+   Liegt für eine Wallet noch eine alte Klartext-Sicherung, wird sie hier
+   zusammen mit allem Lokalen verschlüsselt neu geschrieben und dann gelöscht. */
 async function fillsSichern(){
   if(!SYNC.active()) return;
-  let gesamt = 0, fehlt = false;
+  let gesamt = 0, fehlt = false, umgezogen = 0;
   for(const d of (S.wdata || [])){
     try{
-      const r = await SYNC.sichern(d.addr, d.fills || []);
+      let alt = [];
+      try{ alt = await SYNC.holenAlt(d.addr); }catch(e){ alt = []; }
+      if(SYNC.fillsTabelleFehlt){ fehlt = true; break; }
+      let r;
+      if(alt.length){
+        r = await SYNC.hochladen(d.addr, mergeFills(alt, d.fills || []));
+        if(!r.fehlt){ await SYNC.loeschenAlt(d.addr); umgezogen += alt.length; }
+      }else{
+        r = await SYNC.sichern(d.addr, d.fills || []);
+      }
       gesamt += r.gesendet || 0;
       if(r.fehlt) fehlt = true;
     }catch(e){
@@ -4494,7 +4653,12 @@ async function fillsSichern(){
       return;
     }
   }
-  S.fillsGesichert = {wann:Date.now(), neu:gesamt, fehlt};
+  // Klartext von Wallets, die gerade nicht aktiv sind?
+  try{
+    const c = SYNC.cfg();
+    SYNC.altRest = fehlt ? 0 : ((await SYNC.zaehlen(c, c.jid, '')) || 0);
+  }catch(e){ SYNC.altRest = 0; }
+  S.fillsGesichert = {wann:Date.now(), neu:gesamt, fehlt, umgezogen};
   renderSicherung();
 }
 /* Auf einem neuen Gerät: die Historie aus der Sicherung in den Zwischenspeicher holen */
@@ -4540,11 +4704,14 @@ function renderSicherung(){
     return;
   }
   const lokal = (S.wdata || []).reduce((n, d) => n + (d.fills || []).length, 0);
-  el.innerHTML = g
-    ? '<span class="up">✓</span> Ausführungen gesichert · ' + lokal + ' auf diesem Gerät, ' +
-      (g.neu ? g.neu + ' gerade hochgeladen' : 'nichts Neues') + ' · ' +
+  el.innerHTML = (g
+    ? '<span class="up">✓</span> Ausführungen verschlüsselt gesichert · ' + lokal + ' auf diesem Gerät, ' +
+      (g.neu ? t('{0} gerade hochgeladen').replace('{0}', g.neu) : t('nichts Neues')) + ' · ' +
       new Date(g.wann).toLocaleTimeString(loc(), {hour:'2-digit', minute:'2-digit'})
-    : 'Ausführungen werden nach dem nächsten Laden gesichert.';
+    : 'Ausführungen werden nach dem nächsten Laden gesichert.') +
+    (g && g.umgezogen ? '<br><span class="up">✓</span> ' + g.umgezogen + ' Ausführungen aus der alten, unverschlüsselten Sicherung umgezogen und dort gelöscht.' : '') +
+    (SYNC.altRest ? '<br><span class="warn">Noch ' + SYNC.altRest + ' unverschlüsselte Ausführungen von Wallets, die gerade nicht aktiv sind.</span> ' +
+      'Schalte sie einmal ein und lade – dann werden auch sie verschlüsselt und der Klartext gelöscht.' : '');
 }
 
 let syncTimer = null;
@@ -7215,7 +7382,13 @@ function renderSync(){
         'word-break:break-all;text-align:right">' + esc(c.url) + '</span></div>' +
       '<div class="dl"><span>Journal-Schlüssel</span><span class="mono" style="font-size:11.5px">' +
         esc(c.jid) + '</span></div>' +
+      '<div class="dl"><span>Verschlüsselung</span><span class="up" style="text-align:right">Ende-zu-Ende (AES-256)</span></div>' +
+      (String(c.jid).length < 20 ? '<div class="err">Dein Journal-Schlüssel ist kurz und damit leichter zu erraten. ' +
+        'Sicherer ist ein erzeugter mit 32 Zeichen.</div>' : '') +
       '<p class="mut" style="font-size:12.5px;line-height:1.6">' +
+        'Alles wird schon in diesem Browser mit deinem Journal-Schlüssel verschlüsselt, bevor es zu Supabase geht. ' +
+        'Dort liegt nur Zeichensalat – ohne den Schlüssel kann es niemand lesen, auch Supabase nicht. ' +
+        'Geht der Journal-Schlüssel verloren, ist die Sicherung nicht mehr lesbar; deine Daten auf den Geräten bleiben. ' +
         'Notizen gleichen sich beim Öffnen und nach jeder Änderung automatisch ab. ' +
         'Damit das zweite Gerät dieselben Daten sieht, trag dort exakt dieselben drei Werte ein.</p>' +
       '<div class="filters">' +
