@@ -109,9 +109,15 @@ header{position:sticky;top:0;z-index:50;background:var(--headBg);backdrop-filter
 .hdright{display:flex;gap:8px;align-items:center;flex:0 0 auto}
 
 input,select,button,textarea{font-family:inherit;font-size:14px}
-input[type=text],input[type=search],select,textarea{background:var(--panel2);border:1px solid var(--line);
+input[type=text],input[type=search],input[type=number],input[type=date],input[type=time],select,textarea{background:var(--panel2);border:1px solid var(--line);
   color:var(--txt);border-radius:10px;padding:9px 11px;outline:none}
-input[type=text]:focus,select:focus,textarea:focus{border-color:var(--acc)}
+input[type=text]:focus,input[type=number]:focus,input[type=date]:focus,select:focus,textarea:focus{border-color:var(--acc)}
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{opacity:.5}
+/* Häkchen mit Text daneben – nicht in Großbuchstaben, nicht über die ganze Breite */
+.f label.chk{display:flex;align-items:flex-start;gap:9px;text-transform:none;letter-spacing:0;font-size:13.5px;
+  color:var(--txt);margin:0;line-height:1.45;cursor:pointer;user-select:none}
+.f label.chk input{width:auto;margin:2px 0 0;flex:0 0 auto}
 button{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:10px;
   padding:9px 14px;cursor:pointer;transition:.15s}
 button:hover{border-color:var(--acc);color:var(--acc)}
@@ -184,6 +190,24 @@ tbody tr:hover{background:var(--panel2)}
 .bar i{display:block;height:100%;border-radius:4px}
 #status{font-size:12px;color:var(--muted);padding:0 14px 8px;max-width:1240px;margin:0 auto}
 .empty-state{text-align:center;padding:40px 16px;color:var(--muted);font-size:14px;line-height:1.6}
+.ins.signal{border-left:3px solid var(--up)}
+.ins.hinweis{border-left:3px solid var(--warn)}
+.ins.notiz{opacity:.82}
+.kpis.kpis4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:640px){ .kpis.kpis4{grid-template-columns:repeat(2,minmax(0,1fr))} }
+.pp-grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:14px;align-items:start}
+.pp-grid .panel{margin-bottom:14px}
+.ppchartbox{position:relative;height:440px;touch-action:none;user-select:none}
+.ppchartbox canvas{display:block;cursor:crosshair}
+@media (max-width:900px){ .pp-grid{grid-template-columns:1fr} .ppchartbox{height:340px}
+  #ppPosT thead{display:none}
+  #ppPosT,#ppPosT tbody,#ppPosT tr,#ppPosT td{display:block;width:100%;box-sizing:border-box}
+  #ppPosT tr{border:1px solid var(--line);border-radius:12px;padding:6px 12px;margin-bottom:10px;background:var(--panel2)}
+  #ppPosT td{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 0;border:0;text-align:right}
+  #ppPosT td::before{content:attr(data-l);color:var(--muted);font-size:12px;text-align:left;flex:0 0 auto}
+  #ppPosT td:not([data-l])::before{content:none}
+  #ppPosT td > div{flex-direction:row !important;justify-content:flex-end}
+}
 /* Am Handy werden breite Tabellen zu Karten: jede Zeile ein Kästchen,
    jede Zelle eine Zeile mit ihrer Überschrift davor.                     */
 @media (max-width:640px){
@@ -559,6 +583,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
           <option value="win">Nur Gewinner</option>
           <option value="loss">Nur Verlierer</option>
           <option value="nonote">Ohne Notiz</option>
+          <option value="unseen">Nicht durchgesehen</option>
         </select>
         <button id="btnCsv">CSV export</button>
       </div>
@@ -572,6 +597,23 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         </table>
       </div>
       <div id="tradesEmpty" class="empty-state hide">Keine Trades im gewählten Filter.</div>
+    </div>
+  </section>
+
+  <!-- ERKENNTNISSE -->
+  <section id="v-insights" class="hide">
+    <div class="panel">
+      <h2>Was dein Journal über dich weiß</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Das Journal sucht in allen Trades nach Mustern, die man von Hand nicht findet. Jede Aussage
+        nennt ihre Zahlen und wie viele Trades dahinter stehen: ab 20 ein Signal, ab 10 ein Hinweis,
+        darunter eine Notiz. Schließt der Bereich die Null ein, steht „Zufall möglich“ daneben.</p>
+      <div class="mut" style="font-size:12.5px" id="insKopf"></div>
+    </div>
+    <div id="insList"></div>
+    <div class="panel">
+      <h2>Momente während des Trades</h2>
+      <div id="insMomente"></div>
     </div>
   </section>
 
@@ -678,7 +720,19 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         Ein Balken je Trade, aufsteigend sortiert: was Halten gebracht (grün) oder gekostet
         (rot) hätte.</p>
     </div>
-  </section>
+      <div class="panel hide" id="xrayPanel">
+      <h2>X-RAY</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Deine Equity-Kurve, Trade für Trade – mit dem, was jeder Trade durchlebt hat: Der Docht
+        reicht vom tiefsten bis zum besten Punkt während der Haltedauer. Die gestrichelte Linie
+        zeigt, wo die Kurve stünde, wenn jeder Ausstieg den besten Punkt erwischt hätte – ein
+        unerreichbares Ideal, gezeichnet, um Ausstiege einzuordnen, nicht als Ziel.</p>
+      <div class="chartbox"><canvas id="chXray"></canvas></div>
+      <div class="kpis" id="xrayKpis" style="margin-top:14px"></div>
+      <div id="xrayRt" style="margin-top:4px"></div>
+      <div class="mut" style="font-size:12px;margin-top:8px" id="xrayNote"></div>
+    </div>
+</section>
 
   <!-- LABOR: WIRKUNG -->
   <section id="v-labimpact" class="hide">
@@ -866,6 +920,20 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <div id="tagUsage" class="mut" style="font-size:12.5px;margin-top:10px"></div>
     </div>
     <div class="panel">
+      <h2>Checkliste je Setup</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Was muss stimmen, bevor du dieses Setup nimmst? Ein Punkt pro Zeile. Beim Planen erscheinen
+        die Punkte zum Abhaken; was du überspringst, wird mitgespeichert – so zeigt „Erkenntnisse“
+        später, was dich das Abkürzen kostet.</p>
+      <div class="grid2">
+        <div class="f"><label>Setup</label><select id="ckSetup"></select></div>
+        <div class="f"><label>&nbsp;</label><div class="mut" style="font-size:12px" id="ckInfo"></div></div>
+      </div>
+      <div class="f"><textarea id="ckText" style="min-height:120px" spellcheck="false"
+        placeholder="Höherer Zeitrahmen in meine Richtung&#10;Level erneut getestet&#10;Risiko nach Plan"></textarea></div>
+      <div class="filters"><button class="primary" id="ckSave">Checkliste speichern</button></div>
+    </div>
+    <div class="panel">
       <h2>Auswertung nach Setup-Tag</h2>
       <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
         „Bereich“ ist der Vertrauensbereich für das Ergebnis je Trade: aus deinen Trades
@@ -877,7 +945,8 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         <table id="tblSetups">
           <thead><tr>
             <th>Setup</th><th>Trades</th><th>Winrate</th><th>PnL netto</th><th>Ø PnL</th>
-            <th>Profit Factor</th><th>Ø Gewinn</th><th>Ø Verlust</th><th>Erwartungswert</th><th>Bereich</th><th></th><th>Ø Rating</th>
+            <th>Profit Factor</th><th>Ø Gewinn</th><th>Ø Verlust</th><th>Erwartungswert</th><th>Bereich</th><th></th>
+            <th>SQN</th><th>Kelly</th><th>Häufigkeit</th><th>Ø Rating</th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -959,6 +1028,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
           <option value="ticker">Nach Ticker</option>
         </select>
       </div>
+      <div id="planGeduld" class="mut" style="font-size:12.5px;margin-bottom:6px"></div>
       <div id="planHint" class="mut" style="font-size:12.5px;margin:10px 0 2px"></div>
       <div id="planList"></div>
       <div id="planEmpty" class="empty-state hide">
@@ -968,6 +1038,35 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <!-- LABOR: DISZIPLIN -->
+  <section id="v-cohort" class="hide">
+    <div class="panel">
+      <h2>Frag deine Daten</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Stell dir jede Gruppe zusammen: nur Longs, nur ein Setup, nur die New-Yorker Sitzung, nur
+        Scalps. Mehrere Chips in einer Zeile heißen „oder“, zwischen den Zeilen „und“. Die Zahl
+        hinter jedem Chip ist die Anzahl Trades.</p>
+      <div id="kohChips"></div>
+      <div class="filters"><button id="kohReset">Auswahl zurücksetzen</button></div>
+    </div>
+    <div class="panel">
+      <h2>Ergebnis <span class="mut" id="kohWahl" style="font-size:12.5px;font-weight:400"></span></h2>
+      <div class="kpis" id="kohKpis"></div>
+      <p class="mut" style="font-size:12.5px;line-height:1.6;margin-bottom:0">
+        „Vorteil echt“: Aus deinen Trades wird tausendfach neu gezogen – wie oft dabei ein positiver
+        Schnitt herauskommt. „Noch nötig“: wie viele Trades es bei dieser Streuung braucht, bis ein
+        Vorteil dieser Größe mit 95 % Sicherheit über null liegt.</p>
+    </div>
+    <div class="panel">
+      <h2>Wo der Vorteil steckt</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Deine Auswahl in jede Richtung aufgeteilt. „Signal“ steht nur, wo mindestens zehn Trades
+        liegen und der Vorteil mit 90 % Wahrscheinlichkeit echt ist – oder echt negativ.</p>
+      <div class="scroll"><table id="kohSplit" class="karten">
+        <thead><tr><th>Merkmal</th><th>Wert</th><th>Trades</th><th>Ø je Trade</th><th>Vorteil echt</th><th></th></tr></thead>
+        <tbody></tbody></table></div>
+    </div>
+  </section>
+
   <section id="v-discipline" class="hide">
     <div class="panel">
       <h2>Was Regelbrüche gekostet haben</h2>
@@ -1121,6 +1220,136 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     </div>
   </section>
 
+  <!-- PAPER: TERMINAL -->
+  <section id="v-paper" class="hide">
+    <div class="panel" id="ppStart">
+      <h2>Neue Paper-Session</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Handeln mit echten Hyperliquid-Kursen, ohne echtes Geld. Eine Session läuft, bis du sie
+        beendest – so siehst du, wie du in einem Zeitraum performt hättest, auch mit den Trades,
+        die du dich im echten Konto nicht traust. Paper-Trades tauchen im echten Journal nirgends
+        auf. Gefüllt wird ohne Slippage und ohne Funding.</p>
+      <div class="grid2">
+        <div class="f"><label>Name</label><input type="text" id="ppName" placeholder="Session 1"></div>
+        <div class="f"><label>Startkapital (USD)</label>
+          <input type="number" id="ppKapital" value="10000" min="10" step="100"></div>
+      </div>
+      <div class="f"><label class="chk"><input type="checkbox" id="ppGebuehren" checked>
+        Gebühren mit deinen echten Hyperliquid-Sätzen abziehen</label>
+        <div class="mut" style="font-size:12px;margin-top:4px">Taker für Market, Stops und Liquidation,
+          Maker für Limits. Ohne Gebühren sieht Paper systematisch besser aus als echt.</div></div>
+      <div class="filters"><button class="primary" id="ppLos">Session starten</button></div>
+    </div>
+
+    <div id="ppTerminal" class="hide">
+      <div class="panel" style="padding:12px 14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div><b id="ppTitel" style="font-size:15px"></b>
+            <span class="mut" id="ppVerbindung" style="font-size:12px;margin-left:8px"></span></div>
+          <button id="ppEnde">Session beenden</button>
+        </div>
+        <div class="kpis kpis4" id="ppKopf" style="margin:12px 0 0"></div>
+        <div class="mut" id="ppUnsicher" style="font-size:12px;margin-top:6px"></div>
+      </div>
+
+      <div class="pp-grid">
+        <div class="panel pp-chart">
+          <div class="filters" style="align-items:center;margin-bottom:8px">
+            <input type="text" id="ppMarkt" list="ppMaerkte" value="BTC" spellcheck="false" autocomplete="off"
+              style="max-width:120px;font-weight:650">
+            <datalist id="ppMaerkte"></datalist>
+            <b class="mono" id="ppKurs" style="font-size:15px"></b>
+            <span style="flex:1"></span>
+            <button class="tab" data-ppiv="1m">1m</button>
+            <button class="tab" data-ppiv="5m">5m</button>
+            <button class="tab on" data-ppiv="15m">15m</button>
+            <button class="tab" data-ppiv="1h">1h</button>
+            <button class="tab" data-ppiv="4h">4h</button>
+            <button class="tab" data-ppiv="1d">1d</button>
+          </div>
+          <div class="ppchartbox"><canvas id="ppChart"></canvas></div>
+          <div class="mut" style="font-size:11.5px;margin-top:6px">Ziehen verschiebt, Mausrad oder zwei Finger
+            zoomen. Antippen übernimmt den Kurs ins gerade gewählte Feld – Limit, Stop oder Ziel.</div>
+        </div>
+
+        <div class="panel pp-order">
+          <div class="filters" style="margin-bottom:8px">
+            <button class="tab on" data-ppseite="long" style="flex:1">Long</button>
+            <button class="tab" data-ppseite="short" style="flex:1">Short</button>
+          </div>
+          <div class="filters" style="margin-bottom:10px">
+            <button class="tab on" data-pptyp="market" style="flex:1">Market</button>
+            <button class="tab" data-pptyp="limit" style="flex:1">Limit</button>
+          </div>
+          <div class="f hide" id="ppPxBox"><label>Limit-Preis</label>
+            <input type="text" id="ppPx" class="mono" inputmode="decimal" spellcheck="false"></div>
+          <div class="f"><label>Größe (USD)</label>
+            <input type="text" id="ppGroesse" class="mono" inputmode="decimal" placeholder="Positionswert">
+            <div class="filters" style="margin-top:6px">
+              <button data-ppanteil="25">25 %</button><button data-ppanteil="50">50 %</button>
+              <button data-ppanteil="100">Max</button></div></div>
+          <div class="f"><label>Hebel</label>
+            <input type="number" id="ppHebel" value="10" min="1" max="50" step="1"></div>
+          <div class="grid2">
+            <div class="f"><label>Stop-Loss</label>
+              <input type="text" id="ppSl" class="mono" inputmode="decimal" spellcheck="false"></div>
+            <div class="f"><label>Take-Profit</label>
+              <input type="text" id="ppTp" class="mono" inputmode="decimal" spellcheck="false"></div>
+          </div>
+          <div class="filters" style="margin-top:-4px;margin-bottom:10px">
+            <span class="mut" style="font-size:12px;align-self:center">Größe nach Risiko:</span>
+            <button data-pprisk="0.5">0,5 %</button><button data-pprisk="1">1 %</button><button data-pprisk="2">2 %</button></div>
+          <div class="f"><label class="chk"><input type="checkbox" id="ppReduce">
+            Nur verkleinern (reduce only)</label></div>
+          <details style="margin-bottom:10px">
+            <summary class="mut" style="cursor:pointer;font-size:13px">Setup &amp; Stimmung</summary>
+            <div class="f" style="margin-top:8px"><label>Setup</label><div class="chips" id="ppSetups"></div></div>
+            <div class="f"><label>Stimmung</label><div class="chips" id="ppMood"></div>
+              <div style="display:flex;gap:6px;align-items:center;margin-top:8px">
+                <span class="mut" style="font-size:12px">Überzeugung</span>
+                <div class="filters" id="ppConv" style="margin:0"></div></div></div>
+          </details>
+          <div class="mut" id="ppInfo" style="font-size:12.5px;line-height:1.6;margin-bottom:10px"></div>
+          <button class="primary" id="ppSenden" style="width:100%;padding:11px">Long kaufen</button>
+          <div id="ppMeld" style="font-size:12.5px;margin-top:8px;min-height:18px"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Positionen</h2>
+        <div class="scroll"><table id="ppPosT" class="karten">
+          <thead><tr><th>Markt</th><th>Größe</th><th>Einstieg → Kurs</th>
+            <th>Unreal. PnL</th><th>Liq.-Preis</th><th>SL / TP</th><th></th></tr></thead>
+          <tbody id="ppPos"></tbody></table></div>
+      </div>
+      <div class="panel">
+        <h2>Offene Orders</h2>
+        <div class="scroll"><table id="ppOrdersT" class="karten">
+          <thead><tr><th>Markt</th><th>Seite</th><th>Preis</th><th>Menge</th><th>SL / TP</th><th>Aufgegeben</th><th></th></tr></thead>
+          <tbody id="ppOrders"></tbody></table></div>
+      </div>
+      <div class="panel">
+        <h2>Abgeschlossen in dieser Session</h2>
+        <div class="scroll"><table id="ppTradesT" class="karten">
+          <thead><tr><th>Geschlossen</th><th>Markt</th><th>Ein → Aus</th><th>Netto</th><th>R</th><th>Setup</th></tr></thead>
+          <tbody id="ppTrades"></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAPER: SESSIONS -->
+  <section id="v-papersess" class="hide">
+    <div class="panel">
+      <h2>Paper-Sessions</h2>
+      <p class="mut" style="font-size:13px;line-height:1.6;margin-top:0">
+        Jede Session mit ihren Trades, ihrem Ergebnis und dem Vergleich mit deinem echten Konto im
+        selben Zeitraum. Setups, Notizen und Stimmung trägst du genauso ein wie im Journal – einfach
+        einen Trade antippen.</p>
+      <div id="psListe"></div>
+    </div>
+    <div id="psDetail"></div>
+  </section>
+
   <!-- VAULTS -->
   <section id="v-vaults" class="hide">
     <div class="kpis" id="vaultKpis"></div>
@@ -1267,7 +1496,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 05.09.2026, 17:20</span><br>
+    <span class="build">Fassung 04.10.2026, 16:27</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1350,6 +1579,10 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     </div>
     <div class="f"><label>Setups — mehrere möglich</label>
       <div class="chips" id="pSetups"></div></div>
+    <div class="f hide" id="pCheckBox"><label>Checkliste</label>
+      <div id="pCheck"></div>
+      <div class="mut" style="font-size:11.5px;margin-top:4px">Nicht abgehakte Punkte werden mitgespeichert –
+        so sieht das Journal später, was dich das Abkürzen kostet.</div></div>
     <div class="grid2">
       <div class="f"><label>Erwartet ab</label><input type="date" id="pFrom"></div>
       <div class="f"><label>Erwartet bis (optional)</label><input type="date" id="pTo"></div>
@@ -1365,6 +1598,21 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         <option value="done">Umgesetzt</option>
         <option value="dropped">Verworfen</option></select></div>
     </div>
+    <div class="f"><label>Weitere Ziele – Teilverkäufe</label>
+      <div id="pZiele"></div>
+      <div class="filters" style="margin-top:6px"><button id="pZielAdd">+ Ziel</button></div>
+      <div class="mut" style="font-size:11.5px;margin-top:4px" id="pZielHint"></div></div>
+    <div class="f"><label>Stimmung jetzt</label>
+      <div class="chips" id="pMood"></div>
+      <div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <span class="mut" style="font-size:12px">Überzeugung</span>
+        <div class="filters" id="pConv" style="margin:0"></div>
+      </div>
+      <div class="mut" style="font-size:11.5px;margin-top:5px">Vor dem Trade festgehalten, damit das
+        Ergebnis die Erinnerung nicht umschreibt.</div></div>
+    <div id="pRekoHint" class="err hide" style="margin-bottom:12px">Nachträglich angelegt. Dieser Plan wird
+      als nachträglich markiert und zählt in den Auswertungen getrennt von echten Plänen –
+      sonst würde die Rückschau sich selbst bestätigen.</div>
     <div class="f" id="pTradesBox"><label>Daraus geworden</label>
       <div id="pTrades"></div></div>
     <div class="f"><label>Plan &amp; Begründung</label>
@@ -1427,8 +1675,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <button class="tab" data-cardlook="hell">Hell</button>
     </div>
     <div class="f" style="margin-top:10px">
-      <label style="cursor:pointer;user-select:none;font-size:13.5px">
-        <input type="checkbox" id="cardGeld" style="margin-right:8px;vertical-align:-1px">
+      <label class="chk"><input type="checkbox" id="cardGeld">
         Dollarbetrag mit auf die Karte
       </label>
       <div class="mut" style="font-size:12px;line-height:1.55;margin-top:4px" id="cardGeldHint">
@@ -1465,6 +1712,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <div id="mChartHint" class="mut" style="font-size:11.5px;margin-top:5px"></div>
     </div>
     <div id="mStats" style="margin:14px 0"></div>
+    <div id="mScore"></div>
     <div id="mOffenHint" class="mut hide"
       style="font-size:13px;line-height:1.6;padding:12px;background:var(--panel2);border-radius:10px"></div>
     <div id="mNotizen">
@@ -1472,11 +1720,37 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <label>Setups — mehrere möglich</label>
       <div class="chips" id="mTags"></div>
     </div>
+    <div class="grid2">
+      <div class="f">
+        <label>Stop dieses Trades</label>
+        <input type="text" id="mStop" class="mono" spellcheck="false" inputmode="decimal" placeholder="Kurs">
+        <div class="mut" style="font-size:11.5px;margin-top:5px;line-height:1.5" id="mStopHint"></div>
+      </div>
+      <div class="f">
+        <label>Hebel</label>
+        <input type="number" id="mHebel" min="1" max="100" step="1" placeholder="z. B. 10">
+        <div class="mut" style="font-size:11.5px;margin-top:5px;line-height:1.5" id="mHebelHint"></div>
+      </div>
+    </div>
     <div class="f">
-      <label>Hebel</label>
-      <div style="display:flex;gap:10px;align-items:center">
-        <input type="number" id="mHebel" min="1" max="100" step="1" style="max-width:110px" placeholder="z. B. 10">
-        <span class="mut" style="font-size:12px;line-height:1.5" id="mHebelHint"></span>
+      <label>Stimmung beim Einstieg</label>
+      <div class="chips" id="mMood"></div>
+      <div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <span class="mut" style="font-size:12px">Überzeugung</span>
+        <div class="filters" id="mConv" style="margin:0"></div>
+      </div>
+      <div class="mut" style="font-size:11.5px;margin-top:6px;line-height:1.5" id="mMoodHint"></div>
+    </div>
+    <div class="f" id="mMomBox">
+      <label>Momente</label>
+      <div id="mMomList"></div>
+      <div id="mMomNeu" class="hide" style="margin-top:8px">
+        <div class="chips" id="mMomChips"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input type="text" id="mMomText" placeholder="Warum? (optional)" style="flex:1">
+          <button id="mMomAdd">Festhalten</button>
+        </div>
+        <div class="mut" style="font-size:11.5px;margin-top:6px" id="mMomHint"></div>
       </div>
     </div>
     <div class="f">
@@ -1502,8 +1776,14 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       </div>
       <div id="mImgPrev"></div>
     </div>
+    <div class="f">
+      <label class="chk"><input type="checkbox" id="mGesehen">
+        Durchgesehen – diesen Trade habe ich mir angeschaut
+      </label>
+    </div>
     <div class="filters">
       <button class="primary" id="mSave" style="flex:1">Speichern</button>
+      <button id="mPlanNach" title="Plan nachträglich anlegen – wird als nachträglich markiert">Plan nachtragen</button>
       <button id="mDel">Notiz löschen</button>
     </div>
     </div>
@@ -1539,6 +1819,263 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Vorteil: neue Texte funktionieren sofort weiter, nur eben zunächst deutsch.  */
 let LANG = 'de';
 const EN = {
+  /* --- en_y --- */
+  "Einstieg → Kurs": "Entry → price",
+  /* --- en_paper --- */
+  "Neue Paper-Session": "New paper session",
+  "Handeln mit echten Hyperliquid-Kursen, ohne echtes Geld. Eine Session läuft, bis du sie beendest – so siehst du, wie du in einem Zeitraum performt hättest, auch mit den Trades, die du dich im echten Konto nicht traust. Paper-Trades tauchen im echten Journal nirgends auf. Gefüllt wird ohne Slippage und ohne Funding.": "Trade with real Hyperliquid prices, without real money. A session runs until you end it – so you see how you would have performed over a period, including the trades you don't dare to take in your real account. Paper trades never show up in the real journal. Fills come without slippage and without funding.",
+  "Startkapital (USD)": "Starting capital (USD)",
+  "Gebühren mit deinen echten Hyperliquid-Sätzen abziehen": "Deduct fees at your real Hyperliquid rates",
+  "Taker für Market, Stops und Liquidation, Maker für Limits. Ohne Gebühren sieht Paper systematisch besser aus als echt.": "Taker for market orders, stops and liquidation, maker for limits. Without fees, paper always looks better than the real thing.",
+  "Session starten": "Start session",
+  "Session beenden": "End session",
+  "Ziehen verschiebt, Mausrad oder zwei Finger zoomen. Antippen übernimmt den Kurs ins gerade gewählte Feld – Limit, Stop oder Ziel.": "Drag to pan, scroll or pinch to zoom. Tap to put the price into the field you have selected – limit, stop or target.",
+  "Limit-Preis": "Limit price",
+  "Stop-Loss": "Stop loss",
+  "Take-Profit": "Take profit",
+  "Größe nach Risiko:": "Size by risk:",
+  "Nur verkleinern (reduce only)": "Reduce only",
+  "Setup & Stimmung": "Setup & mood",
+  "Long kaufen": "Buy long",
+  "Short verkaufen": "Sell short",
+  "Positionen": "Positions",
+  "Abgeschlossen in dieser Session": "Closed in this session",
+  "Ein → Aus": "In → out",
+  "Paper-Sessions": "Paper sessions",
+  "Jede Session mit ihren Trades, ihrem Ergebnis und dem Vergleich mit deinem echten Konto im selben Zeitraum. Setups, Notizen und Stimmung trägst du genauso ein wie im Journal – einfach einen Trade antippen.": "Every session with its trades, its result and a comparison with your real account over the same period. Add setups, notes and mood exactly as in the journal – just tap a trade.",
+  "Noch keine Session. Starte im Terminal die erste.": "No session yet. Start your first one in the terminal.",
+  "Keine aktive Session.": "No active session.",
+  "Größe fehlt.": "Size is missing.",
+  "Noch kein Kurs für diesen Markt.": "No price for this market yet.",
+  "Nichts zu reduzieren.": "Nothing to reduce.",
+  "Nicht genug freie Margin.": "Not enough free margin.",
+  "Limit-Preis fehlt.": "Limit price is missing.",
+  "alle 2 s": "every 2 s",
+  "getrennt": "disconnected",
+  "Frei": "Free",
+  "Gebunden": "Locked",
+  "für neue Orders": "for new orders",
+  "Margin in Positionen und Orders": "margin in positions and orders",
+  "{0} Fill(s) lagen mit einem zweiten Niveau in derselben Minute – Reihenfolge nach Nähe zum Eröffnungskurs angenommen.": "{0} fill(s) shared a minute with a second level – order assumed by distance from the open.",
+  "Stornieren": "Cancel",
+  "Keine offenen Orders.": "No open orders.",
+  "Noch kein abgeschlossener Trade in dieser Session.": "No closed trade in this session yet.",
+  "Risiko bis Stop": "Risk to stop",
+  "max. Hebel {0}x": "max leverage {0}x",
+  "Für die Größe nach Risiko brauche ich Einstieg und Stop.": "Sizing by risk needs an entry and a stop.",
+  "Ausgeführt": "Filled",
+  "{0} Ausführung(en) nachgerechnet, während die App zu war.": "{0} fill(s) worked out from while the app was closed.",
+  "Bitte ein Startkapital von mindestens 10 $ eintragen.": "Please enter a starting capital of at least $10.",
+  "Session beenden? Offene Positionen werden zum aktuellen Kurs geschlossen, offene Orders verfallen.": "End the session? Open positions are closed at the current price, open orders expire.",
+  "Zeitraum": "Period",
+  "Ende": "End",
+  "jetzt": "now",
+  "Summe in R": "Total in R",
+  "Ø {0} je Trade": "avg {0} per trade",
+  "Größter Rückgang": "Max drawdown",
+  "mit deinen Sätzen": "at your rates",
+  "ohne Gebühren": "without fees",
+  "Echt im selben Zeitraum: {0} Trades, {1}, Trefferquote {2}.": "Real account over the same period: {0} trades, {1}, win rate {2}.",
+  "{0} Fill(s) mit angenommener Reihenfolge.": "{0} fill(s) with an assumed order.",
+  "Nach Setup": "By setup",
+  "Trades dieser Session": "Trades in this session",
+  "Ø R": "Avg R",
+  "Noch keine Trades.": "No trades yet.",
+  /* --- en_x --- */
+  "Der Bereich schließt die Null ein": "The range includes zero",
+  /* --- en_alt --- */
+  "Die Pfeile vergleichen die letzten {0} Tage mit den {0} Tagen davor — unabhängig vom Filter oben ({1} gegen {2} Trades). Zeiger drauf zeigt beide Werte.": "The arrows compare the last {0} days with the {0} days before — independent of the filter above ({1} vs {2} trades). Hover to see both values.",
+  "Die Pfeile vergleichen die letzten {0} Tage mit den {0} Tagen davor ({1} gegen {2} Trades). Zeiger drauf zeigt beide Werte.": "The arrows compare the last {0} days with the {0} days before ({1} vs {2} trades). Hover to see both values.",
+  "Hätte man jeden Trade {0} länger gehalten, wären {1} mehr herausgekommen — in {2} von {3} Fällen war Halten besser. Das ist kein Freibrief zum Aussitzen: es sagt nur, dass deine Ausstiege im Schnitt vor der Bewegung liegen.": "Holding every trade {0} longer would have made {1} more — holding was better in {2} of {3} cases. That is no licence to sit things out: it only says your exits tend to come before the move.",
+  "Am besten läuft {0} mit {1} je Trade, am schlechtesten {2} mit {3}. Ob der Unterschied echt ist, sagt die letzte Spalte: nur wo „belastbar\" steht, schließt der Bereich die Null nicht ein.": "{0} does best with {1} per trade, {2} worst with {3}. Whether the difference is real is in the last column: only where it says “reliable” does the range exclude zero.",
+  "{0} von {1}": "{0} of {1}",
+  "{0} von {1} Trades": "{0} of {1} trades",
+  /* --- en_neu --- */
+  "Erkenntnisse": "Insights",
+  "Kohorten": "Cohorts",
+  "Was dein Journal über dich weiß": "What your journal knows about you",
+  "Das Journal sucht in allen Trades nach Mustern, die man von Hand nicht findet. Jede Aussage nennt ihre Zahlen und wie viele Trades dahinter stehen: ab 20 ein Signal, ab 10 ein Hinweis, darunter eine Notiz. Schließt der Bereich die Null ein, steht „Zufall möglich“ daneben.": "The journal searches all your trades for patterns you would never spot by hand. Every finding names its numbers and how many trades stand behind it: 20 or more is a signal, 10 or more a lead, fewer a note. If the range includes zero, it says “could be chance”.",
+  "Momente während des Trades": "Moments during the trade",
+  "Der Bereich schließt null ein": "The range includes zero",
+  "Wiedereinstieg kurz nach einem Verlust": "Re-entry shortly after a loss",
+  "Trades, die du binnen 30 Minuten nach einem Verlust eröffnest, bringen im Schnitt {0} – sonst {1}.": "Trades you open within 30 minutes of a loss average {0} – otherwise {1}.",
+  "Positionsgröße nach Verlusten": "Position size after losses",
+  "Nach einem Verlust handelst du im Schnitt {0} % größer als nach einem Gewinn.": "After a loss you trade {0}% larger on average than after a win.",
+  "Nach einem Verlust handelst du im Schnitt {0} % kleiner als nach einem Gewinn.": "After a loss you trade {0}% smaller on average than after a win.",
+  "Schwächster Wochentag: {0}": "Weakest weekday: {0}",
+  "Am {0} bringt ein Trade im Schnitt {1}, an den übrigen Tagen {2}.": "On {0} a trade averages {1}, on the other days {2}.",
+  "Schwächste Sitzung: {0}": "Weakest session: {0}",
+  "In der Sitzung „{0}“ bringt ein Trade {1}, sonst {2}.": "In the “{0}” session a trade averages {1}, otherwise {2}.",
+  "Verlierer hältst du länger": "You hold losers longer",
+  "Verlierer hältst du im Schnitt {0}-mal so lange wie Gewinner ({1} gegen {2}).": "You hold losers {0} times as long as winners on average ({1} vs {2}).",
+  "Große Gewinner ohne Setup": "Big winners without a setup",
+  "{0} deiner {1} besten Trades tragen kein Setup. Was du da gemacht hast, wiederholt sich nur, wenn du ihm einen Namen gibst.": "{0} of your {1} best trades carry no setup. Whatever you did there only repeats once you give it a name.",
+  "Geplante Trades gegen spontane": "Planned trades vs spontaneous ones",
+  "Mit Plan bringt ein Trade {0}, ohne Plan {1}.": "With a plan a trade averages {0}, without one {1}.",
+  "{0} ist deine schwächere Seite": "{0} is your weaker side",
+  "{0}-Trades bringen {1}, die Gegenseite {2}.": "{0} trades average {1}, the other side {2}.",
+  "Ab dem vierten Trade am Tag": "From the fourth trade of the day",
+  "Der vierte und jeder weitere Trade eines Tages bringt {0}, die ersten drei {1}.": "The fourth and every later trade of a day averages {0}, the first three {1}.",
+  "Gefühl „{0}“": "Feeling “{0}”",
+  "Trades, die du mit „{0}“ eingegangen bist, bringen {1}, die übrigen mit festgehaltener Stimmung {2}.": "Trades you entered feeling “{0}” average {1}, the rest with a logged mood {2}.",
+  "Deine Überzeugung ist {0}": "Your conviction is {0}",
+  "kalibriert": "calibrated",
+  "verkehrt": "inverted",
+  "ohne Aussagekraft": "not yet telling",
+  "Bei hoher Überzeugung (4–5) bringt ein Trade {0}, bei niedriger (1–2) {1}.": "With high conviction (4–5) a trade averages {0}, with low (1–2) {1}.",
+  "Je sicherer du dich fühlst, desto schlechter läuft es.": "The surer you feel, the worse it goes.",
+  "Noch kein belastbarer Unterschied.": "No reliable difference yet.",
+  "Checkliste übersprungen": "Checklist skipped",
+  "Trades mit übersprungenen Punkten bringen {0}, mit vollständiger Checkliste {1}. So viel kostet dich jedes Abkürzen.": "Trades with skipped items average {0}, with a complete checklist {1}. That is what every shortcut costs you.",
+  "Gewinn wieder abgegeben": "Gave the profit back",
+  "{0} Trade(s) lagen mindestens 1 R vorn und gingen trotzdem rot raus. Zusammen hast du dabei {1} aus der Hand gegeben.": "{0} trade(s) were at least 1 R up and still closed red. Together you gave away {1}.",
+  "Stop zu eng": "Stop too tight",
+  "{0}-mal wurdest du ausgestoppt, und danach lief der Kurs so weit in deine Richtung, dass der Trade mindestens +1 R gebracht hätte.": "{0} times you were stopped out, and afterwards price ran far enough your way that the trade would have made at least +1 R.",
+  "Zu früh raus": "Out too early",
+  "{0} Gewinner liefen nach deinem Ausstieg noch mindestens 1 R weiter – im Schnitt {1}.": "{0} winners ran at least another 1 R after you got out – {1} on average.",
+  "{0} Befund(e) aus {1} Trades": "{0} finding(s) from {1} trades",
+  "gerechnet in R": "measured in R",
+  "gerechnet in Dollar, weil kein Kontostand und kein Stop vorliegt": "measured in dollars, because there is no balance and no stop",
+  "{0} von {1} Trades mit Ausschlagsmessung – die Ausstiegsfehler zählen nur diese.": "{0} of {1} trades have excursion data – the exit biases count only those.",
+  "{0} Trades gegen {1}": "{0} trades vs {1}",
+  "Noch nichts Belastbares. Ab etwa zehn Trades beginnt das Journal, Muster zu benennen.": "Nothing solid yet. From about ten trades on, the journal starts naming patterns.",
+  "Wie oft": "How often",
+  "Typischer R-Stand": "Typical R at the time",
+  "Trades danach im Plus": "Trades that ended green",
+  "läuft noch": "still running",
+  "Beschreibend, kein Urteil über einen einzelnen Moment. Ab fünf gleichen Momenten lohnt ein Blick auf das Muster.": "Descriptive, never a verdict on a single moment. From five of the same kind, the pattern is worth a look.",
+  "Noch keine Momente festgehalten. In einem laufenden Trade kannst du im Trade-Detail mit einem Tipp festhalten, was du fühlst oder entscheidest – mit dem R-Stand des Augenblicks.": "No moments logged yet. In a running trade, the trade detail lets you capture with one tap what you feel or decide – stamped with the R at that instant.",
+  "Deine Equity-Kurve, Trade für Trade – mit dem, was jeder Trade durchlebt hat: Der Docht reicht vom tiefsten bis zum besten Punkt während der Haltedauer. Die gestrichelte Linie zeigt, wo die Kurve stünde, wenn jeder Ausstieg den besten Punkt erwischt hätte – ein unerreichbares Ideal, gezeichnet, um Ausstiege einzuordnen, nicht als Ziel.": "Your equity curve, trade by trade – with what each trade lived through: the wick runs from the worst to the best point while you held it. The dotted line shows where the curve would be if every exit had caught the best point – an unreachable ideal, drawn to judge exits, never as a target.",
+  "Liegen gelassen": "Left on the table",
+  "bei Gewinnern bis zum besten Punkt": "on winners, up to the best point",
+  "Rückgabe bei Gewinnern": "Giveback on winners",
+  "vom Höchststand bis zum Ausstieg": "from the peak to the exit",
+  "Round-Trips": "Round trips",
+  "über +1 R und trotzdem rot": "over +1 R and still red",
+  "erst vorn, dann rot": "ahead first, then red",
+  "Ø Heat Gewinner": "Avg heat, winners",
+  "so weit im Minus vor dem Gewinn": "this far down before the win",
+  "Ø Heat Verlierer": "Avg heat, losers",
+  "Verlierer melden sich oft früh": "losers often announce themselves early",
+  "Längste Serien": "Longest streaks",
+  "Gewinner / Verlierer am Stück": "winners / losers in a row",
+  "{0} von {1} Trades mit Ausschlagsmessung – nur sie haben Dochte und zählen in die Zahlen darunter.": "{0} of {1} trades have excursion data – only they get wicks and count in the numbers below.",
+  "Mit jedem besten Punkt": "Every best point",
+  "Durchlebt": "Lived through",
+  "Frag deine Daten": "Ask your data",
+  "Stell dir jede Gruppe zusammen: nur Longs, nur ein Setup, nur die New-Yorker Sitzung, nur Scalps. Mehrere Chips in einer Zeile heißen „oder“, zwischen den Zeilen „und“. Die Zahl hinter jedem Chip ist die Anzahl Trades.": "Build any group: longs only, one setup, the New York session, scalps. Several chips in one row mean “or”, between rows “and”. The number on each chip is its trade count.",
+  "Auswahl zurücksetzen": "Reset selection",
+  "Alle Trades im Filter oben": "All trades in the filter above",
+  "von {0}": "of {0}",
+  "alle": "all",
+  "in Dollar": "in dollars",
+  "wo der wahre Wert plausibel liegt": "where the true value plausibly sits",
+  "Vorteil echt": "Edge is real",
+  "Wahrscheinlichkeit, dass es kein Zufall ist": "probability it is not chance",
+  "Noch nötig": "Still needed",
+  "kein Vorteil": "no edge",
+  "genug": "enough",
+  "für eine Aussage braucht es etwa {0}": "a verdict needs about {0}",
+  "ab 5 Trades": "from 5 trades",
+  "„Vorteil echt“: Aus deinen Trades wird tausendfach neu gezogen – wie oft dabei ein positiver Schnitt herauskommt. „Noch nötig“: wie viele Trades es bei dieser Streuung braucht, bis ein Vorteil dieser Größe mit 95 % Sicherheit über null liegt.": "“Edge is real”: your trades are resampled a thousand times – how often the average comes out positive. “Still needed”: how many trades this spread requires before an edge of this size sits above zero with 95% confidence.",
+  "Wo der Vorteil steckt": "Where the edge lives",
+  "Deine Auswahl in jede Richtung aufgeteilt. „Signal“ steht nur, wo mindestens zehn Trades liegen und der Vorteil mit 90 % Wahrscheinlichkeit echt ist – oder echt negativ.": "Your selection split every way. “Signal” only appears with at least ten trades and a 90% chance the edge is real – or really negative.",
+  "Merkmal": "Dimension",
+  "Rauschen": "Noise",
+  "Zu wenige Trades, um weiter aufzuteilen.": "Too few trades to split further.",
+  "Wochentag": "Weekday",
+  "Stil": "Style",
+  "Risiko-Epoche": "Risk era",
+  "Stimmung": "Mood",
+  "Epoche {0}": "Era {0}",
+  "oder": "or",
+  "spontan": "spontaneous",
+  "nachträglich": "reconstructed",
+  "nicht erfasst": "not logged",
+  "ohne Setup": "no setup",
+  "Daytrade": "Day trade",
+  "Sonntag": "Sunday",
+  "Montag": "Monday",
+  "Dienstag": "Tuesday",
+  "Mittwoch": "Wednesday",
+  "Donnerstag": "Thursday",
+  "Freitag": "Friday",
+  "Samstag": "Saturday",
+  "Ruhig": "Calm",
+  "Zuversichtlich": "Confident",
+  "Zögerlich": "Hesitant",
+  "Ungeduldig": "Impatient",
+  "Gelangweilt": "Bored",
+  "Müde / abgelenkt": "Tired / distracted",
+  "Stop nachgezogen": "Trailed the stop",
+  "Stop weiter weg": "Widened the stop",
+  "Teilgewinn": "Took a partial",
+  "Nachgekauft": "Added",
+  "Aus Angst geschlossen": "Closed out of fear",
+  "Plan geändert": "Changed the plan",
+  "Gefühl": "Feeling",
+  "Entscheidung": "Decision",
+  "Stop dieses Trades": "Stop of this trade",
+  "Stimmung beim Einstieg": "Mood at entry",
+  "Überzeugung": "Conviction",
+  "Momente": "Moments",
+  "Warum? (optional)": "Why? (optional)",
+  "Festhalten": "Log it",
+  "Durchgesehen – diesen Trade habe ich mir angeschaut": "Reviewed – I have looked at this trade",
+  "Plan nachträglich anlegen – wird als nachträglich markiert": "Add a plan afterwards – it is marked as reconstructed",
+  "Plan nachtragen": "Add plan afterwards",
+  "Damit ist 1 R = {0}.": "That makes 1 R = {0}.",
+  "Leer lassen: dann gilt der Stop aus deinem Plan ({0}).": "Leave empty to use the stop from your plan ({0}).",
+  "Ohne Stop rechnet das Journal mit dem Konto-Prozent.": "Without a stop the journal uses the account percentage.",
+  "Aus deinem Plan übernommen – vor dem Trade festgehalten.": "Taken from your plan – captured before the trade.",
+  "Nach dem Schließen eingetragen – zählt nicht in die Auswertung, weil das Ergebnis die Erinnerung färbt.": "Entered after the close – it does not count, because the outcome colours the memory.",
+  "Jetzt festhalten zählt – die Position läuft noch.": "Logging it now counts – the position is still open.",
+  "Nur was vor dem Schließen festgehalten wurde, zählt in die Auswertung.": "Only what was logged before the close counts.",
+  "Noch nichts festgehalten. Tippe unten, was du gerade fühlst oder entscheidest.": "Nothing logged yet. Tap below what you feel or decide right now.",
+  "Keine Momente aus der Laufzeit.": "No moments from while it ran.",
+  "Kein Kurs oder kein Risiko – wird ohne R-Stand festgehalten.": "No price or no risk – logged without an R value.",
+  "Wird mit dem jetzigen Stand festgehalten: {0}": "Logged with the current state: {0}",
+  "Erst antippen, was du fühlst oder entscheidest.": "Tap what you feel or decide first.",
+  "{0} von {1} durchgesehen": "{0} of {1} reviewed",
+  "Nicht durchgesehen": "Not reviewed",
+  "durchgesehen": "reviewed",
+  "1 R = {0} · aus deinem Stop": "1 R = {0} · from your stop",
+  "Plan gegen Ausführung": "Plan vs execution",
+  "Stop zuerst erreicht": "Stop hit first",
+  "Plan voll aufgegangen": "Plan fully played out",
+  "Erst TP1, dann der Stop": "TP1 first, then the stop",
+  "TP1 erreicht, Rest nicht": "TP1 reached, the rest not",
+  "Kein Niveau erreicht – von Hand geschlossen": "No level reached – closed by hand",
+  "Einstieg gegen Plan:": "Entry vs plan:",
+  "besser": "better",
+  "schlechter": "worse",
+  "Ob die Niveaus erreicht wurden, zeigt sich nach der Ausschlagsmessung.": "Whether the levels were hit shows after the excursion measurement.",
+  "Checkliste": "Checklist",
+  "Nicht abgehakte Punkte werden mitgespeichert – so sieht das Journal später, was dich das Abkürzen kostet.": "Unticked items are saved too – so the journal can later show what shortcuts cost you.",
+  "Weitere Ziele – Teilverkäufe": "More targets – partial exits",
+  "+ Ziel": "+ Target",
+  "Stimmung jetzt": "Mood right now",
+  "Vor dem Trade festgehalten, damit das Ergebnis die Erinnerung nicht umschreibt.": "Captured before the trade, so the outcome cannot rewrite the memory.",
+  "Nachträglich angelegt. Dieser Plan wird als nachträglich markiert und zählt in den Auswertungen getrennt von echten Plänen – sonst würde die Rückschau sich selbst bestätigen.": "Created afterwards. This plan is marked as reconstructed and counts separately from real plans – otherwise hindsight would confirm itself.",
+  "Das Ziel oben ist TP1. Hier kommen weitere Stufen dazu, je mit Anteil der Position.": "The target above is TP1. Add further levels here, each with its share of the position.",
+  "TP1 bekommt den Rest: {0} %.": "TP1 gets the rest: {0}%.",
+  "Gemischtes CRV: {0} : 1": "Blended R:R: {0} : 1",
+  "{0} Ziele": "{0} targets",
+  "Geduld gehalten": "Patience held",
+  "Abgelaufen ohne Trade – zählt als Geduld": "Expired without a trade – counts as patience",
+  "nach Ablauf": "after expiry",
+  "Eingestiegen nach Ablauf des Plans": "Entered after the plan expired",
+  "Nach dem Trade angelegt": "Created after the trade",
+  "{0} Plan/Pläne abgelaufen, ohne dass du eingestiegen bist – Geduld gehalten. Auch nicht genommene Setups sind Daten.": "{0} plan(s) expired without you entering – patience held. Setups you did not take are data too.",
+  "Checkliste je Setup": "Checklist per setup",
+  "Was muss stimmen, bevor du dieses Setup nimmst? Ein Punkt pro Zeile. Beim Planen erscheinen die Punkte zum Abhaken; was du überspringst, wird mitgespeichert – so zeigt „Erkenntnisse“ später, was dich das Abkürzen kostet.": "What has to be true before you take this setup? One item per line. When planning, the items appear as tick boxes; whatever you skip is saved too – so “Insights” can later show what shortcuts cost you.",
+  "Checkliste speichern": "Save checklist",
+  "{0} Setup(s) mit Checkliste": "{0} setup(s) with a checklist",
+  "Höherer Zeitrahmen in meine Richtung\nLevel erneut getestet\nRisiko nach Plan": "Higher timeframe in my direction\nLevel retested\nRisk as planned",
+  "Häufigkeit": "Frequency",
+  "Obergrenze. Üblich ist die Hälfte davon.": "Upper bound. Half of it is customary.",
+  "Kein Vorteil – Kelly rät zu nichts": "No edge – Kelly says nothing",
+  "Wo.": "wk",
   /* --- Karte zum Teilen --- */
   "Steht so auf der Karte. Bei laufenden Positionen liest das Journal ihn selbst ab.": "Shown like this on the card. For open positions the journal reads it by itself.",
   "Hyperliquid nennt den Hebel nur an laufenden Positionen. Trag ihn ein, dann steht er auf der Karte.": "Hyperliquid only reports leverage on open positions. Enter it and it appears on the card.",
@@ -3053,7 +3590,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '05.09.2026, 17:20';
+const BUILD = '04.10.2026, 16:27';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -3067,7 +3604,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 05.09.2026, 17:20';
+      ' · Fassung 04.10.2026, 16:27';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -3730,7 +4267,7 @@ function setTradeNote(t, n){
     S.notes[t.id] = {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()};
   }
 }
-function isMeta(k){ k = String(k || ''); return k.indexOf('plan:') === 0 || k.indexOf('event:') === 0 ||
+function isMeta(k){ k = String(k || ''); return k.indexOf('tm:') === 0 || k.indexOf('paper:') === 0 || k.indexOf('plan:') === 0 || k.indexOf('event:') === 0 ||
   k.indexOf('review:') === 0 || k.indexOf('__') === 0; }
 function liveNotes(){
   const out = {};
@@ -4454,6 +4991,12 @@ async function load(incremental){
         esc(err.message) + '<br>Die Zahlen oben stimmen trotzdem.');
     }
     if(SYNC.active()){ SYNC.run({}); fillsSichern(); }
+    // Läuft eine Paper-Session mit offenen Positionen oder Orders? Dann gleich nachrechnen.
+    try{
+      if(PAPER.laden() && PAPER_SICHTBAR()){
+        PAPER.nachfuellen().then(() => { PWS.verbinden(); paperAbos(); });
+      }
+    }catch(e){}
     // Frisch geladen: der nächste Positionsabruf soll deswegen nicht gleich
     // wieder ein Nachladen auslösen
     LIVE.posKey = undefined; LIVE.posFehler = false;
@@ -4742,9 +5285,9 @@ function renderKpis(tr){
   ];
   const note = $('#cmpNote');
   if(note) note.innerHTML = cmp.genug
-    ? 'Die Pfeile vergleichen die letzten ' + cmp.days + ' Tage mit den ' + cmp.days +
-      ' Tagen davor' + (cmp.ganz ? ' — unabhängig vom Filter oben' : '') +
-      ' (' + cmp.B.n + ' gegen ' + cmp.A.n + ' Trades). Zeiger drauf zeigt beide Werte.'
+    ? (cmp.ganz ? txt('Die Pfeile vergleichen die letzten {0} Tage mit den {0} Tagen davor — unabhängig vom Filter oben ({1} gegen {2} Trades). Zeiger drauf zeigt beide Werte.')
+                : txt('Die Pfeile vergleichen die letzten {0} Tage mit den {0} Tagen davor ({1} gegen {2} Trades). Zeiger drauf zeigt beide Werte.'))
+        .split('{0}').join(cmp.days).replace('{1}', cmp.B.n).replace('{2}', cmp.A.n)
     : 'Für einen Vergleich mit dem Zeitraum davor fehlen noch Trades — nötig sind ' +
       VERGLEICH_MIN + ' je Zeitraum.';
 
@@ -4950,10 +5493,13 @@ function renderTrades(tr){
     if(res === 'win') return t.net > 0;
     if(res === 'loss') return t.net < 0;
     if(res === 'nonote'){ const n = noteOfTrade(t); return !n || (!noteText(n) && !tagsOf(n).length); }
+    if(res === 'unseen') return !TMETA.get(t).gesehen;
     return true;
   });
   list = sortTrades(list);
-  $('#tradeCount').textContent = '(' + list.length + ')';
+  const gesehen = tr.filter(t => TMETA.get(t).gesehen).length;
+  $('#tradeCount').textContent = '(' + list.length + ')' + (tr.length
+    ? ' · ' + txt('{0} von {1} durchgesehen').replace('{0}', gesehen).replace('{1}', tr.length) : '');
   const tb = $('#tblTrades tbody');
   tb.innerHTML = list.map(t => {
     const n = noteOfTrade(t) || {};
@@ -4979,7 +5525,8 @@ function renderTrades(tr){
         : '<span class="mut">–</span>') +
         ((S.planLink || {})[t.id] ? ' <span class="pill" title="aus einer geplanten Idee"' +
           ' style="color:var(--acc2);border-color:var(--acc2)">Idee</span>' : '') + '</td>' +
-      '<td>' + (noteText(n) || noteImg(n) ? '📝' : '') + (n.rating ? ' <span class="mut">' + n.rating + '★</span>' : '') + '</td>' +
+      '<td>' + (TMETA.get(t).gesehen ? '<span class="up" title="durchgesehen">✓</span> ' : '') +
+        (noteText(n) || noteImg(n) ? '📝' : '') + (n.rating ? ' <span class="mut">' + n.rating + '★</span>' : '') + '</td>' +
       '</tr>';
   }).join('');
   $('#tradesEmpty').classList.toggle('hide', list.length > 0);
@@ -5111,6 +5658,40 @@ function renderTagEditor(tr){
       : (S.tags.length ? 'Alle Setups sind mindestens einmal vergeben.' : ''));
 }
 
+/* SQN, Kelly-Obergrenze und wie oft das Setup auftaucht */
+function setupZusatz(g){
+  const werte = inRList(g);
+  const m = mittel(werte), sd = streuung(werte);
+  const sqn = g.length >= 5 && sd > 0 ? (Math.sqrt(Math.min(100, g.length)) * m / sd) : null;
+  const w = g.filter(t => t.net > 0), l = g.filter(t => t.net < 0);
+  let kelly = null;
+  if(w.length && l.length){
+    const p = w.length / (w.length + l.length);
+    const b = mittel(w.map(t => t.net)) / mittel(l.map(t => -t.net));
+    kelly = b > 0 ? (p - (1 - p) / b) : null;
+  }
+  const zeiten = g.map(t => t.openTime).sort((a, b) => a - b);
+  const wochen = zeiten.length > 1 ? (zeiten[zeiten.length - 1] - zeiten[0]) / (7 * 86400000) : 0;
+  return {
+    sqn: sqn === null ? '<span class="mut">–</span>' : '<span class="' + cls(sqn) + '">' + sqn.toFixed(1).replace('.', LANG === 'en' ? '.' : ',') + '</span>',
+    kelly: kelly === null ? '<span class="mut">–</span>' : (kelly <= 0
+      ? '<span class="down" title="Kein Vorteil – Kelly rät zu nichts">0 %</span>'
+      : '<span title="' + esc(txt('Obergrenze. Üblich ist die Hälfte davon.')) + '">' + pctn(kelly * 100, 1) + '</span>'),
+    freq: wochen >= 1 ? '≈ ' + (g.length / wochen).toFixed(1).replace('.', LANG === 'en' ? '.' : ',') + ' / ' + txt('Wo.') : '–'
+  };
+}
+function renderCheckEditor(){
+  const sel = $('#ckSetup');
+  if(!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = S.tags.map(t => '<option value="' + esc(t) + '">' + esc(t) + '</option>').join('');
+  if(cur && S.tags.indexOf(cur) >= 0) sel.value = cur;
+  const c = checklisten();
+  if(document.activeElement !== $('#ckText')) $('#ckText').value = (c[sel.value] || []).join('\n');
+  const n = Object.keys(c).length;
+  $('#ckInfo').textContent = n ? txt('{0} Setup(s) mit Checkliste').replace('{0}', n) : '';
+}
+
 function renderSetups(tr){
   renderTagEditor(tr);
   const groups = {};
@@ -5128,7 +5709,7 @@ function renderSetups(tr){
     const avgR = ratings.length ? (ratings.reduce((a,b) => a + b, 0) / ratings.length) : null;
     // Vertrauensbereich für den Erwartungswert je Trade
     const b = bootstrap(inRList(g));
-    return {tag, m, avgR, b};
+    return {tag, m, avgR, b, g};
   }).sort((a,b) => b.m.net - a.m.net);
 
   $('#tblSetups tbody').innerHTML = rows.map(r =>
@@ -5144,6 +5725,9 @@ function renderSetups(tr){
     '<td>' + (r.b ? bereichText(r.b, RE > 0 ? fmtR : null) : '<span class="mut">zu wenig</span>') +
       '</td>' +
     '<td>' + sicherPill(r.b) + '</td>' +
+    '<td>' + setupZusatz(r.g).sqn + '</td>' +
+    '<td>' + setupZusatz(r.g).kelly + '</td>' +
+    '<td class="mut">' + setupZusatz(r.g).freq + '</td>' +
     '<td>' + (r.avgR ? r.avgR.toFixed(1) + '★' : '–') + '</td></tr>').join('');
   $('#setupsEmpty').classList.toggle('hide', rows.length > 0);
   $('#setupNote').innerHTML = multi
@@ -5471,6 +6055,13 @@ function renderPlans(){
     if(mode !== 'dropped' && zahl.dropped) versteckt.push(zahl.dropped + ' ' + t('verworfen'));
     if(mode !== 'open' && zahl.open) versteckt.push(zahl.open + ' ' + t('offen'));
   }
+  const heute0 = new Date().toISOString().slice(0, 10);
+  const byPl = tradesByPlan();
+  const geduld = alle.filter(p => (p.status || 'open') === 'open' && (p.to || p.from) && (p.to || p.from) < heute0 &&
+    !(byPl[p.id] && byPl[p.id].length)).length;
+  $('#planGeduld').innerHTML = geduld
+    ? '<span class="up">✓</span> ' + txt('{0} Plan/Pläne abgelaufen, ohne dass du eingestiegen bist – Geduld gehalten. Auch nicht genommene Setups sind Daten.').replace('{0}', geduld)
+    : '';
   $('#planHint').innerHTML = versteckt.length
     ? t('Ausgeblendet:') + ' ' + versteckt.join(', ') + ' — ' +
       t('über den Filter oben erreichbar. Gelöscht wird nichts: ' +
@@ -5501,10 +6092,13 @@ function renderPlans(){
     // Überfällig ist ein Plan erst, wenn auch sein Endtermin vorbei ist
     const bis = p.to || p.from;
     const imFenster = st === 'open' && p.from && p.from <= today && bis >= today;
-    const soon = st === 'open' && bis && bis < today
-      ? ' <span class="pill liq">überfällig</span>'
+    const abgelaufen = st === 'open' && bis && bis < today;
+    const soon = abgelaufen
+      ? (byPlan[p.id] && byPlan[p.id].length ? ' <span class="pill liq">überfällig</span>'
+         : ' <span class="pill" style="color:var(--up);border-color:var(--up)" title="Abgelaufen ohne Trade – zählt als Geduld">Geduld gehalten</span>')
       : (imFenster ? ' <span class="pill jetzt">im Fenster</span>' : '');
-    const rr = planRR(p);
+    const rr = (p.ziele && p.ziele.length) ? planRRMischung(p) : planRR(p);
+    const spaet = (byPlan[p.id] || []).some(t => p.to && new Date(t.openTime).toISOString().slice(0, 10) > p.to);
     const res = planResult(byPlan[p.id]);
     const erg = res
       ? '<span class="pill ' + (res.net >= 0 ? 'long' : 'short') + '">' +
@@ -5522,6 +6116,9 @@ function renderPlans(){
               '<span class="pill tag">' + esc(t) + '</span>').join(' ') +
             (st === 'done' ? '<span class="pill tag">umgesetzt</span>' : '') +
             (st === 'dropped' ? '<span class="pill">verworfen</span>' : '') + soon + erg +
+            (p.rekonstruiert ? ' <span class="pill mut" title="Nach dem Trade angelegt">nachträglich</span>' : '') +
+            (spaet ? ' <span class="pill liq" title="Eingestiegen nach Ablauf des Plans">nach Ablauf</span>' : '') +
+            (p.ziele && p.ziele.length ? ' <span class="pill mut">' + (p.ziele.length + 1) + ' Ziele</span>' : '') +
           '</div>' +
           '<div class="meta"><span>' + when + '</span>' +
             (p.entry ? '<span>Einstieg ' + esc(p.entry) + '</span>' : '') +
@@ -7014,7 +7611,7 @@ function kartenDaten(t){
   const basis = t.maxNotional || t.entryNotional || 0;
   let netto = 0, kurs = 0;
   if(laeuft){
-    kurs = LIVE.price(t.coin) || 0;
+    kurs = (t.paper ? PAPER.kurs(t.coin) : 0) || LIVE.price(t.coin) || 0;
     const offen = Math.abs(num(t.pos));
     const kassiert = num(t.closedPnl) - num(t.fees) + num(t.funding);
     const laufend = (kurs > 0 && offen > 0 && t.avgEntry > 0)
@@ -7031,6 +7628,7 @@ function kartenDaten(t){
     (a.position || {}).coin === t.coin &&
     (!t.wallet || !a.wallet || a.wallet === t.wallet));
   if(laeuft && ap) hebel = Math.round(num((ap.position.leverage || {}).value)) || 0;
+  if(!hebel && t.paperHebel) hebel = t.paperHebel;
   if(!hebel) hebel = HEBEL.von(t);          // gemerkt oder von Hand eingetragen
 
   const {R} = riskOf(t);
@@ -7375,6 +7973,7 @@ function zeichneKarte(cv, t, opt){
   const seiteText = (d.side === 'long' ? 'Long' : 'Short') + (d.hebel ? ' ' + d.hebel + 'x' : '');
   x += karteChip(g, x, zeileM, seiteText, d.side === 'long' ? F.up : F.down, hell ? 0.13 : 0.2) + 12;
   if(d.markt) x += karteChip(g, x, zeileM, d.markt.toUpperCase(), F.mut, hell ? 0.12 : 0.18) + 12;
+  if(t.paper) x += karteChip(g, x, zeileM, 'Paper', F.mut, hell ? 0.12 : 0.18) + 12;
   if(d.laeuft) karteChip(g, x, zeileM, 'Open', F.mut, hell ? 0.12 : 0.18);
   else if(d.liq) karteChip(g, x, zeileM, 'Liquidated', F.down, hell ? 0.13 : 0.2);
 
@@ -7793,12 +8392,183 @@ async function karteKopieren(){
   }
 }
 
+/* ---------- Plan-Scorecard: jedes geplante Niveau, erreicht oder nicht ----------
+   Gemessen auf den Kerzen der Haltedauer. Was zuerst kam, entscheidet das
+   Urteil – „Stop zuerst“ ist etwas anderes als „erst TP1, dann Stop“.      */
+const zahlAus = x => { const v = parseFloat(String(x == null ? '' : x).replace(',', '.')); return isFinite(v) ? v : null; };
+function planNiveaus(p){
+  const out = [];
+  const t1 = zahlAus(p.target);
+  const ziele = (p.ziele || []).filter(z => zahlAus(z.px) !== null);
+  const rest = Math.max(0, 100 - ziele.reduce((s, z) => s + num(z.anteil), 0));
+  if(t1 !== null) out.push({name:'TP1', px:t1, anteil:ziele.length ? rest : 100});
+  ziele.forEach((z, i) => out.push({name:'TP' + (i + 2), px:zahlAus(z.px), anteil:num(z.anteil)}));
+  return out;
+}
+function planBewertung(t, pfad){
+  const p = planOfTrade(t);
+  if(!p) return null;
+  const long = t.side === 'long';
+  const e = zahlAus(p.entry), st = zahlAus(p.stop);
+  const tps = planNiveaus(p);
+  const res = {plan:p, tps:[], stop:null, urteil:'', einstiegR:null};
+  if(e !== null && st !== null && e !== st && t.avgEntry > 0){
+    // positiv = besser eingestiegen als geplant
+    res.einstiegR = (long ? e - t.avgEntry : t.avgEntry - e) / Math.abs(e - st);
+  }
+  if(!pfad || !pfad.t || !pfad.t.length) return res;
+  const ende = t.open ? Infinity : t.closeTime;
+  const idx = [];
+  for(let i = 0; i < pfad.t.length; i++) if(pfad.t[i] >= t.openTime - 60e3 && pfad.t[i] <= ende) idx.push(i);
+  const erstes = (pruef) => { for(const i of idx) if(pruef(i)) return pfad.t[i]; return null; };
+  tps.forEach(z => {
+    const when = erstes(i => long ? pfad.h[i] >= z.px : pfad.l[i] <= z.px);
+    res.tps.push(Object.assign({}, z, {hit:when !== null, when}));
+  });
+  if(st !== null) res.stop = {px:st, when:erstes(i => long ? pfad.l[i] <= st : pfad.h[i] >= st)};
+  res.stop && (res.stop.hit = res.stop.when !== null);
+  const tp1 = res.tps[0];
+  const alle = res.tps.length && res.tps.every(z => z.hit);
+  if(res.stop && res.stop.hit && (!tp1 || !tp1.hit || res.stop.when < tp1.when)) res.urteil = 'Stop zuerst erreicht';
+  else if(alle && (!res.stop || !res.stop.hit || res.stop.when > res.tps[res.tps.length - 1].when)) res.urteil = 'Plan voll aufgegangen';
+  else if(tp1 && tp1.hit && res.stop && res.stop.hit) res.urteil = 'Erst TP1, dann der Stop';
+  else if(tp1 && tp1.hit) res.urteil = 'TP1 erreicht, Rest nicht';
+  else res.urteil = 'Kein Niveau erreicht – von Hand geschlossen';
+  return res;
+}
+async function planScorecard(t){
+  const box = $('#mScore');
+  if(!box) return;
+  box.innerHTML = '';
+  const p = planOfTrade(t);
+  if(!p) return;
+  let pfad = null;
+  try{ await PATHS.load(); pfad = t.open ? null : PATHS.get(t.id); }catch(e){}
+  if(mCurrent !== t) return;
+  const b = planBewertung(t, pfad);
+  if(!b) return;
+  const tps = b.tps.length ? b.tps : planNiveaus(p).map(z => Object.assign({}, z, {hit:null}));
+  const marke = h => h === null ? '<span class="mut">?</span>' : (h ? '<span class="up">✓</span>' : '<span class="down">✗</span>');
+  box.innerHTML = '<div class="panel" style="padding:12px 14px;margin:0 0 14px">' +
+    '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
+      '<b style="font-size:13.5px">' + txt('Plan gegen Ausführung') + '</b>' +
+      (p.rekonstruiert ? '<span class="pill mut">' + txt('nachträglich') + '</span>' : '') + '</div>' +
+    '<div style="font-size:13.5px;margin-top:6px;line-height:1.8">' +
+      tps.map(z => esc(z.name) + (z.anteil && tps.length > 1 ? ' ' + Math.round(z.anteil) + ' %' : '') + ' ' + marke(z.hit)).join(' · ') +
+      (b.stop ? ' · Stop ' + marke(b.stop.hit === undefined ? null : b.stop.hit) : '') + '</div>' +
+    (b.urteil ? '<div style="font-size:13px;margin-top:4px"><b>' + esc(txt(b.urteil)) + '</b></div>' : '') +
+    (b.einstiegR !== null ? '<div class="mut" style="font-size:12.5px;margin-top:4px">' +
+      txt('Einstieg gegen Plan:') + ' <span class="' + cls(b.einstiegR) + '">' + fmtR(b.einstiegR) + '</span> ' +
+      (b.einstiegR >= 0 ? txt('besser') : txt('schlechter')) + '</div>' : '') +
+    (!pfad && !t.open ? '<div class="mut" style="font-size:12px;margin-top:4px">' +
+      txt('Ob die Niveaus erreicht wurden, zeigt sich nach der Ausschlagsmessung.') + '</div>' : '') +
+    '</div>';
+}
+
+/* ---------- Angaben im Trade-Dialog ---------- */
+let mMood = [], mConv = 0, mMomWahl = '';
+function chipsEinfach(box, liste, gewaehlt, mehr, onKlick){
+  box.innerHTML = liste.map(x => '<div class="chip' + (gewaehlt.indexOf(x) >= 0 ? ' on' : '') +
+    '" data-v="' + esc(x) + '">' + esc(txt(x)) + '</div>').join('');
+  box.querySelectorAll('[data-v]').forEach(el => el.addEventListener('click', () => {
+    const v = el.dataset.v, i = gewaehlt.indexOf(v);
+    if(mehr){ if(i >= 0) gewaehlt.splice(i, 1); else gewaehlt.push(v); }
+    else { gewaehlt.length = 0; if(i < 0) gewaehlt.push(v); }
+    chipsEinfach(box, liste, gewaehlt, mehr, onKlick);
+    if(onKlick) onKlick();
+  }));
+}
+function konvKnoepfe(box, wert, onKlick){
+  box.innerHTML = [1, 2, 3, 4, 5].map(n => '<button class="tab' + (n === wert ? ' on' : '') +
+    '" data-k="' + n + '" style="padding:4px 10px">' + n + '</button>').join('');
+  box.querySelectorAll('[data-k]').forEach(el => el.addEventListener('click', () => {
+    const n = +el.dataset.k;
+    onKlick(n === wert ? 0 : n);
+  }));
+}
+/* Der R-Stand einer laufenden Position im Augenblick */
+function rJetzt(t){
+  const kurs = LIVE.price(t.coin) || 0;
+  const R = riskOf(t).R;
+  if(!(kurs > 0) || !(R > 0)) return null;
+  const offen = Math.abs(num(t.pos));
+  const kassiert = num(t.closedPnl) - num(t.fees) + num(t.funding);
+  const lauf = (t.side === 'long' ? kurs - t.avgEntry : t.avgEntry - kurs) * offen;
+  return (kassiert + lauf) / R;
+}
+function fuelleTradeAngaben(t){
+  const m = TMETA.get(t);
+  $('#mStop').value = m.stop || '';
+  const p = planOfTrade(t);
+  const rk = riskOf(t);
+  $('#mStopHint').textContent = m.stop
+    ? txt('Damit ist 1 R = {0}.').replace('{0}', usd(rk.R, 2))
+    : (p && p.stop ? txt('Leer lassen: dann gilt der Stop aus deinem Plan ({0}).').replace('{0}', p.stop)
+                   : txt('Ohne Stop rechnet das Journal mit dem Konto-Prozent.'));
+  mMood = (m.gefuehl || []).slice(); mConv = num(m.ueberzeugung) || 0;
+  const zeichne = () => {
+    chipsEinfach($('#mMood'), GEFUEHLE, mMood, true);
+    konvKnoepfe($('#mConv'), mConv, n => { mConv = n; zeichne(); });
+  };
+  zeichne();
+  const ende = t.open ? Infinity : t.closeTime;
+  const am = num(m.gefuehlAm);
+  const s = stimmungVon(t);
+  $('#mMoodHint').textContent = s && s.quelle === 'plan'
+    ? txt('Aus deinem Plan übernommen – vor dem Trade festgehalten.')
+    : (am && am > ende
+        ? txt('Nach dem Schließen eingetragen – zählt nicht in die Auswertung, weil das Ergebnis die Erinnerung färbt.')
+        : (t.open ? txt('Jetzt festhalten zählt – die Position läuft noch.')
+                  : txt('Nur was vor dem Schließen festgehalten wurde, zählt in die Auswertung.')));
+  $('#mGesehen').checked = !!m.gesehen;
+  // Momente: Liste immer, Erfassen nur bei laufender Position
+  const mom = (m.momente || []).slice().sort((a, b) => a.t - b.t);
+  $('#mMomList').innerHTML = mom.length ? mom.map((x, i) =>
+    '<div class="dl"><span><span class="mut">' + dt(x.t) + '</span> · <b>' + esc(txt(x.was || x.art)) + '</b>' +
+      (x.text ? ' <span class="mut">– ' + esc(x.text) + '</span>' : '') + '</span>' +
+      '<span>' + (isFinite(x.r) && x.r !== null ? '<span class="' + cls(x.r) + '">@ ' + fmtR(x.r) + '</span>' : '') +
+      ' <button class="lshare" data-mdel="' + i + '" title="entfernen">✕</button></span></div>').join('')
+    : '<div class="mut" style="font-size:12.5px">' + (t.open
+        ? txt('Noch nichts festgehalten. Tippe unten, was du gerade fühlst oder entscheidest.')
+        : txt('Keine Momente aus der Laufzeit.')) + '</div>';
+  $$('#mMomList [data-mdel]').forEach(el => el.addEventListener('click', () => {
+    const liste = (TMETA.get(t).momente || []).slice().sort((a, b) => a.t - b.t);
+    liste.splice(+el.dataset.mdel, 1);
+    TMETA.set(t, {momente:liste});
+    fuelleTradeAngaben(t);
+  }));
+  $('#mMomNeu').classList.toggle('hide', !t.open);
+  if(t.open){
+    mMomWahl = '';
+    const alle = GEFUEHLE.concat(ENTSCHEIDUNGEN);
+    const wahl = [];
+    chipsEinfach($('#mMomChips'), alle, wahl, false, () => { mMomWahl = wahl[0] || ''; });
+    const r = rJetzt(t);
+    $('#mMomHint').textContent = r === null ? txt('Kein Kurs oder kein Risiko – wird ohne R-Stand festgehalten.')
+      : txt('Wird mit dem jetzigen Stand festgehalten: {0}').replace('{0}', fmtR(r));
+  }
+}
+function speichereTradeAngaben(t){
+  const m = TMETA.get(t);
+  const stop = $('#mStop').value.trim();
+  const moodAlt = JSON.stringify(m.gefuehl || []) + '|' + (m.ueberzeugung || 0);
+  const moodNeu = JSON.stringify(mMood) + '|' + (mConv || 0);
+  const patch = {stop:stop || null, gesehen:$('#mGesehen').checked || null,
+    gefuehl:mMood.slice(), ueberzeugung:mConv || null};
+  // Der Zeitpunkt der Stimmung bleibt der erste – spätere Änderungen schieben ihn nicht
+  if(moodNeu !== moodAlt) patch.gefuehlAm = m.gefuehlAm || Date.now();
+  if(!mMood.length && !mConv) patch.gefuehlAm = null;
+  TMETA.set(t, patch);
+}
+
 /* ---------- Trade-Detail ---------- */
 let mCurrent = null;
 function openTrade(id){
   // Abgeschlossene und laufende Trades öffnen denselben Dialog
   const t = S.trades.find(x => x.id === id) ||
-            (S.openTrades || []).find(x => x.id === id);
+            (S.openTrades || []).find(x => x.id === id) ||
+            (S.paperTrades || []).find(x => x.id === id) ||
+            (S.paperOpen || []).find(x => x.id === id);
   if(!t) return;
   mCurrent = t;
   const laeuft = !!t.open;
@@ -7806,12 +8576,14 @@ function openTrade(id){
   $('#mTitle').innerHTML = coinName(t.coin) + ' <span class="pill ' + t.side + '">' +
     (t.side === 'long' ? 'LONG' : 'SHORT') + '</span>' +
     (laeuft ? ' <span class="pill jetzt">läuft</span>' : '') +
+    (t.paper ? ' <span class="pill" style="color:var(--acc2);border-color:var(--acc2)">PAPER</span>' : '') +
     (t.liquidated ? ' <span class="pill liq">LIQUIDIERT</span>' : '');
   $('#mSub').textContent = laeuft
     ? txt('seit') + ' ' + dt(t.openTime) + '  ·  ' + dur(Date.now() - t.openTime)
     : dt(t.openTime) + '  →  ' + dt(t.closeTime) + '  ·  ' + dur(t.durationMs);
   const size = t.maxNotional || t.entryNotional;
   zeichneTradeChart(t);
+  planScorecard(t);
   $('#mStats').innerHTML = (laeuft ? offenZeilen(t) : [
     ['Netto-PnL', '<b class="' + cls(t.net) + '">' + sgn(t.net, 2) + '</b>'],
     ['Rendite auf Positionsgröße', '<span class="' + cls(t.retPct) + '">' + pct(t.retPct, 2) + '</span>'],
@@ -7821,8 +8593,10 @@ function openTrade(id){
       return ['Ergebnis in R', '<span class="' + cls(r) + '">' + fmtR(r) + '</span> ' +
         '<span class="mut">' + (rk.quelle === 'plan'
           ? txt('1 R = {0} · aus dem Stop deines Plans').replace('{0}', usd(rk.R, 2))
-          : txt('1 R = {0} · {1} % vom Konto').replace('{0}', usd(rk.R, 2))
-              .replace('{1}', String(riskUnit().pct))) + '</span>'];
+          : rk.quelle === 'eigen'
+            ? txt('1 R = {0} · aus deinem Stop').replace('{0}', usd(rk.R, 2))
+            : txt('1 R = {0} · {1} % vom Konto').replace('{0}', usd(rk.R, 2))
+              .replace('{1}', String(rk.pct || riskUnit().pct))) + '</span>'];
     })(),
     ['Ø Entry', '<span class="mono">' + price(t.avgEntry) + '</span>'],
     ['Ø Exit', '<span class="mono">' + price(t.avgExit) + '</span>'],
@@ -7872,6 +8646,7 @@ function openTrade(id){
   $('#mImg').value = mImgData.indexOf('data:') === 0 ? '' : mImgData;
   drawMImg();
   renderStars(n.rating || 0);
+  fuelleTradeAngaben(t);
   const hv = HEBEL.von(t);
   $('#mHebel').value = hv || '';
   $('#mHebelHint').textContent = hv
@@ -7919,7 +8694,68 @@ function closeModal(){
 }
 
 /* ---------- Plan-Dialog ---------- */
-let pCurrent = null, pImgData = '';
+let pCurrent = null, pImgData = '', pNachFuer = null, pZiele = [], pMoodW = [], pConvW = 0, pCheckW = {};
+
+/* ---- Checklisten je Setup ---- */
+function checklisten(){
+  const n = S.notes['__check__'];
+  if(!n || n.deleted) return {};
+  try{ return JSON.parse(n.note || '{}') || {}; }catch(e){ return {}; }
+}
+function setCheckliste(setup, punkte){
+  const c = checklisten();
+  if(punkte.length) c[setup] = punkte; else delete c[setup];
+  S.notes['__check__'] = {tag:'', rating:0, note:JSON.stringify(c), deleted:false, updatedAt:Date.now()};
+  saveNotes();
+}
+/* Die Punkte aller gewählten Setups, ohne Doppelte */
+function checkPunkte(setups){
+  const c = checklisten(), out = [];
+  (setups || []).forEach(s => (c[s] || []).forEach(x => { if(out.indexOf(x) < 0) out.push(x); }));
+  return out;
+}
+function zeichnePlanCheck(){
+  const punkte = checkPunkte(chipValue('#pSetups'));
+  $('#pCheckBox').classList.toggle('hide', !punkte.length);
+  $('#pCheck').innerHTML = punkte.map((x, i) =>
+    '<label style="display:flex;gap:8px;align-items:center;padding:4px 0;cursor:pointer;font-size:13.5px">' +
+    '<input type="checkbox" data-ck="' + esc(x) + '"' + (pCheckW[x] ? ' checked' : '') + '> ' + esc(x) + '</label>').join('');
+  $$('#pCheck [data-ck]').forEach(el => el.addEventListener('change', () => { pCheckW[el.dataset.ck] = el.checked; }));
+}
+function zeichnePlanZiele(){
+  $('#pZiele').innerHTML = pZiele.map((z, i) =>
+    '<div style="display:flex;gap:8px;margin-bottom:6px;align-items:center">' +
+      '<span class="mut" style="font-size:12px;min-width:34px">TP' + (i + 2) + '</span>' +
+      '<input type="text" class="mono" data-zp="' + i + '" value="' + esc(z.px || '') + '" placeholder="Kurs" style="flex:1">' +
+      '<input type="number" data-za="' + i + '" value="' + esc(z.anteil || '') + '" placeholder="%" min="1" max="100" style="max-width:80px">' +
+      '<button data-zx="' + i + '">✕</button></div>').join('');
+  $$('#pZiele [data-zp]').forEach(el => el.addEventListener('input', () => { pZiele[+el.dataset.zp].px = el.value.trim(); planZielHint(); }));
+  $$('#pZiele [data-za]').forEach(el => el.addEventListener('input', () => { pZiele[+el.dataset.za].anteil = el.value; planZielHint(); }));
+  $$('#pZiele [data-zx]').forEach(el => el.addEventListener('click', () => { pZiele.splice(+el.dataset.zx, 1); zeichnePlanZiele(); }));
+  planZielHint();
+}
+function planZielHint(){
+  const h = $('#pZielHint');
+  if(!h) return;
+  if(!pZiele.length){ h.textContent = txt('Das Ziel oben ist TP1. Hier kommen weitere Stufen dazu, je mit Anteil der Position.'); return; }
+  const rest = 100 - pZiele.reduce((s, z) => s + num(z.anteil), 0);
+  const rr = planRRMischung({entry:$('#pEntry').value, stop:$('#pStop').value, target:$('#pTarget').value, ziele:pZiele});
+  h.textContent = txt('TP1 bekommt den Rest: {0} %.').replace('{0}', Math.max(0, rest)) +
+    (rr ? ' ' + txt('Gemischtes CRV: {0} : 1').replace('{0}', rr) : '');
+}
+/* CRV über alle Ziele, gewichtet nach Anteil */
+function planRRMischung(p){
+  const e = parseFloat(String(p.entry).replace(',', '.')), st = parseFloat(String(p.stop).replace(',', '.'));
+  if(!isFinite(e) || !isFinite(st) || e === st) return '';
+  const risk = Math.abs(e - st);
+  const z = (p.ziele || []).filter(x => isFinite(parseFloat(String(x.px).replace(',', '.'))) && num(x.anteil) > 0);
+  const t1 = parseFloat(String(p.target).replace(',', '.'));
+  const rest = Math.max(0, 100 - z.reduce((s, x) => s + num(x.anteil), 0));
+  let sum = 0, gew = 0;
+  if(isFinite(t1) && rest > 0){ sum += rest * Math.abs(t1 - e) / risk; gew += rest; }
+  z.forEach(x => { sum += num(x.anteil) * Math.abs(parseFloat(String(x.px).replace(',', '.')) - e) / risk; gew += num(x.anteil); });
+  return gew > 0 ? (sum / gew).toFixed(1) : '';
+}
 function openPlan(id, presetDay){
   const p = id ? planEntries().find(x => x.id === id) : null;
   pCurrent = p ? p.id : null;
@@ -7937,6 +8773,20 @@ function openPlan(id, presetDay){
   $('#pImg').value    = pImgData.indexOf('data:') === 0 ? '' : pImgData;
 
   chipBox('#pSetups', p ? (Array.isArray(p.setups) ? p.setups : (p.setup ? [p.setup] : [])) : []);
+  $$('#pSetups .chip').forEach(el => el.addEventListener('click', () => setTimeout(zeichnePlanCheck, 0)));
+  pNachFuer = null;
+  pZiele = p && Array.isArray(p.ziele) ? p.ziele.map(z => Object.assign({}, z)) : [];
+  pMoodW = p && Array.isArray(p.gefuehl) ? p.gefuehl.slice() : [];
+  pConvW = p ? num(p.ueberzeugung) || 0 : 0;
+  pCheckW = p && p.check ? Object.assign({}, p.check) : {};
+  zeichnePlanCheck();
+  zeichnePlanZiele();
+  const zeichneMood = () => {
+    chipsEinfach($('#pMood'), GEFUEHLE, pMoodW, true);
+    konvKnoepfe($('#pConv'), pConvW, n => { pConvW = n; zeichneMood(); });
+  };
+  zeichneMood();
+  $('#pRekoHint').classList.toggle('hide', !(p && p.rekonstruiert));
 
   const coins = Array.from(new Set(S.trades.map(t => t.coin).filter(c => !isSpot(c)))).sort();
   $('#coinList').innerHTML = coins.map(c => '<option value="' + esc(c) + '">').join('');
@@ -8001,7 +8851,7 @@ function drawImgPreview(){
 function closePlanModal(){
   $('#planModal').classList.remove('on');
   document.body.style.overflow = '';
-  pCurrent = null; pImgData = '';
+  pCurrent = null; pImgData = ''; pNachFuer = null;
 }
 function shrinkImage(file, cb){
   const rd = new FileReader();
@@ -8854,10 +9704,9 @@ function renderNachlauf(tr){
   let urteil, grund;
   if(st.haltenMittel > 0 && st.anteilBesser > 55){
     urteil = 'Du steigst tendenziell zu früh aus.';
-    grund = 'Hätte man jeden Trade ' + NACHLAUF_NAMEN[f] + ' länger gehalten, wären ' +
-      sgn(st.haltenSumme, 2) + ' mehr herausgekommen — in ' + st.besser + ' von ' + st.n +
-      ' Fällen war Halten besser. Das ist kein Freibrief zum Aussitzen: es sagt nur, ' +
-      'dass deine Ausstiege im Schnitt vor der Bewegung liegen.';
+    grund = txt('Hätte man jeden Trade {0} länger gehalten, wären {1} mehr herausgekommen — in {2} von {3} Fällen war Halten besser. Das ist kein Freibrief zum Aussitzen: es sagt nur, dass deine Ausstiege im Schnitt vor der Bewegung liegen.')
+      .replace('{0}', txt(NACHLAUF_NAMEN[f])).replace('{1}', sgn(st.haltenSumme, 2))
+      .replace('{2}', st.besser).replace('{3}', st.n);
   }else if(st.haltenMittel < 0 && st.anteilBesser < 45){
     urteil = 'Deine Ausstiege sitzen gut.';
     grund = 'Längeres Halten hätte im Schnitt ' + sgn(st.haltenMittel, 2) +
@@ -9053,7 +9902,7 @@ function sicherPill(b){
   if(!b) return '';
   return b.sicher
     ? '<span class="pill" style="color:var(--up);border-color:var(--up)">belastbar</span>'
-    : '<span class="pill mut" title="Der Bereich schließt die Null ein">Zufall möglich</span>';
+    : '<span class="pill mut" title="' + esc(txt('Der Bereich schließt die Null ein')) + '">' + txt('Zufall möglich') + '</span>';
 }
 function renderBehavior(tr){
   const sorted = tr.slice().sort((a,b) => a.closeTime - b.closeTime);
@@ -9134,10 +9983,9 @@ function renderBehavior(tr){
   if(beste.length >= 2){
     beste.sort((a,b) => (b.m.net/b.m.n) - (a.m.net/a.m.n));
     const top = beste[0], flop = beste[beste.length - 1];
-    $('#sessionNote').innerHTML = 'Am besten läuft <b>' + esc(top.s.name) + '</b> mit ' +
-      sgn(top.m.net/top.m.n, 2) + ' je Trade, am schlechtesten <b>' + esc(flop.s.name) + '</b> mit ' +
-      sgn(flop.m.net/flop.m.n, 2) + '. Ob der Unterschied echt ist, sagt die letzte Spalte: ' +
-      'nur wo „belastbar" steht, schließt der Bereich die Null nicht ein.';
+    $('#sessionNote').innerHTML = esc(txt('Am besten läuft {0} mit {1} je Trade, am schlechtesten {2} mit {3}. Ob der Unterschied echt ist, sagt die letzte Spalte: nur wo „belastbar" steht, schließt der Bereich die Null nicht ein.')
+      .replace('{0}', txt(top.s.name)).replace('{1}', sgn(top.m.net/top.m.n, 2))
+      .replace('{2}', txt(flop.s.name)).replace('{3}', sgn(flop.m.net/flop.m.n, 2)));
   }else{
     $('#sessionNote').innerHTML = 'Für einen Vergleich braucht es mindestens zwei Sitzungen ' +
       'mit je ' + MIN_AUSSAGE + ' Trades.';
@@ -9438,6 +10286,1749 @@ function riskUnit(){
   const acct = (S.totals && S.totals.total) || 0;
   return {pct, R: acct * pct / 100, acct};
 }
+/* ====================================================================
+   ANGABEN JE TRADE
+   Stop, Hebel, Stimmung, Überzeugung, „durchgesehen“ und Momente während
+   des Trades. Alles an der stabilen Kennung aus der ersten Ausführung –
+   und als Notiz-Eintrag, damit es mit Supabase zwischen den Geräten läuft.
+   ==================================================================== */
+const TMETA = {
+  key(t){ return 'tm:' + noteKey(t); },
+  get(t){
+    if(!t) return {};
+    const n = S.notes[this.key(t)];
+    if(!n || n.deleted) return {};
+    try{ return JSON.parse(n.note || '{}') || {}; }catch(e){ return {}; }
+  },
+  set(t, patch){
+    if(!t) return;
+    const cur = Object.assign(this.get(t), patch || {});
+    for(const k of Object.keys(cur)){
+      const v = cur[k];
+      if(v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length) || v === false) delete cur[k];
+    }
+    S.notes[this.key(t)] = {tag:'', rating:0, note:JSON.stringify(cur),
+      deleted:!Object.keys(cur).length, updatedAt:Date.now()};
+    saveNotes();
+  }
+};
+
+/* Gefühle vor oder während des Trades – Wortwahl wie man sie spürt */
+const GEFUEHLE = ['Ruhig', 'Zuversichtlich', 'Zögerlich', 'Ungeduldig', 'FOMO', 'Revenge',
+  'Gelangweilt', 'Müde / abgelenkt'];
+/* Entscheidungen mitten im Trade */
+const ENTSCHEIDUNGEN = ['Stop nachgezogen', 'Stop weiter weg', 'Teilgewinn', 'Nachgekauft',
+  'Aus Angst geschlossen', 'Plan geändert'];
+
+/* Stimmung eines Trades – nur, wenn sie vor dem Schließen festgehalten wurde.
+   Nachträglich Eingetragenes ist vom Ergebnis gefärbt und zählt nicht.     */
+function stimmungVon(t){
+  if(!t) return null;
+  const m = TMETA.get(t);
+  const ende = t.open ? Infinity : t.closeTime;
+  if((m.gefuehl && m.gefuehl.length) || m.ueberzeugung){
+    if(num(m.gefuehlAm) && num(m.gefuehlAm) <= ende){
+      return {gefuehl:m.gefuehl || [], ueberzeugung:num(m.ueberzeugung) || 0, quelle:'trade'};
+    }
+  }
+  const p = planOfTrade(t);
+  if(p && !p.rekonstruiert && ((p.gefuehl && p.gefuehl.length) || p.ueberzeugung)){
+    return {gefuehl:p.gefuehl || [], ueberzeugung:num(p.ueberzeugung) || 0, quelle:'plan'};
+  }
+  return null;
+}
+
+/* ---- Risiko-Epochen ----
+   Ändert sich dein Risiko je Trade, beginnt eine neue Epoche. Ältere Trades
+   behalten das Risiko, mit dem sie gehandelt wurden – sonst würde jede
+   Änderung die ganze Historie in R umrechnen.                              */
+const EPOCHEN = {
+  key:'__eras__',
+  liste(){
+    const n = S.notes[this.key];
+    if(!n || n.deleted) return [];
+    try{ const a = JSON.parse(n.note || '[]'); return Array.isArray(a) ? a : []; }catch(e){ return []; }
+  },
+  speichern(a){
+    S.notes[this.key] = {tag:'', rating:0, note:JSON.stringify(a), deleted:false, updatedAt:Date.now()};
+    saveNotes();
+  },
+  aktuell(){
+    const a = this.liste();
+    return a.length ? num(a[a.length - 1].pct) : 0;
+  },
+  /* Neues Risiko eingetragen: alte Epoche abschließen, neue beginnen */
+  setze(pct, alt){
+    pct = +num(pct).toFixed(2);
+    if(!(pct > 0)) return;
+    const a = this.liste();
+    if(!a.length){
+      const vorher = +num(alt).toFixed(2);
+      if(vorher > 0 && vorher !== pct) a.push({ab:0, pct:vorher});
+      else { a.push({ab:0, pct}); this.speichern(a); return; }
+    }
+    if(num(a[a.length - 1].pct) === pct) return;
+    // Mehrere Änderungen binnen einer Stunde gelten als eine
+    if(Date.now() - num(a[a.length - 1].ab) < 3600000 && a.length > 1) a[a.length - 1].pct = pct;
+    else a.push({ab:Date.now(), pct});
+    this.speichern(a);
+  },
+  pctAt(ms){
+    const a = this.liste();
+    let p = 0;
+    for(const e of a){ if(num(e.ab) <= ms) p = num(e.pct); }
+    return p || (a.length ? num(a[0].pct) : 0);
+  },
+  nummer(ms){
+    const a = this.liste();
+    let i = 0;
+    a.forEach((e, k) => { if(num(e.ab) <= ms) i = k; });
+    return a.length ? i + 1 : 1;
+  }
+};
+
+/* ---- Stil: Scalp, Daytrade, Swing – nach Haltedauer ---- */
+function stilVon(t){
+  const d = num(t.durationMs) || ((t.closeTime || Date.now()) - t.openTime);
+  if(d < 3600000) return 'Scalp';
+  if(d < 86400000) return 'Daytrade';
+  return 'Swing';
+}
+
+/* ---- Einheit für Auswertungen: R, wo möglich, sonst Dollar ---- */
+function einheit(tr){
+  const mitR = (tr || []).some(t => inR(t) !== null);
+  return mitR
+    ? {r:true, f:t => { const v = inR(t); return v === null ? 0 : v; }, fmt:v => fmtR(v), label:'R'}
+    : {r:false, f:t => t.net, fmt:v => sgn(v, 2), label:'$'};
+}
+const mittel = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0;
+const median = a => {
+  if(!a.length) return 0;
+  const b = a.slice().sort((x, y) => x - y), m = b.length >> 1;
+  return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2;
+};
+const streuung = a => {
+  if(a.length < 2) return 0;
+  const m = mittel(a);
+  return Math.sqrt(a.reduce((s, x) => s + (x - m) * (x - m), 0) / (a.length - 1));
+};
+/* Unterschied zweier Gruppen, mit Bereich – gleicher fester Startwert wie bootstrap() */
+function bootDiff(a, b, ziehungen){
+  if(a.length < 3 || b.length < 3) return null;
+  const runden = ziehungen || 1000;
+  let seed = 20260202 + a.length * 31 + b.length;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  const d = new Array(runden);
+  for(let r = 0; r < runden; r++){
+    let sa = 0, sb = 0;
+    for(let i = 0; i < a.length; i++) sa += a[(rnd() * a.length) | 0];
+    for(let i = 0; i < b.length; i++) sb += b[(rnd() * b.length) | 0];
+    d[r] = sa / a.length - sb / b.length;
+  }
+  d.sort((x, y) => x - y);
+  const q = p => d[Math.min(runden - 1, Math.max(0, Math.floor(p * runden)))];
+  const lo = q(0.05), hi = q(0.95);
+  return {diff:mittel(a) - mittel(b), lo, hi, sicher: lo > 0 || hi < 0};
+}
+/* Wahrscheinlichkeit, dass der Vorteil echt ist: Anteil der neu gezogenen
+   Mittelwerte über null. Dazu, wie viele Trades es noch braucht.          */
+function edgeInfo(werte){
+  const n = werte.length;
+  if(n < 5) return null;
+  const runden = 1200;
+  let seed = 20260303 + n;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  let ueber = 0;
+  const ms = new Array(runden);
+  for(let r = 0; r < runden; r++){
+    let s = 0;
+    for(let i = 0; i < n; i++) s += werte[(rnd() * n) | 0];
+    ms[r] = s / n;
+    if(ms[r] > 0) ueber++;
+  }
+  ms.sort((x, y) => x - y);
+  const m = mittel(werte), sd = streuung(werte);
+  // Für eine einseitige 95-%-Aussage: n ≥ (1,645 · σ / μ)²
+  const noetig = m > 0 && sd > 0 ? Math.ceil(Math.pow(1.645 * sd / m, 2)) : null;
+  return {n, mw:m, sd, p:ueber / runden, lo:ms[Math.floor(0.05 * runden)], hi:ms[Math.floor(0.95 * runden)],
+    noetig, fehlt: noetig !== null ? Math.max(0, noetig - n) : null};
+}
+function stufe(n){ return n >= 20 ? 'signal' : (n >= 10 ? 'hinweis' : 'notiz'); }
+const STUFE_TEXT = {signal:'Signal', hinweis:'Hinweis', notiz:'Notiz'};
+function stufePill(s){
+  const farbe = s === 'signal' ? 'var(--up)' : (s === 'hinweis' ? 'var(--warn)' : 'var(--muted)');
+  return '<span class="pill" style="color:' + farbe + ';border-color:' + farbe + '">' + STUFE_TEXT[s] + '</span>';
+}
+
+/* ====================================================================
+   ERKENNTNISSE – das Journal liest sich selbst
+   Jede Aussage nennt ihre Zahlen und wie viele Trades dahinter stehen.
+   Ab 20 Trades „Signal“, ab 10 „Hinweis“, darunter „Notiz“. Was den
+   Zufall nicht ausschließt, sagt das dazu.
+   ==================================================================== */
+const WOCHENTAGE = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+function erkenntnisse(tr){
+  tr = tr.filter(t => !t.spot);
+  const E = einheit(tr), v = E.f;
+  const out = [];
+  const chrono = tr.slice().sort((a, b) => a.openTime - b.openTime);
+
+  /* Zwei Gruppen vergleichen und als Befund ablegen */
+  const vergleich = (id, titel, gruppe, rest, satz, opt) => {
+    opt = opt || {};
+    if(gruppe.length < (opt.min || 3) || rest.length < 3) return;
+    const a = gruppe.map(v), b = rest.map(v);
+    const d = bootDiff(a, b);
+    if(!d) return;
+    if(!opt.immer && Math.abs(d.diff) < (E.r ? 0.1 : 1)) return;      // zu klein, um zu zählen
+    out.push({id, titel, satz:satz(d, mittel(a), mittel(b)), n:gruppe.length, nRest:rest.length,
+      stufe:stufe(gruppe.length), sicher:d.sicher, wirkung:d.diff * gruppe.length,
+      trades:gruppe.slice().sort((x, y) => v(x) - v(y)).slice(0, 8).map(t => t.id)});
+  };
+  const F = E.fmt;
+
+  // 1. Revenge-Fenster: Einstieg kurz nach einem Verlust
+  {
+    const nachVerlust = [], sonst = [];
+    for(let i = 0; i < chrono.length; i++){
+      const t = chrono[i];
+      const vorher = chrono.filter(x => x.closeTime <= t.openTime && x.id !== t.id)
+        .sort((a, b) => b.closeTime - a.closeTime)[0];
+      if(vorher && vorher.net < 0 && t.openTime - vorher.closeTime <= 30 * 60000) nachVerlust.push(t);
+      else sonst.push(t);
+    }
+    vergleich('revenge', txt('Wiedereinstieg kurz nach einem Verlust'), nachVerlust, sonst,
+      (d, a, b) => txt('Trades, die du binnen 30 Minuten nach einem Verlust eröffnest, bringen im Schnitt {0} – sonst {1}.').replace('{0}', F(a)).replace('{1}', F(b)), {immer:true});
+  }
+  // 2. Größe nach Verlusten
+  {
+    const nachV = [], nachG = [];
+    for(let i = 1; i < chrono.length; i++){
+      const p = chrono[i - 1], t = chrono[i];
+      const g = t.maxNotional || t.entryNotional || 0;
+      if(!(g > 0)) continue;
+      (p.net < 0 ? nachV : nachG).push(g);
+    }
+    if(nachV.length >= 3 && nachG.length >= 3){
+      const q = mittel(nachV) / mittel(nachG);
+      if(q > 1.2 || q < 0.8){
+        out.push({id:'groesse', titel:txt('Positionsgröße nach Verlusten'),
+          satz:(q > 1 ? txt('Nach einem Verlust handelst du im Schnitt {0} % größer als nach einem Gewinn.')
+                      : txt('Nach einem Verlust handelst du im Schnitt {0} % kleiner als nach einem Gewinn.'))
+            .replace('{0}', Math.round(Math.abs(q - 1) * 100)),
+          n:nachV.length, stufe:stufe(nachV.length), sicher:q > 1.4 || q < 0.7,
+          wirkung:(q > 1 ? -1 : 0.2) * nachV.length, trades:[]});
+      }
+    }
+  }
+  // 3. Schwächster Wochentag
+  {
+    const tage = {};
+    tr.forEach(t => { const d = new Date(t.openTime).getDay(); (tage[d] = tage[d] || []).push(t); });
+    const kand = Object.keys(tage).filter(k => tage[k].length >= 3)
+      .sort((a, b) => mittel(tage[a].map(v)) - mittel(tage[b].map(v)));
+    if(kand.length >= 2){
+      const k = kand[0];
+      vergleich('wochentag', txt('Schwächster Wochentag: {0}').replace('{0}', txt(WOCHENTAGE[k])), tage[k], tr.filter(t => tage[k].indexOf(t) < 0),
+        (d, a, b) => txt('Am {0} bringt ein Trade im Schnitt {1}, an den übrigen Tagen {2}.').replace('{0}', txt(WOCHENTAGE[k])).replace('{1}', F(a)).replace('{2}', F(b)));
+    }
+  }
+  // 4. Schwächste Handelssitzung
+  {
+    const kand = SESSIONS.map(s => ({s, g:tr.filter(t => sessionOf(t.openTime).id === s.id)}))
+      .filter(x => x.g.length >= 3).sort((a, b) => mittel(a.g.map(v)) - mittel(b.g.map(v)));
+    if(kand.length >= 2){
+      const x = kand[0];
+      vergleich('sitzung', txt('Schwächste Sitzung: {0}').replace('{0}', txt(x.s.name)), x.g, tr.filter(t => x.g.indexOf(t) < 0),
+        (d, a, b) => txt('In der Sitzung „{0}“ bringt ein Trade {1}, sonst {2}.').replace('{0}', txt(x.s.name)).replace('{1}', F(a)).replace('{2}', F(b)));
+    }
+  }
+  // 5. Verlierer länger gehalten als Gewinner
+  {
+    const w = tr.filter(t => t.net > 0), l = tr.filter(t => t.net < 0);
+    if(w.length >= 5 && l.length >= 5){
+      const q = mittel(l.map(t => t.durationMs || 0)) / Math.max(1, mittel(w.map(t => t.durationMs || 0)));
+      if(q >= 1.5){
+        out.push({id:'halten', titel:txt('Verlierer hältst du länger'),
+          satz:txt('Verlierer hältst du im Schnitt {0}-mal so lange wie Gewinner ({1} gegen {2}).').replace('{0}', q.toFixed(1).replace('.', LANG === 'en' ? '.' : ',')).replace('{1}', dur(mittel(l.map(t => t.durationMs || 0)))).replace('{2}', dur(mittel(w.map(t => t.durationMs || 0)))),
+          n:Math.min(w.length, l.length), stufe:stufe(Math.min(w.length, l.length)), sicher:q >= 2,
+          wirkung:-q * 2, trades:l.slice().sort((a, b) => (b.durationMs || 0) - (a.durationMs || 0)).slice(0, 8).map(t => t.id)});
+      }
+    }
+  }
+  // 6. Große Gewinner ohne Setup
+  {
+    const w = tr.filter(t => t.net > 0).sort((a, b) => v(b) - v(a));
+    const top = w.slice(0, Math.max(3, Math.ceil(w.length * 0.2)));
+    const ohne = top.filter(t => !tagsOf(noteOfTrade(t)).length);
+    if(top.length >= 3 && ohne.length >= 2){
+      out.push({id:'ohnesetup', titel:txt('Große Gewinner ohne Setup'),
+        satz:txt('{0} deiner {1} besten Trades tragen kein Setup. Was du da gemacht hast, wiederholt sich nur, wenn du ihm einen Namen gibst.').replace('{0}', ohne.length).replace('{1}', top.length),
+        n:ohne.length, stufe:stufe(ohne.length), sicher:true, wirkung:ohne.length * 0.5,
+        trades:ohne.slice(0, 8).map(t => t.id)});
+    }
+  }
+  // 7. Geplant gegen spontan – nachträgliche Pläne zählen nicht als geplant
+  {
+    const geplant = tr.filter(t => { const p = planOfTrade(t); return p && !p.rekonstruiert; });
+    const spontan = tr.filter(t => !planOfTrade(t));
+    vergleich('geplant', txt('Geplante Trades gegen spontane'), geplant, spontan,
+      (d, a, b) => txt('Mit Plan bringt ein Trade {0}, ohne Plan {1}.').replace('{0}', F(a)).replace('{1}', F(b)), {immer:true});
+  }
+  // 8. Long gegen Short
+  {
+    const L = tr.filter(t => t.side === 'long'), Sh = tr.filter(t => t.side === 'short');
+    const schwach = mittel(L.map(v)) < mittel(Sh.map(v)) ? ['Long', L, Sh] : ['Short', Sh, L];
+    vergleich('richtung', txt('{0} ist deine schwächere Seite').replace('{0}', schwach[0]), schwach[1], schwach[2],
+      (d, a, b) => txt('{0}-Trades bringen {1}, die Gegenseite {2}.').replace('{0}', schwach[0]).replace('{1}', F(a)).replace('{2}', F(b)));
+  }
+  // 9. Zu viele Trades am Tag
+  {
+    const proTag = {};
+    chrono.forEach(t => { const k = new Date(t.openTime).toDateString(); (proTag[k] = proTag[k] || []).push(t); });
+    const spaet = [], frueh = [];
+    Object.values(proTag).forEach(g => g.forEach((t, i) => (i >= 3 ? spaet : frueh).push(t)));
+    vergleich('overtrading', txt('Ab dem vierten Trade am Tag'), spaet, frueh,
+      (d, a, b) => txt('Der vierte und jeder weitere Trade eines Tages bringt {0}, die ersten drei {1}.').replace('{0}', F(a)).replace('{1}', F(b)));
+  }
+  // 10. Gefühle
+  {
+    const je = {};
+    tr.forEach(t => { const s = stimmungVon(t); if(s) s.gefuehl.forEach(g => (je[g] = je[g] || []).push(t)); });
+    const mitStimmung = tr.filter(t => stimmungVon(t));
+    Object.keys(je).forEach(g => {
+      const rest = mitStimmung.filter(t => je[g].indexOf(t) < 0);
+      vergleich('gefuehl:' + g, txt('Gefühl „{0}“').replace('{0}', txt(g)), je[g], rest,
+        (d, a, b) => txt('Trades, die du mit „{0}“ eingegangen bist, bringen {1}, die übrigen mit festgehaltener Stimmung {2}.').replace('{0}', txt(g)).replace('{1}', F(a)).replace('{2}', F(b)));
+    });
+  }
+  // 11. Ist deine Überzeugung kalibriert?
+  {
+    const hoch = tr.filter(t => { const s = stimmungVon(t); return s && s.ueberzeugung >= 4; });
+    const tief = tr.filter(t => { const s = stimmungVon(t); return s && s.ueberzeugung && s.ueberzeugung <= 2; });
+    if(hoch.length >= 3 && tief.length >= 3){
+      const d = bootDiff(hoch.map(v), tief.map(v));
+      const urteil = d.sicher ? (d.diff > 0 ? 'kalibriert' : 'verkehrt') : 'ohne Aussagekraft';
+      out.push({id:'ueberzeugung', titel:txt('Deine Überzeugung ist {0}').replace('{0}', txt(urteil)),
+        satz:txt('Bei hoher Überzeugung (4–5) bringt ein Trade {0}, bei niedriger (1–2) {1}.').replace('{0}', F(mittel(hoch.map(v)))).replace('{1}', F(mittel(tief.map(v)))) +
+          (urteil === 'verkehrt' ? ' ' + txt('Je sicherer du dich fühlst, desto schlechter läuft es.') :
+          (urteil === 'ohne Aussagekraft' ? ' ' + txt('Noch kein belastbarer Unterschied.') : '')),
+        n:Math.min(hoch.length, tief.length), stufe:stufe(Math.min(hoch.length, tief.length)),
+        sicher:d.sicher, wirkung:d.diff * Math.min(hoch.length, tief.length), trades:[]});
+    }
+  }
+  // 12. Checkliste befolgt?
+  {
+    const voll = [], lueckenhaft = [];
+    tr.forEach(t => {
+      const p = planOfTrade(t);
+      if(!p || !p.check) return;
+      const w = Object.values(p.check);
+      if(!w.length) return;
+      (w.every(Boolean) ? voll : lueckenhaft).push(t);
+    });
+    vergleich('checkliste', txt('Checkliste übersprungen'), lueckenhaft, voll,
+      (d, a, b) => txt('Trades mit übersprungenen Punkten bringen {0}, mit vollständiger Checkliste {1}. So viel kostet dich jedes Abkürzen.').replace('{0}', F(a)).replace('{1}', F(b)), {immer:true});
+  }
+
+  /* ---- Bias-Labor: die drei Ausstiegsfehler aus dem Nachlauf ---- */
+  const bias = biasLabor(tr);
+  bias.forEach(b => { if(b.n) out.push(b); });
+
+  // Sortierung: Signal vor Hinweis vor Notiz, innerhalb nach Wirkung
+  const rang = {signal:0, hinweis:1, notiz:2};
+  out.sort((a, b) => (rang[a.stufe] - rang[b.stufe]) || (Math.abs(b.wirkung) - Math.abs(a.wirkung)));
+  return {liste:out, einheit:E, n:tr.length};
+}
+
+/* Die drei klassischen Ausstiegsfehler, gemessen an dem, was der Kurs danach tat */
+function biasLabor(tr){
+  const r = t => { const x = riskOf(t).R; return x > 0 ? x : null; };
+  const rt = [], eng = [], frueh = [];
+  let rtR = 0, engR = 0, fruehR = 0;
+  for(const t of tr){
+    const e = EXC.get(t.id), R = r(t);
+    if(!e || !R) continue;
+    const netR = t.net / R, mfeR = e.mfe / R;
+    // Gewinn wieder abgegeben: lag über +1 R und ging rot raus
+    if(mfeR >= 1 && netR < 0){ rt.push(t); rtR += mfeR - netR; }
+    const p = e.post && (e.post.tag || e.post.gleich);
+    if(p){
+      const bestR = p.best / R;
+      // Stop zu eng: Verlust, danach lief es so weit in deine Richtung, dass es ein Gewinner geworden wäre
+      if(netR <= -0.5 && netR + bestR >= 1){ eng.push(t); engR += Math.min(bestR + netR, 3); }
+      // Zu früh raus: Gewinner, danach noch mindestens 1 R weiter
+      if(netR > 0 && bestR >= 1){ frueh.push(t); fruehR += bestR; }
+    }
+  }
+  const fmt = v => fmtR(v);
+  const mk = (id, titel, liste, summe, satz) => ({id, titel, n:liste.length, stufe:stufe(liste.length),
+    sicher:liste.length >= 10, wirkung:-summe, satz:satz(liste.length, summe), bias:true,
+    trades:liste.slice(0, 8).map(t => t.id)});
+  return [
+    mk('bias:roundtrip', txt('Gewinn wieder abgegeben'), rt, rtR,
+      (n, s) => txt('{0} Trade(s) lagen mindestens 1 R vorn und gingen trotzdem rot raus. Zusammen hast du dabei {1} aus der Hand gegeben.').replace('{0}', n).replace('{1}', fmt(s).replace('+', ''))),
+    mk('bias:eng', txt('Stop zu eng'), eng, engR,
+      (n, s) => txt('{0}-mal wurdest du ausgestoppt, und danach lief der Kurs so weit in deine Richtung, dass der Trade mindestens +1 R gebracht hätte.').replace('{0}', n)),
+    mk('bias:frueh', txt('Zu früh raus'), frueh, fruehR,
+      (n, s) => txt('{0} Gewinner liefen nach deinem Ausstieg noch mindestens 1 R weiter – im Schnitt {1}.').replace('{0}', n).replace('{1}', fmt(n ? s / n : 0)))
+  ];
+}
+
+function renderErkenntnisse(tr){
+  const box = $('#insList');
+  if(!box) return;
+  const res = erkenntnisse(tr);
+  const meas = EXC.counts(tr.filter(t => !t.spot));
+  $('#insKopf').innerHTML = res.n
+    ? txt('{0} Befund(e) aus {1} Trades').replace('{0}', res.liste.length).replace('{1}', res.n) + ' · ' +
+      (res.einheit.r ? txt('gerechnet in R') : txt('gerechnet in Dollar, weil kein Kontostand und kein Stop vorliegt')) +
+      (meas.usable < meas.total ? ' · ' + txt('{0} von {1} Trades mit Ausschlagsmessung – die Ausstiegsfehler zählen nur diese.')
+        .replace('{0}', meas.usable).replace('{1}', meas.total) : '')
+    : '';
+  if(!res.liste.length){
+    box.innerHTML = '<div class="empty-state">Noch nichts Belastbares. Ab etwa zehn Trades ' +
+      'beginnt das Journal, Muster zu benennen.</div>';
+    return;
+  }
+  box.innerHTML = res.liste.map(x =>
+    '<div class="panel ins ' + x.stufe + '" style="margin-bottom:10px">' +
+      '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">' +
+        '<h2 style="margin:0;font-size:15.5px">' + esc(x.titel) + '</h2>' +
+        '<div style="flex:0 0 auto">' + stufePill(x.stufe) +
+          (x.sicher ? '' : ' <span class="pill mut" title="' + esc(txt('Der Bereich schließt die Null ein')) + '">' + txt('Zufall möglich') + '</span>') +
+        '</div></div>' +
+      '<p style="margin:8px 0 6px;font-size:13.5px;line-height:1.6">' + esc(x.satz) + '</p>' +
+      '<div class="mut" style="font-size:12px">' + (x.nRest
+        ? txt('{0} Trades gegen {1}').replace('{0}', x.n).replace('{1}', x.nRest)
+        : txt('{0} Trades').replace('{0}', x.n)) + '</div>' +
+      (x.trades && x.trades.length
+        ? '<div class="chips" style="margin-top:8px">' + x.trades.map(id => {
+            const t = S.trades.find(y => y.id === id);
+            return t ? '<div class="chip" data-tr="' + esc(id) + '">' + esc(LIVE.base(t.coin)) + ' ' +
+              dt(t.openTime).slice(0, 8) + ' <b class="' + cls(t.net) + '">' + sgn(t.net, 0) + '</b></div>' : '';
+          }).join('') + '</div>'
+        : '') +
+    '</div>').join('');
+  box.querySelectorAll('[data-tr]').forEach(el =>
+    el.addEventListener('click', () => openTrade(el.dataset.tr)));
+
+  renderMomenteAuswertung(tr);
+}
+
+/* Was alle festgehaltenen Momente zusammen ergeben */
+function renderMomenteAuswertung(tr){
+  const box = $('#insMomente');
+  if(!box) return;
+  const je = {};
+  tr.forEach(t => {
+    (TMETA.get(t).momente || []).forEach(m => {
+      const k = m.was || m.art;
+      (je[k] = je[k] || {n:0, r:[], gut:0, trades:new Set()}).n++;
+      if(isFinite(m.r)) je[k].r.push(m.r);
+      je[k].trades.add(t.id);
+    });
+  });
+  const keys = Object.keys(je);
+  if(!keys.length){
+    box.innerHTML = '<div class="mut" style="font-size:13px">Noch keine Momente festgehalten. ' +
+      'In einem laufenden Trade kannst du im Trade-Detail mit einem Tipp festhalten, was du fühlst ' +
+      'oder entscheidest – mit dem R-Stand des Augenblicks.</div>';
+    return;
+  }
+  box.innerHTML = '<div class="scroll"><table><thead><tr><th>Moment</th><th>Wie oft</th>' +
+    '<th>Typischer R-Stand</th><th>Trades danach im Plus</th></tr></thead><tbody>' +
+    keys.sort((a, b) => je[b].n - je[a].n).map(k => {
+      const x = je[k];
+      const ts = Array.from(x.trades).map(id => S.trades.find(t => t.id === id)).filter(Boolean);
+      const plus = ts.filter(t => t.net > 0).length;
+      return '<tr><td><b>' + esc(k) + '</b></td><td>' + x.n + '</td>' +
+        '<td>' + (x.r.length ? fmtR(median(x.r)) : '–') + '</td>' +
+        '<td>' + (ts.length ? txt('{0} von {1}').replace('{0}', plus).replace('{1}', ts.length) : '<span class="mut">' + txt('läuft noch') + '</span>') + '</td></tr>';
+    }).join('') + '</tbody></table></div>' +
+    '<div class="mut" style="font-size:12px;margin-top:8px">Beschreibend, kein Urteil über einen einzelnen ' +
+    'Moment. Ab fünf gleichen Momenten lohnt ein Blick auf das Muster.</div>';
+}
+
+/* ====================================================================
+   X-RAY – die Equity-Kurve mit dem, was jeder Trade durchlebt hat
+   ==================================================================== */
+function xrayDaten(tr){
+  const chron = tr.filter(t => !t.spot).slice().sort((a, b) => a.closeTime - b.closeTime);
+  const E = einheit(chron);
+  const v = E.f;
+  const R = t => { const x = riskOf(t).R; return E.r ? (x > 0 ? x : null) : 1; };
+  let cum = 0, pot = 0;
+  const punkte = [];
+  let liegen = 0, rueck = [], rtList = [], heatW = [], heatL = [];
+  let serieW = 0, serieL = 0, sw = 0, sl = 0, gemessen = 0;
+  for(const t of chron){
+    const e = EXC.get(t.id), r = R(t);
+    const wert = v(t);
+    const vorher = cum;
+    cum += wert;
+    let hoch = null, tief = null;
+    if(e && r){
+      gemessen++;
+      const mfe = e.mfe / r, mae = e.mae / r;
+      hoch = vorher + mfe; tief = vorher - mae;
+      pot += Math.max(wert, mfe);
+      if(wert > 0){
+        liegen += Math.max(0, mfe - wert);
+        if(mfe > 0) rueck.push(Math.max(0, (mfe - wert) / mfe));
+        heatW.push(mae);
+      }else{
+        heatL.push(mae);
+        if(mfe >= (E.r ? 1 : Math.abs(wert))) rtList.push(t);
+      }
+    }else{
+      pot += wert;
+    }
+    if(t.net > 0){ sw++; sl = 0; serieW = Math.max(serieW, sw); }
+    else if(t.net < 0){ sl++; sw = 0; serieL = Math.max(serieL, sl); }
+    punkte.push({t, cum, hoch, tief, pot});
+  }
+  return {punkte, E, gemessen, liegen, rueckgabe:rueck.length ? mittel(rueck) * 100 : null,
+    roundtrips:rtList, heatW:heatW.length ? mittel(heatW) : null, heatL:heatL.length ? mittel(heatL) : null,
+    serieW, serieL};
+}
+function renderXray(tr){
+  const box = $('#xrayPanel');
+  if(!box) return;
+  const d = xrayDaten(tr);
+  if(!d.punkte.length){ box.classList.add('hide'); return; }
+  box.classList.remove('hide');
+  const F = d.E.fmt;
+  const labels = d.punkte.map((p, i) => i + 1);
+  mkChart('chXray', {
+    type:'bar',
+    data:{labels, datasets:[
+      {type:'line', label:'Equity', data:d.punkte.map(p => +p.cum.toFixed(3)), borderColor:C.acc,
+        borderWidth:2.2, pointRadius:d.punkte.length > 120 ? 0 : 2.4, tension:0, order:1,
+        pointBackgroundColor:d.punkte.map(p => p.t.net >= 0 ? C.up : C.down)},
+      {type:'line', label:'Mit jedem besten Punkt', data:d.punkte.map(p => +p.pot.toFixed(3)),
+        borderColor:C.faint, borderDash:[4, 4], borderWidth:1.4, pointRadius:0, order:2},
+      {type:'bar', label:'Durchlebt', order:3,
+        data:d.punkte.map(p => (p.hoch === null ? null : [+p.tief.toFixed(3), +p.hoch.toFixed(3)])),
+        backgroundColor:d.punkte.map(p => p.t.net >= 0 ? C.upFill : C.downFill),
+        borderColor:d.punkte.map(p => p.t.net >= 0 ? C.up : C.down), borderWidth:1,
+        barPercentage:0.35, categoryPercentage:1}
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, interaction:{mode:'index', intersect:false},
+      plugins:{legend:{display:true, labels:{boxWidth:10, font:{size:11}}}},
+      scales:{x:Object.assign({}, AXIS, {ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:10})}), y:AXIS}}
+  });
+  const items = [
+    ['Liegen gelassen', d.liegen ? F(d.liegen) : '–', 'bei Gewinnern bis zum besten Punkt', 'warn'],
+    ['Rückgabe bei Gewinnern', d.rueckgabe === null ? '–' : pctn(d.rueckgabe, 0), 'vom Höchststand bis zum Ausstieg', ''],
+    ['Round-Trips', String(d.roundtrips.length), d.E.r ? 'über +1 R und trotzdem rot' : 'erst vorn, dann rot', d.roundtrips.length ? 'down' : ''],
+    ['Ø Heat Gewinner', d.heatW === null ? '–' : F(-d.heatW), 'so weit im Minus vor dem Gewinn', ''],
+    ['Ø Heat Verlierer', d.heatL === null ? '–' : F(-d.heatL), 'Verlierer melden sich oft früh', ''],
+    ['Längste Serien', d.serieW + ' / ' + d.serieL, 'Gewinner / Verlierer am Stück', '']
+  ];
+  $('#xrayKpis').innerHTML = items.map(([k, v2, s, c]) =>
+    '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v2 + '</div>' +
+    '<div class="s">' + s + '</div></div>').join('');
+  $('#xrayRt').innerHTML = d.roundtrips.length
+    ? '<div class="chips">' + d.roundtrips.slice(0, 20).map(t =>
+        '<div class="chip" data-tr="' + esc(t.id) + '">' + esc(LIVE.base(t.coin)) + ' ' +
+        dt(t.closeTime).slice(0, 8) + ' <b class="down">' + sgn(t.net, 0) + '</b></div>').join('') + '</div>'
+    : '';
+  $$('#xrayRt [data-tr]').forEach(el => el.addEventListener('click', () => openTrade(el.dataset.tr)));
+  $('#xrayNote').textContent = d.gemessen < d.punkte.length
+    ? txt('{0} von {1} Trades mit Ausschlagsmessung – nur sie haben Dochte und zählen in die Zahlen darunter.')
+        .replace('{0}', d.gemessen).replace('{1}', d.punkte.length)
+    : '';
+}
+
+/* ====================================================================
+   KOHORTEN – jede Frage an die eigenen Daten als Auswahl
+   Innerhalb einer Gruppe heißt mehrere Chips „oder“, zwischen den Gruppen
+   „und“. Jede Zahl kommt mit Bereich und mit der Anzahl, die dahintersteht.
+   ==================================================================== */
+const KOHORTE = {wahl:{}};
+function kohorteDimensionen(tr){
+  const zaehl = (f) => { const m = {}; tr.forEach(t => [].concat(f(t)).forEach(k => { if(k) m[k] = (m[k] || 0) + 1; })); return m; };
+  return [
+    {id:'seite', name:'Richtung', f:t => t.side === 'long' ? 'Long' : 'Short'},
+    {id:'setup', name:'Setup', f:t => { const a = tagsOf(noteOfTrade(t)); return a.length ? a : [txt('ohne Setup')]; }},
+    {id:'markt', name:'Markt', f:t => LIVE.base(t.coin).toUpperCase()},
+    {id:'sitzung', name:'Sitzung', f:t => txt(sessionOf(t.openTime).name)},
+    {id:'tag', name:'Wochentag', f:t => txt(WOCHENTAGE[new Date(t.openTime).getDay()])},
+    {id:'stil', name:'Stil', f:t => txt(stilVon(t))},
+    {id:'epoche', name:'Risiko-Epoche', f:t => txt('Epoche {0}').replace('{0}', EPOCHEN.nummer(t.openTime)) +
+      (EPOCHEN.liste().length ? ' · ' + EPOCHEN.pctAt(t.openTime) + ' %' : '')},
+    {id:'plan', name:'Plan', f:t => { const p = planOfTrade(t); return txt(!p ? 'spontan' : (p.rekonstruiert ? 'nachträglich' : 'geplant')); }},
+    {id:'gefuehl', name:'Stimmung', f:t => { const s = stimmungVon(t); return s && s.gefuehl.length ? s.gefuehl.map(x => txt(x)) : [txt('nicht erfasst')]; }}
+  ].map(d => Object.assign(d, {werte:zaehl(d.f)}));
+}
+function kohorteFilter(tr, dims){
+  return tr.filter(t => dims.every(d => {
+    const w = KOHORTE.wahl[d.id];
+    if(!w || !w.length) return true;
+    const eig = [].concat(d.f(t));
+    return w.some(x => eig.indexOf(x) >= 0);
+  }));
+}
+function renderKohorte(){
+  const box = $('#kohChips');
+  if(!box) return;
+  const basis = filtered().filter(t => !t.spot);
+  const dims = kohorteDimensionen(basis);
+  box.innerHTML = dims.map(d => {
+    const keys = Object.keys(d.werte).sort((a, b) => d.werte[b] - d.werte[a]).slice(0, 16);
+    if(keys.length < 2 && !(KOHORTE.wahl[d.id] || []).length) return '';
+    return '<div class="f" style="margin-bottom:10px"><label>' + esc(txt(d.name)) + '</label><div class="chips">' +
+      keys.map(k => '<div class="chip' + ((KOHORTE.wahl[d.id] || []).indexOf(k) >= 0 ? ' on' : '') +
+        '" data-dim="' + d.id + '" data-wert="' + esc(k) + '">' + esc(k) +
+        ' <span class="mut">' + d.werte[k] + '</span></div>').join('') + '</div></div>';
+  }).join('');
+  box.querySelectorAll('[data-dim]').forEach(el => el.addEventListener('click', () => {
+    const d = el.dataset.dim, w = el.dataset.wert;
+    const a = KOHORTE.wahl[d] = KOHORTE.wahl[d] || [];
+    const i = a.indexOf(w);
+    if(i >= 0) a.splice(i, 1); else a.push(w);
+    renderKohorte();
+  }));
+
+  const g = kohorteFilter(basis, dims);
+  const E = einheit(basis), v = E.f;
+  const werte = g.map(v);
+  const ei = edgeInfo(werte), m = metrics(g);
+  const wahlText = dims.filter(d => (KOHORTE.wahl[d.id] || []).length)
+    .map(d => txt(d.name) + ': ' + KOHORTE.wahl[d.id].join(' ' + txt('oder') + ' ')).join(' · ');
+  $('#kohWahl').textContent = wahlText || txt('Alle Trades im Filter oben');
+  const items = [
+    ['Trades', String(g.length), g.length < basis.length ? txt('von {0}').replace('{0}', basis.length) : txt('alle'), ''],
+    ['Trefferquote', g.length ? pctn(m.winrate, 0) : '–', m.wins + ' W / ' + m.losses + ' L', ''],
+    ['Ø je Trade', g.length ? E.fmt(mittel(werte)) : '–', E.r ? 'in R' : 'in Dollar', g.length ? cls(mittel(werte)) : ''],
+    ['Bereich', ei ? E.fmt(ei.lo) + ' … ' + E.fmt(ei.hi) : '–', 'wo der wahre Wert plausibel liegt', ''],
+    ['Vorteil echt', ei ? pctn(ei.p * 100, 0) : '–', 'Wahrscheinlichkeit, dass es kein Zufall ist',
+      ei ? (ei.p >= 0.9 ? 'up' : (ei.p <= 0.1 ? 'down' : '')) : ''],
+    ['Noch nötig', ei ? (ei.noetig === null ? txt('kein Vorteil') : (ei.fehlt ? txt('{0} Trades').replace('{0}', ei.fehlt) : txt('genug'))) : '–',
+      ei && ei.noetig ? txt('für eine Aussage braucht es etwa {0}').replace('{0}', ei.noetig) : (ei ? '' : txt('ab 5 Trades')), '']
+  ];
+  $('#kohKpis').innerHTML = items.map(([k, v2, s, c]) =>
+    '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v2 + '</div>' +
+    '<div class="s">' + s + '</div></div>').join('');
+
+  // Wo der Vorteil steckt: die Auswahl in jeder Richtung aufgeteilt
+  const zeilen = [];
+  dims.forEach(d => {
+    const je = {};
+    g.forEach(t => [].concat(d.f(t)).forEach(k => (je[k] = je[k] || []).push(t)));
+    Object.keys(je).forEach(k => {
+      if(je[k].length < 3 || je[k].length === g.length) return;
+      const w = je[k].map(v), e = edgeInfo(w);
+      zeilen.push({d:txt(d.name), k, n:je[k].length, mw:mittel(w), p:e ? e.p : null});
+    });
+  });
+  zeilen.sort((a, b) => b.mw - a.mw);
+  $('#kohSplit tbody').innerHTML = zeilen.length ? zeilen.map(z => {
+    const sig = z.p !== null && z.n >= 10 && (z.p >= 0.9 || z.p <= 0.1);
+    return '<tr' + (sig ? '' : ' style="opacity:.7"') + '><td class="mut">' + esc(z.d) + '</td><td><b>' + esc(z.k) + '</b></td>' +
+      '<td>' + z.n + '</td><td class="' + cls(z.mw) + '">' + E.fmt(z.mw) + '</td>' +
+      '<td>' + (z.p === null ? '–' : pctn(z.p * 100, 0)) + '</td>' +
+      '<td>' + (sig ? '<span class="pill" style="color:var(--up);border-color:var(--up)">Signal</span>'
+        : '<span class="pill mut">Rauschen</span>') + '</td></tr>';
+  }).join('') : '<tr><td colspan="6" class="mut">Zu wenige Trades, um weiter aufzuteilen.</td></tr>';
+  mobilLabels('#kohSplit');
+}
+
+/* ====================================================================
+   PAPER-TRADING
+   Ein Übungskonto mit echten Hyperliquid-Kursen. Eine Session läuft, bis
+   du sie beendest; jede hat ihr Startkapital. Gefüllt wird nach den Regeln
+   einer Börse: Limits als Maker, Market, Stops und Liquidation als Taker,
+   ohne Slippage und ohne Funding. Hebel mit isolierter Margin.
+
+   Solange die App offen ist, wird jeder einzelne Trade am Markt geprüft.
+   Beim Öffnen wird die Zeit dazwischen auf Kerzen nachgerechnet – und wo in
+   einer Kerze zwei Niveaus liegen (Stop und Ziel), wird auf feinere Kerzen
+   heruntergebrochen, bis klar ist, was zuerst kam. Nur wenn beides in
+   derselben Minute liegt, entscheidet die Nähe zum Eröffnungskurs, und der
+   Fill wird als „unsicher“ gezählt.
+   Die Paper-Trades tauchen im echten Journal nirgends auf.
+   ==================================================================== */
+const PAPER = {
+  sitzung:null,            // die aktive Session (oder null)
+  preis:{},                // letzter gesehener Kurs je Markt
+  meta:null,               // maxLeverage und Nachkommastellen je Markt
+  speicherTimer:null,
+  nachfuellenLaeuft:false,
+
+  /* ---- Ablage: jede Session ein Notiz-Eintrag, damit sie mitsynchronisiert ---- */
+  key(id){ return 'paper:s:' + id; },
+  alle(){
+    const out = [];
+    for(const k in S.notes){
+      if(k.indexOf('paper:s:') !== 0) continue;
+      const n = S.notes[k];
+      if(!n || n.deleted) continue;
+      try{ out.push(JSON.parse(n.note || '{}')); }catch(e){}
+    }
+    return out.sort((a, b) => a.start - b.start);
+  },
+  laden(){
+    const aktiv = this.alle().find(s => !s.ende) || null;
+    // Den eigenen Stand behalten – außer ein anderes Gerät hat einen neueren geschickt
+    if(this.sitzung && aktiv && this.sitzung.id === aktiv.id && (aktiv.rev || 0) <= (this.sitzung.rev || 0)) return this.sitzung;
+    this.sitzung = aktiv;
+    return aktiv;
+  },
+  speichern(sofort){
+    const s = this.sitzung;
+    if(!s) return;
+    s.rev = (s.rev || 0) + 1;
+    S.notes[this.key(s.id)] = {tag:'', rating:0, note:JSON.stringify(s), deleted:false, updatedAt:Date.now()};
+    clearTimeout(this.speicherTimer);
+    if(sofort) saveNotes();
+    else this.speicherTimer = setTimeout(() => saveNotes(), 800);
+  },
+  speichernSitzung(s){
+    S.notes[this.key(s.id)] = {tag:'', rating:0, note:JSON.stringify(s), deleted:false, updatedAt:Date.now()};
+    saveNotes();
+  },
+
+  /* ---- Session starten und beenden ---- */
+  starten(name, kapital, mitGebuehren){
+    if(this.laden()) return null;
+    const nr = this.alle().length + 1;
+    const fr = S.feeRates || {cross:0.00045, add:0.00015};
+    this.sitzung = {
+      id:randomKey().slice(0, 10), nr, name:name || ('Session ' + nr),
+      start:Date.now(), ende:null, kapital:num(kapital), cash:num(kapital),
+      gebuehren: mitGebuehren ? {taker:fr.cross, maker:fr.add} : {taker:0, maker:0},
+      pos:{}, orders:[], fills:[], stand:Date.now(), hebel:{}, unsicher:0, seq:0, rev:0
+    };
+    this.speichern(true);
+    return this.sitzung;
+  },
+  beenden(){
+    const s = this.sitzung;
+    if(!s) return;
+    const jetzt = Date.now();
+    // Offenes wird zum aktuellen Kurs geschlossen, Orders verfallen
+    Object.keys(s.pos).forEach(c => {
+      const px = this.kurs(c);
+      if(px > 0) this.schliessen(c, null, px, jetzt, 'market');
+    });
+    s.orders = [];
+    s.ende = jetzt;
+    this.speichern(true);
+    this.sitzung = null;
+  },
+
+  /* ---- Kurse und Marktdaten ---- */
+  kurs(coin){ return this.preis[coin] || LIVE.price(coin) || 0; },
+  maxHebel(coin){
+    const m = this.meta && this.meta[coin];
+    return m && m.max ? m.max : 50;
+  },
+  async ladeMeta(){
+    if(this.meta) return this.meta;
+    this.meta = {};
+    try{
+      const m = await info({type:'meta'});
+      ((m || {}).universe || []).forEach(u => { if(u && u.name) this.meta[u.name] = {max:num(u.maxLeverage) || 50, dez:num(u.szDecimals)}; });
+    }catch(e){}
+    return this.meta;
+  },
+
+  /* ---- Rechnen ---- */
+  mmr(coin){ return 0.5 / this.maxHebel(coin); },                     // Erhaltungsmarge, vereinfacht wie bei Hyperliquid
+  liqPreis(p){
+    const m = this.mmr(p.coin);
+    if(!(p.hebel > 0)) return 0;
+    return p.side === 'long'
+      ? p.entry * (1 - 1 / p.hebel) / (1 - m)
+      : p.entry * (1 + 1 / p.hebel) / (1 + m);
+  },
+  upnl(p, px){ return (p.side === 'long' ? px - p.entry : p.entry - px) * p.size; },
+  equity(){
+    const s = this.sitzung;
+    if(!s) return 0;
+    let e = s.cash;
+    Object.values(s.pos).forEach(p => { const px = this.kurs(p.coin) || p.entry; e += p.margin + this.upnl(p, px); });
+    return e;
+  },
+  gebunden(){
+    const s = this.sitzung;
+    return s ? Object.values(s.pos).reduce((a, p) => a + p.margin, 0) +
+      s.orders.filter(o => o.typ === 'limit' && !o.reduce).reduce((a, o) => a + o.px * o.size / (o.hebel || 1), 0) : 0;
+  },
+  frei(){ const s = this.sitzung; return s ? s.cash - s.orders.filter(o => o.typ === 'limit' && !o.reduce).reduce((a, o) => a + o.px * o.size / (o.hebel || 1), 0) : 0; },
+
+  /* ---- Ein Fill, festgehalten wie bei Hyperliquid – damit das Journal ihn lesen kann ---- */
+  fill(coin, seite, px, sz, zeit, typ, closedPnl, fee, start){
+    const s = this.sitzung;
+    s.seq++;
+    const f = {time:zeit, coin, px:String(px), sz:String(sz), side:seite, typ,
+      closedPnl:String(closedPnl || 0), fee:String(fee || 0), feeToken:'USDC',
+      startPosition:String(start), tid:'P' + s.id + '-' + s.seq, oid:s.seq, hash:'paper',
+      dir:typ === 'liq' ? 'Liquidation' : ''};
+    s.fills.push(f);
+    return f;
+  },
+
+  /* ---- Position eröffnen oder vergrößern ---- */
+  eroeffnen(coin, side, sz, px, zeit, maker, opt){
+    const s = this.sitzung;
+    opt = opt || {};
+    const p = s.pos[coin];
+    if(p && p.side !== side){
+      // Gegenrichtung: erst schließen, Rest dreht die Position
+      const rest = sz - p.size;
+      this.schliessen(coin, Math.min(sz, p.size), px, zeit, maker ? 'limit' : 'market');
+      if(rest > 1e-12) return this.eroeffnen(coin, side, rest, px, zeit, maker, opt);
+      return true;
+    }
+    const hebel = p ? p.hebel : Math.max(1, Math.min(this.maxHebel(coin), Math.round(num(opt.hebel) || s.hebel[coin] || 10)));
+    const notional = sz * px;
+    const margin = notional / hebel;
+    const fee = notional * (maker ? s.gebuehren.maker : s.gebuehren.taker);
+    if(margin + fee > s.cash + 1e-9) return false;
+    s.cash -= margin + fee;
+    const start = p ? (p.side === 'long' ? p.size : -p.size) : 0;
+    const f = this.fill(coin, side === 'long' ? 'B' : 'A', px, sz, zeit, maker ? 'limit' : 'market', 0, fee, start);
+    if(p){
+      p.entry = (p.entry * p.size + px * sz) / (p.size + sz);
+      p.size += sz; p.margin += margin;
+    }else{
+      s.pos[coin] = {coin, side, size:sz, entry:px, hebel, margin, seit:zeit,
+        sl:num(opt.sl) || null, tp:num(opt.tp) || null, aktivAb:opt.aktivAb || zeit};
+      s.hebel[coin] = hebel;
+      // Stop und Setup des Plans gleich an den Trade hängen
+      const tragend = {coin, fills:[f]};
+      TMETA.set(tragend, {hebel, stop:num(opt.sl) > 0 ? String(opt.sl) : null});
+      if(opt.setups && opt.setups.length){
+        setTradeNote(tragend, {tag:packTags(opt.setups), note:'', rating:0, deleted:false, updatedAt:Date.now()});
+      }
+      if((opt.gefuehl && opt.gefuehl.length) || opt.ueberzeugung){
+        TMETA.set(tragend, {gefuehl:opt.gefuehl || [], ueberzeugung:opt.ueberzeugung || null, gefuehlAm:zeit});
+      }
+    }
+    const q = s.pos[coin];
+    q.liq = this.liqPreis(q);
+    return true;
+  },
+
+  /* ---- Position ganz oder teilweise schließen ---- */
+  schliessen(coin, sz, px, zeit, typ){
+    const s = this.sitzung;
+    const p = s.pos[coin];
+    if(!p) return false;
+    const q = sz === null || sz === undefined ? p.size : Math.min(sz, p.size);
+    const pnl = (p.side === 'long' ? px - p.entry : p.entry - px) * q;
+    const maker = typ === 'tp' || typ === 'limit';
+    const fee = q * px * (maker ? s.gebuehren.maker : s.gebuehren.taker);
+    const frei = p.margin * q / p.size;
+    s.cash += frei + pnl - fee;
+    const start = p.side === 'long' ? p.size : -p.size;
+    this.fill(coin, p.side === 'long' ? 'A' : 'B', px, q, zeit, typ, pnl, fee, start);
+    p.size -= q; p.margin -= frei;
+    if(p.size < 1e-10){
+      delete s.pos[coin];
+      // Reduce-only-Orders ohne Position sind wertlos
+      s.orders = s.orders.filter(o => !(o.coin === coin && o.reduce));
+    }else{
+      p.liq = this.liqPreis(p);
+    }
+    return true;
+  },
+
+  /* ---- Orders ---- */
+  order(o){
+    const s = this.sitzung;
+    if(!s) return {ok:false, grund:txt('Keine aktive Session.')};
+    const coin = o.coin, px = this.kurs(coin);
+    const side = o.side, sz = num(o.size);
+    if(!(sz > 0)) return {ok:false, grund:txt('Größe fehlt.')};
+    const zeit = Date.now();
+    if(o.typ === 'market'){
+      if(!(px > 0)) return {ok:false, grund:txt('Noch kein Kurs für diesen Markt.')};
+      const p = s.pos[coin];
+      if(o.reduce){
+        if(!p || p.side === side) return {ok:false, grund:txt('Nichts zu reduzieren.')};
+        this.schliessen(coin, sz, px, zeit, 'market');
+      }else if(!this.eroeffnen(coin, side, sz, px, zeit, false, o)){
+        return {ok:false, grund:txt('Nicht genug freie Margin.')};
+      }
+      this.speichern(true);
+      return {ok:true};
+    }
+    // Limit: Margin wird für die Order zurückgelegt
+    const lim = num(o.px);
+    if(!(lim > 0)) return {ok:false, grund:txt('Limit-Preis fehlt.')};
+    // Sofort ausführbar? Dann ist es in Wahrheit eine Market-Order – und zahlt Taker
+    if(px > 0 && !o.reduce && (side === 'long' ? lim >= px : lim <= px)){
+      return this.order(Object.assign({}, o, {typ:'market'}));
+    }
+    const hebel = Math.max(1, Math.min(this.maxHebel(coin), Math.round(num(o.hebel) || s.hebel[coin] || 10)));
+    if(!o.reduce && lim * sz / hebel > this.frei() + 1e-9) return {ok:false, grund:txt('Nicht genug freie Margin.')};
+    s.seq++;
+    s.orders.push({id:'o' + s.seq, coin, side, typ:'limit', px:lim, size:sz, hebel, reduce:!!o.reduce,
+      sl:num(o.sl) || null, tp:num(o.tp) || null, setups:o.setups || [], gefuehl:o.gefuehl || [],
+      ueberzeugung:o.ueberzeugung || null, erstellt:zeit, aktivAb:zeit});
+    this.speichern(true);
+    return {ok:true};
+  },
+  stornieren(id){
+    const s = this.sitzung;
+    if(!s) return;
+    s.orders = s.orders.filter(o => o.id !== id);
+    this.speichern(true);
+  },
+  setzeSlTp(coin, sl, tp){
+    const s = this.sitzung, p = s && s.pos[coin];
+    if(!p) return;
+    p.sl = num(sl) || null; p.tp = num(tp) || null;
+    p.aktivAb = Math.min(p.aktivAb || Date.now(), Date.now());
+    this.speichern(true);
+  },
+
+  /* ---- Was würde bei diesem Kurs ausgelöst? ----
+     lo/hi ist die Spanne (bei einem einzelnen Trade: lo = hi = Kurs),
+     o der Kurs am Anfang der Spanne – für Lücken und für die Reihenfolge. */
+  ausloeser(coin, lo, hi, o, ab){
+    const s = this.sitzung, out = [];
+    if(!s) return out;
+    const p = s.pos[coin];
+    /* Stops lösen eine Market-Order aus: ohne Slippage zum Stop-Kurs – nur wenn eine
+       Kerze schon jenseits davon eröffnet (eine echte Lücke), zum Eröffnungskurs.
+       Limits und Ziele liegen im Buch und füllen immer genau zu ihrem Preis.      */
+    const luecke = isFinite(o);
+    if(p && (p.aktivAb || 0) <= ab){
+      const L = p.side === 'long';
+      if(p.liq > 0 && (L ? lo <= p.liq : hi >= p.liq))
+        out.push({art:'liq', px:luecke ? (L ? Math.min(p.liq, o) : Math.max(p.liq, o)) : p.liq, niveau:p.liq});
+      if(p.sl && (L ? lo <= p.sl : hi >= p.sl))
+        out.push({art:'sl', px:luecke ? (L ? Math.min(p.sl, o) : Math.max(p.sl, o)) : p.sl, niveau:p.sl});
+      if(p.tp && (L ? hi >= p.tp : lo <= p.tp))
+        out.push({art:'tp', px:p.tp, niveau:p.tp});
+    }
+    s.orders.filter(x => x.coin === coin && (x.aktivAb || 0) <= ab).forEach(x => {
+      const kauf = x.side === 'long';
+      if(kauf ? lo <= x.px : hi >= x.px)
+        out.push({art:'limit', order:x, px:x.px, niveau:x.px});
+    });
+    return out;
+  },
+  ausfuehren(coin, ev, zeit, naechsteAb){
+    const s = this.sitzung;
+    if(ev.art === 'liq') this.schliessen(coin, null, ev.px, zeit, 'liq');
+    else if(ev.art === 'sl') this.schliessen(coin, null, ev.px, zeit, 'sl');
+    else if(ev.art === 'tp') this.schliessen(coin, null, ev.px, zeit, 'tp');
+    else if(ev.art === 'limit'){
+      const o = ev.order;
+      s.orders = s.orders.filter(x => x.id !== o.id);
+      if(o.reduce){
+        const p = s.pos[coin];
+        if(p && p.side !== o.side) this.schliessen(coin, o.size, ev.px, zeit, 'limit');
+      }else{
+        const ok = this.eroeffnen(coin, o.side, o.size, ev.px, zeit, true,
+          {hebel:o.hebel, sl:o.sl, tp:o.tp, setups:o.setups, gefuehl:o.gefuehl, ueberzeugung:o.ueberzeugung,
+           aktivAb:naechsteAb});
+        // Eine neue Position wirkt erst ab der nächsten Kerze – was danach in derselben
+        // Kerze geschah, ist auf ihr nicht mehr zu unterscheiden
+        if(ok && s.pos[coin] && !s.pos[coin].aktivAb) s.pos[coin].aktivAb = naechsteAb;
+      }
+    }
+  },
+
+  /* ---- Live: ein einzelner Trade am Markt ---- */
+  tick(coin, px, zeit){
+    const s = this.sitzung;
+    this.preis[coin] = px;
+    if(!s || s.ende) return false;
+    let geaendert = false;
+    for(let i = 0; i < 20; i++){
+      const evs = this.ausloeser(coin, px, px, NaN, zeit);
+      if(!evs.length) break;
+      // Bei einem einzigen Kurs entscheidet die Reihenfolge der Dringlichkeit
+      const rang = {liq:0, sl:1, tp:2, limit:3};
+      evs.sort((a, b) => rang[a.art] - rang[b.art]);
+      this.ausfuehren(coin, evs[0], zeit, zeit + 1);
+      geaendert = true;
+    }
+    if(zeit > s.stand) s.stand = zeit;
+    if(geaendert) this.speichern(true);
+    return geaendert;
+  },
+
+  /* ---- Nachfüllen auf Kerzen ---- */
+  STUFEN: [['1m', 60e3], ['5m', 3e5], ['15m', 9e5], ['1h', 36e5], ['4h', 144e5], ['1d', 864e5]],
+  /* Das feinste Raster, das Hyperliquid für diesen Zeitraum noch liefert */
+  raster(von, bis, feinsteAb){
+    const alter = Date.now() - von;
+    for(const [name, len] of this.STUFEN){
+      if(feinsteAb && len < feinsteAb) continue;
+      if(alter <= len * 4900 && (bis - von) / len <= 4900) return [name, len];
+    }
+    return ['1d', 864e5];
+  },
+  async kerzen(coin, iv, von, bis){
+    const r = await info({type:'candleSnapshot', req:{coin, interval:iv, startTime:von, endTime:bis}});
+    return (Array.isArray(r) ? r : []).map(c => ({t:num(c.t), o:num(c.o), h:num(c.h), l:num(c.l), c:num(c.c)}))
+      .filter(c => c.t + 1 > von && c.t < bis).sort((a, b) => a.t - b.t);
+  },
+  /* Eine Kerze abarbeiten. Liegen mehrere Niveaus darin, wird feiner geschaut. */
+  async kerzeAbarbeiten(coin, k, len, tiefe){
+    for(let runde = 0; runde < 12; runde++){
+      const evs = this.ausloeser(coin, k.l, k.h, k.o, k.t);
+      if(!evs.length) return;
+      if(evs.length === 1){
+        this.ausfuehren(coin, evs[0], k.t + Math.min(len - 1, 30e3), k.t + len);
+        continue;
+      }
+      // Mehrere: auf feinere Kerzen herunterbrechen, solange das geht
+      if(len > 60e3 && (tiefe || 0) < 3){
+        const fein = this.STUFEN.filter(x => x[1] < len).reverse()
+          .find(([, l]) => Date.now() - k.t <= l * 4900);
+        if(fein){
+          let sub = [];
+          try{ sub = await this.kerzen(coin, fein[0], k.t, k.t + len); }catch(e){ sub = []; }
+          if(sub.length){
+            for(const c of sub) await this.kerzeAbarbeiten(coin, c, fein[1], (tiefe || 0) + 1);
+            return;
+          }
+        }
+      }
+      // Feiner geht es nicht: was dem Eröffnungskurs näher liegt, kam zuerst
+      evs.sort((a, b) => Math.abs(a.niveau - k.o) - Math.abs(b.niveau - k.o));
+      this.sitzung.unsicher = (this.sitzung.unsicher || 0) + 1;
+      this.ausfuehren(coin, evs[0], k.t + Math.min(len - 1, 30e3), k.t + len);
+    }
+  },
+  /* Alles zwischen dem letzten Stand und jetzt nachrechnen */
+  async nachfuellen(bis){
+    const s = this.laden();
+    if(!s || this.nachfuellenLaeuft) return {n:0};
+    bis = bis || Date.now();
+    const von = s.stand || s.start;
+    if(bis - von < 5000) return {n:0};
+    const coins = Array.from(new Set(Object.keys(s.pos).concat(s.orders.map(o => o.coin))));
+    if(!coins.length){ s.stand = bis; return {n:0}; }
+    this.nachfuellenLaeuft = true;
+    const vorher = s.fills.length;
+    try{
+      for(const coin of coins){
+        const [iv, len] = this.raster(von, bis);
+        let ks = [];
+        try{ ks = await this.kerzen(coin, iv, von - (von % len), bis); }catch(e){ ks = []; }
+        for(const k of ks){
+          if(k.t < von){
+            /* Die erste Kerze begann vor dem letzten Stand – ihr Anfang war schon gerechnet.
+               Darum ab dem Stand minutengenau, damit nichts doppelt oder zu früh ausgelöst wird. */
+            let sub = [];
+            if(len > 60e3 && Date.now() - von <= 60e3 * 4900){
+              try{ sub = await this.kerzen(coin, '1m', von - (von % 60e3), Math.min(bis, k.t + len)); }catch(e){ sub = []; }
+            }
+            if(sub.length){
+              for(const c of sub) await this.kerzeAbarbeiten(coin, c.t < von ? Object.assign({}, c, {t:von}) : c, 60e3, 1);
+              if(k.c > 0) this.preis[coin] = k.c;
+              continue;
+            }
+          }
+          const kk = k.t < von ? Object.assign({}, k, {t:von}) : k;
+          await this.kerzeAbarbeiten(coin, kk, len, 0);
+          if(k.c > 0) this.preis[coin] = k.c;
+        }
+      }
+      s.stand = bis;
+    }finally{
+      this.nachfuellenLaeuft = false;
+    }
+    const n = s.fills.length - vorher;
+    this.speichern(true);
+    return {n};
+  },
+
+  /* ---- Für die Auswertung: Trades wie im echten Journal ---- */
+  trades(sitz){
+    const s = sitz || this.sitzung;
+    if(!s) return {trades:[], openTrades:[]};
+    const r = buildTrades(s.fills.slice().sort((a, b) => a.time - b.time));
+    const mark = t => {
+      t.id = 'paper:' + s.id + ':' + t.id;
+      t.paper = s.id; t.paperKapital = s.kapital; t.wallet = 'paper';
+      return t;
+    };
+    r.trades.forEach(mark);
+    r.openTrades.forEach(t => { mark(t); const p = s.pos[t.coin]; if(p) t.paperHebel = p.hebel; });
+    return r;
+  },
+  auswertung(s){
+    const r = this.trades(s);
+    const m = metrics(r.trades);
+    const ende = s.ende || Date.now();
+    let equity = s.cash;
+    if(!s.ende) equity = s === this.sitzung ? this.equity() : s.cash;
+    const rl = inRList(r.trades);
+    return {trades:r.trades, offen:r.openTrades, m, equity, rendite:s.kapital > 0 ? (equity - s.kapital) / s.kapital * 100 : 0,
+      rSumme:rl.reduce((a, b) => a + b, 0), echt:S.trades.filter(t => t.closeTime >= s.start && t.closeTime <= ende)};
+  }
+};
+
+/* ====================================================================
+   LIVE-VERBINDUNG ZU HYPERLIQUID
+   Trades für jeden Markt mit Position oder Order, dazu Kerzen für den Chart.
+   Fällt die Verbindung, wird nach einer Pause neu verbunden und die Lücke
+   auf Kerzen nachgerechnet.
+   ==================================================================== */
+const PWS = {
+  ws:null, subs:{}, warte:1000, offen:false, umfrage:null,
+  key(sub){ return JSON.stringify(sub); },
+  abo(sub){
+    const k = this.key(sub);
+    if(this.subs[k]) return;
+    this.subs[k] = sub;
+    if(this.offen) this.senden({method:'subscribe', subscription:sub});
+  },
+  abbestellen(sub){
+    const k = this.key(sub);
+    if(!this.subs[k]) return;
+    delete this.subs[k];
+    if(this.offen) this.senden({method:'unsubscribe', subscription:sub});
+  },
+  senden(x){ try{ this.ws && this.ws.readyState === 1 && this.ws.send(JSON.stringify(x)); }catch(e){} },
+  verbinden(){
+    if(this.ws || typeof WebSocket === 'undefined'){ this.umfrageStarten(); return; }
+    let ws;
+    try{ ws = new WebSocket('wss://api.hyperliquid.xyz/ws'); }catch(e){ this.umfrageStarten(); return; }
+    this.ws = ws;
+    ws.onopen = () => {
+      this.offen = true; this.warte = 1000;
+      this.umfrageStoppen();
+      Object.values(this.subs).forEach(sub => this.senden({method:'subscribe', subscription:sub}));
+      // Was in der Pause passiert ist, wird auf Kerzen nachgerechnet
+      PAPER.nachfuellen().then(r => { if(r && r.n) paperZeichnen(); });
+      paperStatus();
+    };
+    ws.onmessage = ev => {
+      let m;
+      try{ m = JSON.parse(ev.data); }catch(e){ return; }
+      if(m.channel === 'trades' && Array.isArray(m.data)){
+        let neu = false;
+        m.data.forEach(tr => { if(PAPER.tick(tr.coin, num(tr.px), num(tr.time))) neu = true; });
+        PCHART.tick(m.data);
+        if(neu) paperZeichnen(); else paperLeicht();
+      }else if(m.channel === 'candle' && m.data){
+        PCHART.kerzeLive(m.data);
+      }
+    };
+    ws.onclose = () => {
+      this.ws = null; this.offen = false;
+      paperStatus();
+      if(!PAPER_SICHTBAR()) return;
+      setTimeout(() => this.verbinden(), this.warte);
+      this.warte = Math.min(30000, this.warte * 2);
+      this.umfrageStarten();
+    };
+    ws.onerror = () => { try{ ws.close(); }catch(e){} };
+  },
+  trennen(){ try{ this.ws && this.ws.close(); }catch(e){} this.ws = null; this.offen = false; this.umfrageStoppen(); },
+  /* Ohne Websocket: alle zwei Sekunden die Mittelkurse */
+  umfrageStarten(){
+    if(this.umfrage) return;
+    this.umfrage = setInterval(async () => {
+      if(document.hidden) return;
+      try{
+        const mids = await info({type:'allMids'});
+        const jetzt = Date.now();
+        let neu = false;
+        const coins = paperMaerkte();
+        coins.forEach(c => { if(mids && mids[c] != null && PAPER.tick(c, num(mids[c]), jetzt)) neu = true; });
+        if(neu) paperZeichnen(); else paperLeicht();
+      }catch(e){}
+    }, 2000);
+  },
+  umfrageStoppen(){ clearInterval(this.umfrage); this.umfrage = null; }
+};
+const PAPER_SICHTBAR = () => S.tab === 'paper' || !!(PAPER.sitzung && (Object.keys(PAPER.sitzung.pos).length || PAPER.sitzung.orders.length));
+/* Welche Märkte müssen beobachtet werden? */
+function paperMaerkte(){
+  const s = PAPER.sitzung, out = new Set();
+  if(PCHART.coin) out.add(PCHART.coin);
+  if(s){ Object.keys(s.pos).forEach(c => out.add(c)); s.orders.forEach(o => out.add(o.coin)); }
+  return Array.from(out);
+}
+function paperAbos(){
+  const soll = new Set(paperMaerkte());
+  Object.values(PWS.subs).forEach(sub => { if(sub.type === 'trades' && !soll.has(sub.coin)) PWS.abbestellen(sub); });
+  soll.forEach(c => PWS.abo({type:'trades', coin:c}));
+}
+
+/* ====================================================================
+   DER CHART – Kerzen, live, verschieb- und zoombar
+   ==================================================================== */
+const PCHART = {
+  cv:null, coin:'BTC', iv:'15m', len:9e5, kerzen:[], anzahl:110, versatz:0,
+  zieh:null, maus:null, laedt:false,
+  LISTE:[['1m', 60e3], ['5m', 3e5], ['15m', 9e5], ['1h', 36e5], ['4h', 144e5], ['1d', 864e5]],
+  async laden(coin, iv){
+    this.coin = coin || this.coin; this.iv = iv || this.iv;
+    this.len = (this.LISTE.find(x => x[0] === this.iv) || [0, 9e5])[1];
+    Object.values(PWS.subs).forEach(sub => { if(sub.type === 'candle') PWS.abbestellen(sub); });
+    PWS.abo({type:'candle', coin:this.coin, interval:this.iv});
+    paperAbos();
+    this.laedt = true; this.zeichnen();
+    try{
+      const bis = Date.now(), von = bis - this.len * 400;
+      this.kerzen = await PAPER.kerzen(this.coin, this.iv, von, bis + this.len);
+      const letzte = this.kerzen[this.kerzen.length - 1];
+      if(letzte && !PAPER.preis[this.coin]) PAPER.preis[this.coin] = letzte.c;
+    }catch(e){ this.kerzen = []; }
+    this.laedt = false; this.versatz = 0;
+    this.zeichnen();
+  },
+  kerzeLive(d){
+    if(!d || d.s !== this.coin || d.i !== this.iv) return;
+    const k = {t:num(d.t), o:num(d.o), h:num(d.h), l:num(d.l), c:num(d.c)};
+    const l = this.kerzen[this.kerzen.length - 1];
+    if(l && l.t === k.t) this.kerzen[this.kerzen.length - 1] = k;
+    else if(!l || k.t > l.t) this.kerzen.push(k);
+    if(this.kerzen.length > 1500) this.kerzen.shift();
+    this.zeichnen();
+  },
+  tick(trades){
+    const t = (trades || []).filter(x => x.coin === this.coin);
+    if(!t.length || !this.kerzen.length) return;
+    const l = this.kerzen[this.kerzen.length - 1];
+    t.forEach(x => { const px = num(x.px); if(num(x.time) >= l.t){ l.c = px; l.h = Math.max(l.h, px); l.l = Math.min(l.l, px); } });
+    this.zeichnen();
+  },
+  sichtbar(){
+    const n = this.kerzen.length;
+    const ende = Math.max(1, n - this.versatz);
+    const anf = Math.max(0, ende - this.anzahl);
+    return {anf, ende, ks:this.kerzen.slice(anf, ende)};
+  },
+  zeichnen(){
+    const cv = this.cv;
+    if(!cv || !cv.getContext || !cv.parentNode) return;
+    const g = cv.getContext('2d');
+    if(!g) return;
+    const dpr = window.devicePixelRatio || 1;
+    const br = cv.parentNode.clientWidth || 700, ho = cv.parentNode.clientHeight || 380;
+    cv.width = br * dpr; cv.height = ho * dpr;
+    cv.style.width = br + 'px'; cv.style.height = ho + 'px';
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, br, ho);
+    const padR = 70, padB = 22, padT = 8;
+    const w = br - padR, h = ho - padB - padT;
+    g.font = '11px -apple-system,system-ui,sans-serif';
+    g.textBaseline = 'middle';
+    if(this.laedt && !this.kerzen.length){
+      g.fillStyle = C.tick; g.textAlign = 'center'; g.fillText(txt('Kurse werden geholt…'), w / 2, ho / 2); g.textAlign = 'left';
+      return;
+    }
+    const {ks} = this.sichtbar();
+    if(!ks.length) return;
+    const linien = paperLinien(this.coin);
+    let hi = -Infinity, lo = Infinity;
+    ks.forEach(k => { hi = Math.max(hi, k.h); lo = Math.min(lo, k.l); });
+    // Linien nur einbeziehen, wenn sie nah genug liegen – sonst zerdrücken sie den Chart
+    const sp0 = hi - lo || hi * 0.01;
+    linien.forEach(l => { if(l.y > lo - sp0 * 1.5 && l.y < hi + sp0 * 1.5){ hi = Math.max(hi, l.y); lo = Math.min(lo, l.y); } });
+    const sp = hi - lo || hi * 0.01;
+    hi += sp * 0.06; lo -= sp * 0.06;
+    this.skala = {hi, lo, padT, h, w, padR};
+    const y = v => padT + (hi - v) / (hi - lo) * h;
+    const bw = w / this.anzahl;
+    const x = i => (i + 0.5) * bw + (this.anzahl - ks.length) * bw;
+    // Raster (Beschriftung kommt nach den Linien, damit sie Schildern ausweicht)
+    g.strokeStyle = C.grid; g.lineWidth = 1;
+    const raster = [];
+    for(let i = 0; i <= 4; i++){
+      const v = lo + (hi - lo) * i / 4, yy = Math.round(y(v)) + 0.5;
+      g.beginPath(); g.moveTo(0, yy); g.lineTo(w, yy); g.stroke();
+      raster.push([v, yy]);
+    }
+    // Kerzen
+    const kb = Math.max(1, Math.min(14, bw * 0.68));
+    ks.forEach((k, i) => {
+      const auf = k.c >= k.o;
+      g.strokeStyle = g.fillStyle = auf ? C.up : C.down;
+      g.beginPath(); g.moveTo(Math.round(x(i)) + 0.5, y(k.h)); g.lineTo(Math.round(x(i)) + 0.5, y(k.l)); g.stroke();
+      const oy = y(k.o), cy = y(k.c);
+      g.fillRect(x(i) - kb / 2, Math.min(oy, cy), kb, Math.max(1, Math.abs(cy - oy)));
+    });
+    // Zeitachse
+    g.fillStyle = C.tick; g.textAlign = 'center';
+    const schritt = Math.max(1, Math.round(ks.length / 5));
+    for(let i = Math.floor(schritt / 2); i < ks.length; i += schritt){
+      if(x(i) < 24 || x(i) > w - 24) continue;
+      const d = new Date(ks[i].t);
+      const lab = this.len >= 864e5 ? d.toLocaleDateString(loc(), {day:'2-digit', month:'2-digit'})
+        : d.toLocaleTimeString(loc(), {hour:'2-digit', minute:'2-digit'});
+      g.fillText(lab, x(i), ho - padB / 2);
+    }
+    g.textAlign = 'left';
+    // Linien: Position, Stop, Ziel, Liquidation, Orders, aktueller Kurs
+    const alle = linien.concat([{y:PAPER.kurs(this.coin) || ks[ks.length - 1].c, farbe:C.mark, text:'', jetzt:true}])
+      .map(l => Object.assign({}, l, {yy:y(l.y)}))
+      .filter(l => l.yy >= padT - 2 && l.yy <= padT + h + 2)
+      .sort((a, b) => a.yy - b.yy);
+    // Schilder brauchen 19 Pixel – liegen zwei Kurse näher, rücken die Schilder auseinander,
+    // die Linien selbst bleiben, wo sie hingehören
+    alle.forEach((l, i) => { l.sy = l.yy; if(i && l.sy - alle[i - 1].sy < 19) l.sy = alle[i - 1].sy + 19; });
+    for(let i = alle.length - 1; i >= 0; i--){
+      const grenze = i === alle.length - 1 ? padT + h + 9 : alle[i + 1].sy - 19;
+      if(alle[i].sy > grenze) alle[i].sy = grenze;
+    }
+    alle.forEach(l => {
+      const yy = l.yy, sy = l.sy;
+      g.strokeStyle = l.farbe; g.lineWidth = l.jetzt ? 1 : 1.3;
+      g.setLineDash(l.strich ? [5, 4] : (l.jetzt ? [2, 3] : []));
+      g.beginPath(); g.moveTo(0, Math.round(yy) + 0.5); g.lineTo(w, Math.round(yy) + 0.5); g.stroke();
+      g.setLineDash([]);
+      // Preisschild rechts, notfalls mit einem kleinen Haken zur Linie
+      if(Math.abs(sy - yy) > 1){
+        g.strokeStyle = l.farbe; g.lineWidth = 1;
+        g.beginPath(); g.moveTo(w - 6, yy); g.lineTo(w + 1, sy); g.stroke();
+      }
+      g.fillStyle = l.farbe;
+      g.fillRect(w + 1, sy - 9, padR - 2, 18);
+      g.fillStyle = l.jetzt ? C.panel : '#ffffff';
+      g.fillText(paperPreis(l.y), w + 5, sy);
+      if(l.text){
+        g.font = '600 10.5px -apple-system,system-ui,sans-serif';
+        const tw = g.measureText(l.text).width;
+        g.fillStyle = l.farbe;
+        g.fillRect(6, sy - 9, tw + 10, 18);
+        g.fillStyle = '#ffffff';
+        g.fillText(l.text, 11, sy);
+        g.font = '11px -apple-system,system-ui,sans-serif';
+      }
+    });
+    this.belegt = alle.map(l => l.sy);
+    g.fillStyle = C.tick;
+    raster.forEach(([v, yy]) => {
+      if(this.belegt.some(b => Math.abs(b - yy) < 14)) return;
+      if(yy < padT + 6 || yy > padT + h - 6) return;
+      g.fillText(paperPreis(v), w + 6, yy);
+    });
+    // Fills dieser Session als Marken
+    const s = PAPER.sitzung;
+    if(s){
+      const t0 = ks[0].t, t1 = ks[ks.length - 1].t + this.len;
+      s.fills.filter(f => f.coin === this.coin && f.time >= t0 && f.time < t1).forEach(f => {
+        const i = Math.min(ks.length - 1, Math.max(0, Math.floor((f.time - t0) / this.len)));
+        const xx = x(i), yy = y(num(f.px)), r = 5;
+        g.beginPath();
+        if(f.side === 'B'){ g.moveTo(xx, yy - r); g.lineTo(xx + r, yy + r * 0.8); g.lineTo(xx - r, yy + r * 0.8); }
+        else { g.moveTo(xx, yy + r); g.lineTo(xx + r, yy - r * 0.8); g.lineTo(xx - r, yy - r * 0.8); }
+        g.closePath();
+        g.fillStyle = f.side === 'B' ? C.up : C.down; g.fill();
+        g.strokeStyle = C.panel; g.lineWidth = 1.5; g.stroke();
+      });
+    }
+    // Fadenkreuz
+    if(this.maus){
+      const my = this.maus.y;
+      if(my > padT && my < padT + h){
+        const v = hi - (my - padT) / h * (hi - lo);
+        g.strokeStyle = C.faint; g.setLineDash([3, 3]);
+        g.beginPath(); g.moveTo(0, my + 0.5); g.lineTo(w, my + 0.5); g.stroke(); g.setLineDash([]);
+        g.fillStyle = C.faint; g.fillRect(w + 1, my - 9, padR - 2, 18);
+        g.fillStyle = '#ffffff'; g.fillText(paperPreis(v), w + 5, my);
+      }
+    }
+  },
+  /* Kurs an einer Bildschirmhöhe */
+  preisBei(py){
+    const s = this.skala;
+    if(!s) return 0;
+    return s.hi - (py - s.padT) / s.h * (s.hi - s.lo);
+  },
+  verdrahten(cv){
+    this.cv = cv;
+    const pos = ev => {
+      const r = cv.getBoundingClientRect ? cv.getBoundingClientRect() : {left:0, top:0};
+      return {x:(ev.clientX || 0) - r.left, y:(ev.clientY || 0) - r.top};
+    };
+    const zeiger = {};
+    cv.addEventListener('pointerdown', ev => {
+      zeiger[ev.pointerId] = pos(ev);
+      this.zieh = {x:pos(ev).x, v:this.versatz, a:this.anzahl, bewegt:false,
+        abstand:Object.keys(zeiger).length === 2 ? paarAbstand() : null};
+      try{ cv.setPointerCapture(ev.pointerId); }catch(e){}
+    });
+    const paarAbstand = () => { const p = Object.values(zeiger); return p.length === 2 ? Math.abs(p[0].x - p[1].x) : null; };
+    cv.addEventListener('pointermove', ev => {
+      const p = pos(ev);
+      if(zeiger[ev.pointerId]) zeiger[ev.pointerId] = p;
+      this.maus = p;
+      if(this.zieh){
+        const bw = (this.skala ? this.skala.w : 600) / this.anzahl;
+        if(Object.keys(zeiger).length === 2 && this.zieh.abstand){
+          const a = paarAbstand();
+          this.anzahl = Math.max(20, Math.min(400, Math.round(this.zieh.a * this.zieh.abstand / Math.max(10, a))));
+          this.zieh.bewegt = true;
+        }else{
+          const dx = p.x - this.zieh.x;
+          if(Math.abs(dx) > 4) this.zieh.bewegt = true;
+          this.versatz = Math.max(0, Math.min(this.kerzen.length - 10, Math.round(this.zieh.v + dx / bw)));
+        }
+      }
+      this.zeichnen();
+    });
+    const los = ev => {
+      if(this.zieh && !this.zieh.bewegt && ev.type === 'pointerup'){
+        // Antippen ohne Ziehen: Kurs übernehmen
+        paperPreisGewaehlt(this.preisBei(pos(ev).y));
+      }
+      delete zeiger[ev.pointerId];
+      if(!Object.keys(zeiger).length) this.zieh = null;
+    };
+    cv.addEventListener('pointerup', los);
+    cv.addEventListener('pointercancel', los);
+    cv.addEventListener('pointerleave', () => { this.maus = null; this.zeichnen(); });
+    cv.addEventListener('wheel', ev => {
+      ev.preventDefault();
+      this.anzahl = Math.max(20, Math.min(400, Math.round(this.anzahl * (ev.deltaY > 0 ? 1.12 : 0.89))));
+      this.zeichnen();
+    }, {passive:false});
+  }
+};
+function paperPreis(v){
+  if(!isFinite(v)) return '–';
+  const a = Math.abs(v);
+  const d = a >= 1000 ? 1 : a >= 100 ? 2 : a >= 1 ? 4 : 6;
+  return v.toLocaleString(loc(), {minimumFractionDigits:d, maximumFractionDigits:d});
+}
+/* Welche waagerechten Linien gehören in den Chart? */
+function paperLinien(coin){
+  const s = PAPER.sitzung, out = [];
+  if(!s) return out;
+  const p = s.pos[coin];
+  if(p){
+    out.push({y:p.entry, farbe:C.acc, text:(p.side === 'long' ? 'LONG ' : 'SHORT ') + p.hebel + 'x'});
+    if(p.sl) out.push({y:p.sl, farbe:C.down, text:'SL', strich:true});
+    if(p.tp) out.push({y:p.tp, farbe:C.up, text:'TP', strich:true});
+    if(p.liq > 0) out.push({y:p.liq, farbe:C.warn, text:'LIQ', strich:true});
+  }
+  s.orders.filter(o => o.coin === coin).forEach(o => {
+    out.push({y:o.px, farbe:o.side === 'long' ? C.up : C.down, text:(o.reduce ? 'TP ' : 'LIMIT ') + (o.side === 'long' ? 'B' : 'S'), strich:true});
+  });
+  return out;
+}
+
+/* ====================================================================
+   OBERFLÄCHE
+   ==================================================================== */
+let paperSeite = 'long', paperTyp = 'market', paperSetups = [], paperMood = [], paperConv = 0;
+function paperStatus(){
+  const el = $('#ppVerbindung');
+  if(!el) return;
+  el.innerHTML = PWS.offen
+    ? '<span class="dot" style="display:inline-block;background:var(--up)"></span> ' + txt('live')
+    : (PWS.umfrage ? '<span class="dot" style="display:inline-block;background:var(--warn)"></span> ' + txt('alle 2 s')
+       : '<span class="dot" style="display:inline-block;background:var(--muted)"></span> ' + txt('getrennt'));
+}
+/* Nur Zahlen, die sich mit jedem Kurs ändern – ohne die Tabellen neu zu bauen */
+let paperLeichtTimer = null;
+function paperLeicht(){
+  if(paperLeichtTimer) return;
+  paperLeichtTimer = setTimeout(() => {
+    paperLeichtTimer = null;
+    if(S.tab !== 'paper') return;
+    paperKopf();
+    $$('#ppPos [data-upnl]').forEach(el => {
+      const p = (PAPER.sitzung || {pos:{}}).pos[el.dataset.upnl];
+      if(!p) return;
+      const px = PAPER.kurs(p.coin), u = PAPER.upnl(p, px);
+      el.innerHTML = '<b class="' + cls(u) + '">' + sgn(u, 2) + '</b> <span class="mut">' + pct(u / p.margin * 100, 1) + '</span>';
+    });
+    $$('#ppPos [data-mark]').forEach(el => { el.textContent = paperPreis(PAPER.kurs(el.dataset.mark)); });
+    const k = $('#ppKurs');
+    if(k) k.textContent = paperPreis(PAPER.kurs(PCHART.coin));
+    paperOrderInfo();
+  }, 250);
+}
+function paperKopf(){
+  const s = PAPER.sitzung;
+  const box = $('#ppKopf');
+  if(!box) return;
+  if(!s){ box.innerHTML = ''; return; }
+  const e = PAPER.equity(), r = (e - s.kapital) / s.kapital * 100;
+  const items = [
+    ['Equity', usdRaw(e, 2), txt('Start {0}').replace('{0}', usdRaw(s.kapital, 0)), cls(e - s.kapital)],
+    ['Ergebnis', pct(r, 2), sgn(e - s.kapital, 2), cls(r)],
+    ['Frei', usdRaw(Math.max(0, PAPER.frei()), 2), txt('für neue Orders'), ''],
+    ['Gebunden', usdRaw(PAPER.gebunden(), 2), txt('Margin in Positionen und Orders'), '']
+  ];
+  box.innerHTML = items.map(([k, v, sub, c]) =>
+    '<div class="kpi"><div class="k">' + txt(k) + '</div><div class="v ' + c + '">' + v + '</div><div class="s">' + sub + '</div></div>').join('');
+}
+function paperZeichnen(){
+  const sec = $('#v-paper');
+  if(!sec) return;
+  const s = PAPER.laden();
+  $('#ppStart').classList.toggle('hide', !!s);
+  $('#ppTerminal').classList.toggle('hide', !s);
+  if(!s){
+    const n = PAPER.alle().length;
+    $('#ppName').placeholder = 'Session ' + (n + 1);
+    return;
+  }
+  $('#ppTitel').textContent = s.name + ' · ' + txt('seit') + ' ' + dt(s.start);
+  $('#ppUnsicher').textContent = s.unsicher
+    ? txt('{0} Fill(s) lagen mit einem zweiten Niveau in derselben Minute – Reihenfolge nach Nähe zum Eröffnungskurs angenommen.').replace('{0}', s.unsicher)
+    : '';
+  paperKopf();
+  const kursEl = $('#ppKurs');
+  if(kursEl) kursEl.textContent = paperPreis(PAPER.kurs(PCHART.coin));
+  // Positionen
+  const pos = Object.values(s.pos);
+  $('#ppPos').innerHTML = pos.length ? pos.map(p => {
+    const px = PAPER.kurs(p.coin), u = PAPER.upnl(p, px);
+    return '<tr><td><b>' + esc(LIVE.base(p.coin)) + '</b> <span class="pill ' + p.side + '">' + (p.side === 'long' ? 'LONG' : 'SHORT') +
+        ' ' + p.hebel + 'x</span></td>' +
+      '<td><span class="mono">' + dec(p.size, 5) + '</span><br><span class="mut" style="font-size:11.5px">' + usdRaw(p.size * px, 0) + '</span></td>' +
+      '<td class="mono">' + paperPreis(p.entry) + '<br><span class="mut" data-mark="' + esc(p.coin) + '">' + paperPreis(px) + '</span></td>' +
+      '<td data-upnl="' + esc(p.coin) + '"><b class="' + cls(u) + '">' + sgn(u, 2) + '</b> <span class="mut">' + pct(u / p.margin * 100, 1) + '</span></td>' +
+      '<td class="mono warn">' + paperPreis(p.liq) + '</td>' +
+      '<td><div style="display:flex;flex-direction:column;gap:4px">' +
+        '<input type="text" class="mono" inputmode="decimal" data-sl="' + esc(p.coin) + '" value="' + (p.sl ? +p.sl.toPrecision(6) : '') + '" placeholder="SL" style="width:96px;padding:5px 8px">' +
+        '<input type="text" class="mono" inputmode="decimal" data-tp="' + esc(p.coin) + '" value="' + (p.tp ? +p.tp.toPrecision(6) : '') + '" placeholder="TP" style="width:96px;padding:5px 8px"></div></td>' +
+      '<td><div style="display:flex;flex-direction:column;gap:4px">' +
+        '<button class="primary" data-zu="' + esc(p.coin) + '" style="padding:5px 10px">' + txt('Schließen') + '</button>' +
+        '<button data-halb="' + esc(p.coin) + '" style="padding:5px 10px">50 %</button></div></td></tr>';
+  }).join('') : '<tr><td colspan="7" class="mut">' + txt('Keine offene Position.') + '</td></tr>';
+  $$('#ppPos [data-zu]').forEach(el => el.addEventListener('click', () => {
+    const c = el.dataset.zu;
+    PAPER.schliessen(c, null, PAPER.kurs(c), Date.now(), 'market'); PAPER.speichern(true); paperZeichnen();
+  }));
+  $$('#ppPos [data-halb]').forEach(el => el.addEventListener('click', () => {
+    const c = el.dataset.halb, p = PAPER.sitzung.pos[c];
+    if(p){ PAPER.schliessen(c, p.size / 2, PAPER.kurs(c), Date.now(), 'market'); PAPER.speichern(true); paperZeichnen(); }
+  }));
+  $$('#ppPos [data-sl], #ppPos [data-tp]').forEach(el => el.addEventListener('change', () => {
+    const c = el.dataset.sl || el.dataset.tp;
+    const sl = $('#ppPos [data-sl="' + c + '"]').value.replace(',', '.'), tp = $('#ppPos [data-tp="' + c + '"]').value.replace(',', '.');
+    PAPER.setzeSlTp(c, sl, tp); PCHART.zeichnen();
+  }));
+  // Orders
+  $('#ppOrders').innerHTML = s.orders.length ? s.orders.map(o =>
+    '<tr><td><b>' + esc(LIVE.base(o.coin)) + '</b></td>' +
+    '<td><span class="pill ' + o.side + '">' + (o.side === 'long' ? txt('Kauf') : txt('Verkauf')) + '</span>' +
+      (o.reduce ? ' <span class="pill mut">reduce</span>' : ' <span class="mut">' + o.hebel + 'x</span>') + '</td>' +
+    '<td class="mono">' + paperPreis(o.px) + '</td><td class="mono">' + dec(o.size, 5) + '</td>' +
+    '<td class="mono">' + (o.sl ? paperPreis(o.sl) : '–') + ' / ' + (o.tp ? paperPreis(o.tp) : '–') + '</td>' +
+    '<td class="mut">' + dt(o.erstellt) + '</td>' +
+    '<td><button data-storno="' + esc(o.id) + '">' + txt('Stornieren') + '</button></td></tr>').join('')
+    : '<tr><td colspan="7" class="mut">' + txt('Keine offenen Orders.') + '</td></tr>';
+  $$('#ppOrders [data-storno]').forEach(el => el.addEventListener('click', () => { PAPER.stornieren(el.dataset.storno); paperZeichnen(); }));
+  // Abgeschlossene Trades der Session
+  const r = PAPER.trades();
+  S.paperTrades = r.trades; S.paperOpen = r.openTrades;
+  $('#ppTrades').innerHTML = r.trades.length ? r.trades.slice().reverse().map(t =>
+    '<tr data-tr="' + esc(t.id) + '" style="cursor:pointer"><td class="mut">' + dt(t.closeTime) + '</td>' +
+    '<td><b>' + esc(LIVE.base(t.coin)) + '</b> <span class="pill ' + t.side + '">' + (t.side === 'long' ? 'LONG' : 'SHORT') + '</span>' +
+      (t.liquidated ? ' <span class="pill liq">LIQ</span>' : '') + '</td>' +
+    '<td class="mono">' + paperPreis(t.avgEntry) + ' → ' + paperPreis(t.avgExit) + '</td>' +
+    '<td class="' + cls(t.net) + '"><b>' + sgn(t.net, 2) + '</b></td>' +
+    '<td class="' + cls(t.net) + '">' + fmtR(inR(t)) + '</td>' +
+    '<td>' + (tagsOf(noteOfTrade(t)).map(x => '<span class="pill tag">' + esc(x) + '</span>').join(' ') || '<span class="mut">–</span>') + '</td></tr>').join('')
+    : '<tr><td colspan="6" class="mut">' + txt('Noch kein abgeschlossener Trade in dieser Session.') + '</td></tr>';
+  $$('#ppTrades [data-tr]').forEach(el => el.addEventListener('click', () => openTrade(el.dataset.tr)));
+  mobilLabels('#ppPosT'); mobilLabels('#ppOrdersT'); mobilLabels('#ppTradesT');
+  paperOrderInfo();
+  PCHART.zeichnen();
+  paperAbos();
+}
+/* Größe, Margin, Risiko – während du tippst */
+function paperOrderInfo(){
+  const box = $('#ppInfo');
+  if(!box || !PAPER.sitzung) return;
+  const coin = PCHART.coin;
+  const px = paperTyp === 'limit' ? num(($('#ppPx').value || '').replace(',', '.')) : PAPER.kurs(coin);
+  const usdG = num(($('#ppGroesse').value || '').replace(',', '.'));
+  const hebel = Math.max(1, Math.min(PAPER.maxHebel(coin), Math.round(num($('#ppHebel').value) || 10)));
+  const sl = num(($('#ppSl').value || '').replace(',', '.'));
+  const sz = px > 0 ? usdG / px : 0;
+  const margin = usdG / hebel;
+  const risiko = sl > 0 && px > 0 ? Math.abs(px - sl) * sz : null;
+  const pctRisiko = risiko !== null && PAPER.equity() > 0 ? risiko / PAPER.equity() * 100 : null;
+  box.innerHTML = [
+    txt('Menge') + ' <b class="mono">' + (sz ? dec(sz, 5) : '–') + '</b> ' + esc(LIVE.base(coin)),
+    txt('Margin') + ' <b>' + usdRaw(margin, 2) + '</b>',
+    risiko !== null ? txt('Risiko bis Stop') + ' <b class="down">' + usdRaw(risiko, 2) + '</b> <span class="mut">(' + pctn(pctRisiko, 2) + ')</span>' : '',
+    '<span class="mut">' + txt('max. Hebel {0}x').replace('{0}', PAPER.maxHebel(coin)) + '</span>'
+  ].filter(Boolean).join(' · ');
+}
+/* Antippen im Chart: Kurs ins passende Feld */
+function paperPreisGewaehlt(v){
+  if(!(v > 0)) return;
+  const ziel = document.activeElement && ['ppSl', 'ppTp', 'ppPx'].indexOf(document.activeElement.id) >= 0
+    ? document.activeElement : (paperTyp === 'limit' ? $('#ppPx') : null);
+  if(ziel){ ziel.value = String(+v.toPrecision(6)); paperOrderInfo(); }
+}
+/* Größe aus Risiko: x % des Kontos bis zum Stop */
+function paperGroesseAusRisiko(pctR){
+  const coin = PCHART.coin;
+  const px = paperTyp === 'limit' ? num(($('#ppPx').value || '').replace(',', '.')) : PAPER.kurs(coin);
+  const sl = num(($('#ppSl').value || '').replace(',', '.'));
+  if(!(px > 0) || !(sl > 0) || sl === px){ $('#ppMeld').textContent = txt('Für die Größe nach Risiko brauche ich Einstieg und Stop.'); return; }
+  const sz = PAPER.equity() * pctR / 100 / Math.abs(px - sl);
+  $('#ppGroesse').value = (sz * px).toFixed(2);
+  paperOrderInfo();
+}
+function paperAbschicken(){
+  const coin = PCHART.coin;
+  const px = paperTyp === 'limit' ? num(($('#ppPx').value || '').replace(',', '.')) : PAPER.kurs(coin);
+  const usdG = num(($('#ppGroesse').value || '').replace(',', '.'));
+  const res = PAPER.order({coin, side:paperSeite, typ:paperTyp, px, size:px > 0 ? usdG / px : 0,
+    hebel:$('#ppHebel').value, sl:($('#ppSl').value || '').replace(',', '.'), tp:($('#ppTp').value || '').replace(',', '.'),
+    reduce:$('#ppReduce').checked, setups:paperSetups.slice(), gefuehl:paperMood.slice(), ueberzeugung:paperConv});
+  $('#ppMeld').innerHTML = res.ok ? '<span class="up">✓ ' + txt('Ausgeführt') + '</span>' : '<span class="down">' + esc(res.grund) + '</span>';
+  if(res.ok){
+    // Bei einer Market-Order mit Stop/Ziel diese gleich an die Position hängen
+    const p = PAPER.sitzung.pos[coin];
+    if(paperTyp === 'market' && p && !p.sl && num($('#ppSl').value)) p.sl = num($('#ppSl').value.replace(',', '.'));
+    if(paperTyp === 'market' && p && !p.tp && num($('#ppTp').value)) p.tp = num($('#ppTp').value.replace(',', '.'));
+    PAPER.speichern(true);
+    paperMood = []; paperConv = 0;
+    paperFormular();
+  }
+  paperZeichnen();
+}
+function paperFormular(){
+  $$('[data-ppseite]').forEach(el => el.classList.toggle('on', el.dataset.ppseite === paperSeite));
+  $$('[data-pptyp]').forEach(el => el.classList.toggle('on', el.dataset.pptyp === paperTyp));
+  $('#ppPxBox').classList.toggle('hide', paperTyp !== 'limit');
+  const btn = $('#ppSenden');
+  btn.textContent = paperSeite === 'long' ? txt('Long kaufen') : txt('Short verkaufen');
+  btn.style.background = paperSeite === 'long' ? 'var(--up)' : 'var(--down)';
+  btn.style.borderColor = btn.style.background;
+  const h = PAPER.sitzung && PAPER.sitzung.pos[PCHART.coin];
+  $('#ppHebel').disabled = !!h;
+  if(h) $('#ppHebel').value = h.hebel;
+  else if(PAPER.sitzung && PAPER.sitzung.hebel[PCHART.coin]) $('#ppHebel').value = PAPER.sitzung.hebel[PCHART.coin];
+  $('#ppHebel').max = PAPER.maxHebel(PCHART.coin);
+  chipsEinfach($('#ppSetups'), S.tags, paperSetups, true);
+  const zeichneMood = () => {
+    chipsEinfach($('#ppMood'), GEFUEHLE, paperMood, true);
+    konvKnoepfe($('#ppConv'), paperConv, n => { paperConv = n; zeichneMood(); });
+  };
+  zeichneMood();
+  paperOrderInfo();
+}
+async function paperMarkt(coin){
+  coin = (LIVE.full ? LIVE.full(coin) : coin) || coin;
+  $('#ppMarkt').value = LIVE.base(coin);
+  await PAPER.ladeMeta();
+  paperFormular();
+  await PCHART.laden(coin, PCHART.iv);
+  paperZeichnen();
+}
+
+/* Beim Öffnen des Bereichs: Verbindung auf, Lücke nachrechnen */
+async function paperOeffnen(){
+  PAPER.laden();
+  if(!PCHART.cv) PCHART.verdrahten($('#ppChart'));
+  paperFormular();
+  paperZeichnen();
+  PWS.verbinden();
+  paperStatus();
+  if(PAPER.sitzung){
+    const r = await PAPER.nachfuellen();
+    if(r && r.n){
+      $('#ppMeld').innerHTML = '<span class="up">' +
+        esc(txt('{0} Ausführung(en) nachgerechnet, während die App zu war.').replace('{0}', r.n)) + '</span>';
+    }
+  }
+  await paperMarkt($('#ppMarkt').value || PCHART.coin);
+}
+
+/* ====================================================================
+   SESSIONS – Auswertung je Session, getrennt vom echten Journal
+   ==================================================================== */
+function renderPaperSessions(){
+  const box = $('#psListe');
+  if(!box) return;
+  const alle = PAPER.alle().slice().reverse();
+  if(!alle.length){
+    box.innerHTML = '<div class="empty-state">' + txt('Noch keine Session. Starte im Terminal die erste.') + '</div>';
+    $('#psDetail').innerHTML = '';
+    return;
+  }
+  const wahl = S.paperWahl && alle.find(s => s.id === S.paperWahl) ? S.paperWahl : alle[0].id;
+  S.paperWahl = wahl;
+  box.innerHTML = '<div class="scroll"><table class="karten" id="psTab"><thead><tr><th>Session</th><th>Zeitraum</th>' +
+    '<th>Start</th><th>Ende</th><th>Ergebnis</th><th>Trades</th><th>Trefferquote</th><th>R</th></tr></thead><tbody>' +
+    alle.map(s => {
+      const a = PAPER.auswertung(s === PAPER.sitzung || (!s.ende && PAPER.sitzung && PAPER.sitzung.id === s.id) ? PAPER.sitzung : s);
+      return '<tr data-ps="' + esc(s.id) + '" style="cursor:pointer' + (s.id === wahl ? ';background:var(--panel2)' : '') + '">' +
+        '<td><b>' + esc(s.name) + '</b>' + (s.ende ? '' : ' <span class="pill jetzt">' + txt('läuft') + '</span>') + '</td>' +
+        '<td class="mut">' + dt(s.start) + ' – ' + (s.ende ? dt(s.ende) : txt('jetzt')) + '</td>' +
+        '<td>' + usdRaw(s.kapital, 0) + '</td><td>' + usdRaw(a.equity, 2) + '</td>' +
+        '<td class="' + cls(a.rendite) + '"><b>' + pct(a.rendite, 2) + '</b></td>' +
+        '<td>' + a.m.n + '</td><td>' + (a.m.n ? pctn(a.m.winrate, 0) : '–') + '</td>' +
+        '<td class="' + cls(a.rSumme) + '">' + (a.m.n ? fmtR(a.rSumme) : '–') + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+  mobilLabels('#psTab');
+  $$('#psListe [data-ps]').forEach(el => el.addEventListener('click', () => { S.paperWahl = el.dataset.ps; renderPaperSessions(); }));
+
+  // Einzelne Session im Detail
+  let s = alle.find(x => x.id === wahl);
+  if(!s.ende && PAPER.sitzung && PAPER.sitzung.id === s.id) s = PAPER.sitzung;
+  const a = PAPER.auswertung(s);
+  const ex = metrics(a.echt);
+  const dd = (() => { let cum = 0, peak = 0, m = 0; a.trades.slice().sort((x, y) => x.closeTime - y.closeTime)
+    .forEach(t => { cum += t.net; peak = Math.max(peak, cum); m = Math.max(m, peak - cum); }); return m; })();
+  const items = [
+    ['Ergebnis', pct(a.rendite, 2), sgn(a.equity - s.kapital, 2), cls(a.rendite)],
+    ['Trades', String(a.m.n), a.m.n ? a.m.wins + ' W / ' + a.m.losses + ' L' : '', ''],
+    ['Trefferquote', a.m.n ? pctn(a.m.winrate, 0) : '–', '', ''],
+    ['Summe in R', a.m.n ? fmtR(a.rSumme) : '–', a.m.n ? txt('Ø {0} je Trade').replace('{0}', fmtR(a.rSumme / a.m.n)) : '', cls(a.rSumme)],
+    ['Profit Factor', a.m.n ? (a.m.pf === Infinity ? '∞' : a.m.pf.toFixed(2)) : '–', '', ''],
+    ['Größter Rückgang', usdRaw(dd, 2), s.kapital > 0 ? pctn(dd / s.kapital * 100, 1) : '', dd ? 'down' : ''],
+    ['Gebühren', usdRaw(a.m.fees, 2), s.gebuehren.taker ? txt('mit deinen Sätzen') : txt('ohne Gebühren'), '']
+  ];
+  $('#psDetail').innerHTML =
+    '<div class="panel"><h2>' + esc(s.name) + '</h2>' +
+    '<div class="kpis">' + items.map(([k, v, sub, c]) => '<div class="kpi"><div class="k">' + txt(k) + '</div><div class="v ' + c + '">' + v +
+      '</div><div class="s">' + sub + '</div></div>').join('') + '</div>' +
+    '<p class="mut" style="font-size:13px;line-height:1.6;margin-bottom:0">' +
+      esc(txt('Echt im selben Zeitraum: {0} Trades, {1}, Trefferquote {2}.')
+        .replace('{0}', ex.n).replace('{1}', sgn(ex.net, 2)).replace('{2}', ex.n ? pctn(ex.winrate, 0) : '–')) +
+      (s.unsicher ? ' ' + esc(txt('{0} Fill(s) mit angenommener Reihenfolge.').replace('{0}', s.unsicher)) : '') + '</p></div>' +
+    '<div class="panel"><h2>' + txt('Verlauf') + '</h2><div class="chartbox sm"><canvas id="chPaper"></canvas></div></div>' +
+    '<div class="panel"><h2>' + txt('Nach Setup') + '</h2><div class="scroll"><table class="karten" id="psSetups"><thead><tr><th>Setup</th>' +
+      '<th>Trades</th><th>Trefferquote</th><th>Netto</th><th>Ø R</th></tr></thead><tbody>' + paperSetupZeilen(a.trades) + '</tbody></table></div></div>' +
+    '<div class="panel"><h2>' + txt('Trades dieser Session') + '</h2><div class="scroll"><table class="karten" id="psTrades"><thead><tr>' +
+      '<th>Geschlossen</th><th>Markt</th><th>Ein → Aus</th><th>Netto</th><th>R</th><th>Setup</th></tr></thead><tbody>' +
+      (a.trades.length ? a.trades.slice().reverse().map(t => '<tr data-tr="' + esc(t.id) + '" style="cursor:pointer"><td class="mut">' + dt(t.closeTime) + '</td>' +
+        '<td><b>' + esc(LIVE.base(t.coin)) + '</b> <span class="pill ' + t.side + '">' + (t.side === 'long' ? 'LONG' : 'SHORT') + '</span></td>' +
+        '<td class="mono">' + paperPreis(t.avgEntry) + ' → ' + paperPreis(t.avgExit) + '</td>' +
+        '<td class="' + cls(t.net) + '"><b>' + sgn(t.net, 2) + '</b></td><td class="' + cls(t.net) + '">' + fmtR(inR(t)) + '</td>' +
+        '<td>' + (tagsOf(noteOfTrade(t)).map(x => '<span class="pill tag">' + esc(x) + '</span>').join(' ') || '–') + '</td></tr>').join('')
+        : '<tr><td colspan="6" class="mut">' + txt('Keine Trades.') + '</td></tr>') +
+    '</tbody></table></div></div>';
+  mobilLabels('#psSetups'); mobilLabels('#psTrades');
+  S.paperTrades = a.trades; S.paperOpen = a.offen;
+  $$('#psDetail [data-tr]').forEach(el => el.addEventListener('click', () => openTrade(el.dataset.tr)));
+  const chron = a.trades.slice().sort((x, y) => x.closeTime - y.closeTime);
+  let eq = s.kapital;
+  mkChart('chPaper', {type:'line', data:{labels:[dt(s.start)].concat(chron.map(t => dt(t.closeTime))),
+    datasets:[{data:[s.kapital].concat(chron.map(t => +(eq += t.net).toFixed(2))), borderColor:C.acc, borderWidth:2, pointRadius:0, tension:0.15,
+      fill:true, backgroundColor:C.upFill}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:NOLEG, scales:{x:Object.assign({}, AXIS, {ticks:Object.assign({}, AXIS.ticks, {maxTicksLimit:6})}), y:moneyAxis()}}});
+}
+function paperSetupZeilen(tr){
+  const je = {};
+  tr.forEach(t => { const a = tagsOf(noteOfTrade(t)); (a.length ? a : [txt('ohne Setup')]).forEach(k => (je[k] = je[k] || []).push(t)); });
+  const keys = Object.keys(je);
+  if(!keys.length) return '<tr><td colspan="5" class="mut">' + txt('Noch keine Trades.') + '</td></tr>';
+  return keys.map(k => { const m = metrics(je[k]), rl = inRList(je[k]);
+    return '<tr><td><b>' + esc(k) + '</b></td><td>' + m.n + '</td><td>' + pctn(m.winrate, 0) + '</td>' +
+      '<td class="' + cls(m.net) + '">' + sgn(m.net, 2) + '</td><td class="' + cls(mittel(rl)) + '">' + fmtR(mittel(rl)) + '</td></tr>'; }).join('');
+}
+
 /* ---- Hebel-Gedächtnis ----
    Hyperliquid nennt den Hebel nur an der laufenden Position, nie an der
    Historie. Solange das Journal offen ist, sieht es die Position aber –
@@ -9450,13 +12041,17 @@ const HEBEL = {
     return this.map;
   },
   speichern(){ try{ localStorage.setItem(this.key, JSON.stringify(this.lade())); }catch(e){} },
-  von(t){ return t ? (num(this.lade()[noteKey(t)]) || 0) : 0; },
+  von(t){
+    if(!t) return 0;
+    return num(TMETA.get(t).hebel) || num(this.lade()[noteKey(t)]) || 0;
+  },
   setze(t, v){
     if(!t) return;
-    const k = noteKey(t), m = this.lade();
     const n = Math.round(num(v));
-    if(n > 0) m[k] = n; else delete m[k];
-    this.speichern();
+    if(n === this.von(t)) return;
+    TMETA.set(t, {hebel: n > 0 ? n : null});
+    const m = this.lade();
+    if(m[noteKey(t)]){ delete m[noteKey(t)]; this.speichern(); }
   },
   /* Aus den laufenden Positionen ablesen und an den offenen Trades vermerken */
   merken(){
@@ -9468,9 +12063,8 @@ const HEBEL = {
       const ap = aps.find(a => (a.position || {}).coin === t.coin &&
         (!t.wallet || !a.wallet || a.wallet === t.wallet));
       const v = ap ? Math.round(num((ap.position.leverage || {}).value)) : 0;
-      if(v > 0 && m[noteKey(t)] !== v){ m[noteKey(t)] = v; neu = true; }
+      if(v > 0 && this.von(t) !== v){ TMETA.set(t, {hebel:v}); neu = true; }
     }
-    if(neu) this.speichern();
   }
 };
 
@@ -9479,6 +12073,15 @@ const HEBEL = {
    Größe – also das, was du wirklich riskiert hast. Sonst der eingestellte
    Anteil vom Konto, wie bisher.                                            */
 function riskOf(t){
+  // Von Hand eingetragener Stop hat Vorrang – er ist das, was du wirklich riskiert hast
+  if(t && t.avgEntry > 0){
+    const st = num(String(TMETA.get(t).stop || '').replace(',', '.'));
+    const sz = t.maxSize || t.entrySize || 0;
+    if(st > 0 && sz > 0){
+      const d = Math.abs(t.avgEntry - st);
+      if(d > 0) return {R: d * sz, quelle:'eigen', stop:st};
+    }
+  }
   const p = t ? planOfTrade(t) : null;
   if(p && t.avgEntry > 0){
     const stop = parseFloat(String(p.stop || '').replace(',', '.'));
@@ -9488,8 +12091,12 @@ function riskOf(t){
       if(d > 0) return {R: d * sz, quelle:'plan', stop};
     }
   }
-  const {R} = riskUnit();
-  return {R, quelle:'konto'};
+  const ru = riskUnit();
+  const acct = t && t.paperKapital ? t.paperKapital : ru.acct;
+  // Risiko-Epochen: der Anteil, der beim Einstieg galt
+  const pe = t ? EPOCHEN.pctAt(t.openTime) : 0;
+  if(pe > 0 && acct > 0) return {R: acct * pe / 100, quelle:'konto', pct:pe};
+  return {R: t && t.paperKapital ? acct * ru.pct / 100 : ru.R, quelle:'konto'};
 }
 /* Ergebnis eines Trades in Risikoeinheiten */
 function inR(t){
@@ -10157,6 +12764,8 @@ const LIVE = {
       if(!first) await this.pullPositions();
       this.at = Date.now();
       this.tick++;
+      // Paper: wenigstens alle zehn Sekunden prüfen, falls der Websocket fehlt
+      try{ if(PAPER.sitzung && !PWS.offen) paperMaerkte().forEach(c => { const v = this.price(c); if(v > 0) PAPER.tick(c, v, Date.now()); }); }catch(e){}
       renderLive();
       // Die Tabelle „Offen“ unter Trades hängt an denselben Zahlen
       try{ renderOpen(); }catch(e){}
@@ -11206,12 +13815,13 @@ function renderLangHint(){
 /* ---------- Tabs / Render ---------- */
 const GROUPS = [
   {id:'facts', label:'Fakten', tabs:[['dashboard','Dashboard'],['overview','Übersicht'],['trades','Trades'],
-    ['longshort','Long / Short'],['setups','Setups'],['behavior','Verhalten'],
+    ['insights','Erkenntnisse'],['longshort','Long / Short'],['setups','Setups'],['behavior','Verhalten'],
     ['excursion','Ausschläge'],['progress','Fortschritt']]},
   {id:'plan', label:'Planung', tabs:[['plans','Pläne'],['calendar','Kalender'],
     ['calc','Rechner'],['review','Rückblick']]},
   {id:'lab', label:'Labor', tabs:[['labimpact','Wirkung'],['labexit','Exit & Stop'],
-    ['discipline','Disziplin'],['sim','Simulator']]},
+    ['discipline','Disziplin'],['cohort','Kohorten'],['sim','Simulator']]},
+  {id:'paper', label:'Paper', tabs:[['paper','Terminal'],['papersess','Sessions']]},
   {id:'acct', label:'Konto', tabs:[['positions','Guthaben'],['vaults','Vaults'],
     ['costs','Gebühren & Funding'],['tax','Steuer'],['settings','Daten']]}
 ];
@@ -11244,9 +13854,12 @@ function switchTab(t){
     if(el) el.classList.toggle('hide', v !== t);
   });
   $('#globalFilters').classList.toggle('hide',
-    ['settings','tax','positions','vaults','plans','calendar','sim','dashboard'].indexOf(t) >= 0);
+    ['settings','tax','positions','vaults','plans','calendar','sim','dashboard','paper','papersess'].indexOf(t) >= 0);
   if(t === 'sim' && !S.simDone){ S.simDone = true; renderSim(); }
   if(t === 'labexit') renderGrid(filtered());
+  if(t === 'cohort') renderKohorte();
+  if(t === 'paper') paperOeffnen();
+  if(t === 'papersess') renderPaperSessions();
   window.scrollTo(0, 0);
 }
 
@@ -11285,6 +13898,10 @@ function renderAll(){
   renderProgress(tr);
   renderReview();
   renderExcursion(tr);
+  renderXray(tr);
+  renderErkenntnisse(tr);
+  if(S.tab === 'cohort') renderKohorte();
+  renderCheckEditor();
   renderNachlauf(tr);
   renderLab(tr);
   renderRegeln(tr);
@@ -11432,15 +14049,36 @@ $('#pSave').addEventListener('click', () => {
   if(!ticker){ showErr('Bitte einen Ticker eintragen, z.B. BTC.'); return; }
   showErr('');
   const id = pCurrent || ('plan:' + randomKey());
+  const alt = pCurrent ? (planEntries().find(x => x.id === pCurrent) || {}) : {};
+  const setups = chipValue('#pSetups');
+  const punkte = checkPunkte(setups);
+  const check = {};
+  punkte.forEach(x => { check[x] = !!pCheckW[x]; });
+  const nach = pNachFuer;
   saveEntry(id, {
-    ticker, side:$('#pSide').value, setups:chipValue('#pSetups'),
+    ticker, side:$('#pSide').value, setups,
     from:$('#pFrom').value, to:$('#pTo').value,
     entry:$('#pEntry').value.trim(), stop:$('#pStop').value.trim(),
-    target:$('#pTarget').value.trim(), status:$('#pStatus').value,
-    note:$('#pNote').value.trim(), img:pImgData || $('#pImg').value.trim()
+    target:$('#pTarget').value.trim(), status:nach ? 'done' : $('#pStatus').value,
+    note:$('#pNote').value.trim(), img:pImgData || $('#pImg').value.trim(),
+    ziele:pZiele.filter(z => String(z.px || '').trim() && num(z.anteil) > 0),
+    gefuehl:pMoodW.slice(), ueberzeugung:pConvW || 0,
+    check:punkte.length ? check : undefined,
+    erstellt:alt.erstellt || Date.now(),
+    rekonstruiert:!!(alt.rekonstruiert || nach)
   });
+  // Nachgetragen aus einem Trade: gleich mit ihm verknüpfen
+  if(nach){
+    const n = noteOfTrade(nach) || {};
+    setTradeNote(nach, Object.assign({tag:n.tag || '', note:n.note || '', rating:n.rating || 0},
+      {plan:id, deleted:false, updatedAt:Date.now()}));
+    saveNotes();
+  }
   closePlanModal(); renderPlans(); renderCalendarTab();
+  if(nach) renderAll();
 });
+$('#pZielAdd').addEventListener('click', () => { if(pZiele.length < 9){ pZiele.push({px:'', anteil:''}); zeichnePlanZiele(); } });
+['#pEntry', '#pStop', '#pTarget'].forEach(sel => $(sel).addEventListener('input', planZielHint));
 $('#pDel').addEventListener('click', () => {
   if(!pCurrent || !confirm('Diesen Plan löschen?')) return;
   deleteEntry(pCurrent); closePlanModal(); renderPlans(); renderCalendarTab();
@@ -11482,6 +14120,49 @@ $('#btnCsv').addEventListener('click', () => exportCsv(filtered()));
 $('#mClose').addEventListener('click', closeModal);
 $('#mPrev').addEventListener('click', () => stepTrade(-1));
 $('#mNext').addEventListener('click', () => stepTrade(1));
+
+
+/* ---------- Paper-Trading: Bedienung ---------- */
+$('#ppLos').addEventListener('click', () => {
+  const kap = num($('#ppKapital').value);
+  if(!(kap >= 10)){ showErr(txt('Bitte ein Startkapital von mindestens 10 $ eintragen.')); return; }
+  showErr('');
+  PAPER.starten($('#ppName').value.trim(), kap, $('#ppGebuehren').checked);
+  paperOeffnen();
+});
+$('#ppEnde').addEventListener('click', () => {
+  if(!PAPER.sitzung) return;
+  if(!confirm(txt('Session beenden? Offene Positionen werden zum aktuellen Kurs geschlossen, offene Orders verfallen.'))) return;
+  PAPER.beenden();
+  S.paperWahl = null;
+  paperZeichnen();
+  switchTab('papersess');
+});
+$$('[data-ppseite]').forEach(el => el.addEventListener('click', () => { paperSeite = el.dataset.ppseite; paperFormular(); }));
+$$('[data-pptyp]').forEach(el => el.addEventListener('click', () => { paperTyp = el.dataset.pptyp; paperFormular(); }));
+$$('[data-ppiv]').forEach(el => el.addEventListener('click', () => {
+  $$('[data-ppiv]').forEach(x => x.classList.toggle('on', x === el));
+  PCHART.laden(PCHART.coin, el.dataset.ppiv);
+}));
+$$('[data-ppanteil]').forEach(el => el.addEventListener('click', () => {
+  const h = Math.max(1, Math.min(PAPER.maxHebel(PCHART.coin), Math.round(num($('#ppHebel').value) || 10)));
+  const fee = (PAPER.sitzung && PAPER.sitzung.gebuehren.taker) || 0;
+  // Was bei diesem Hebel höchstens geht – mit Platz für die Gebühr
+  const max = Math.max(0, PAPER.frei()) * h / (1 + fee * h);
+  $('#ppGroesse').value = (max * num(el.dataset.ppanteil) / 100 * 0.999).toFixed(2);
+  paperOrderInfo();
+}));
+$$('[data-pprisk]').forEach(el => el.addEventListener('click', () => paperGroesseAusRisiko(num(el.dataset.pprisk))));
+['#ppPx', '#ppGroesse', '#ppHebel', '#ppSl', '#ppTp'].forEach(sel => $(sel).addEventListener('input', paperOrderInfo));
+$('#ppSenden').addEventListener('click', paperAbschicken);
+$('#ppMarkt').addEventListener('change', () => {
+  const v = $('#ppMarkt').value.trim();
+  if(v) paperMarkt(v.indexOf(':') > 0 ? v : v.toUpperCase());
+});
+$('#ppMarkt').addEventListener('focus', () => {
+  const l = (LIVE.universe || []).slice(0, 600);
+  $('#ppMaerkte').innerHTML = l.map(n => '<option value="' + esc(n.indexOf(':') > 0 ? n : n) + '">').join('');
+});
 
 /* Karte zum Teilen */
 $('#mShare').addEventListener('click', () => { if(mCurrent) openKarte(mCurrent); });
@@ -11526,6 +14207,7 @@ $('#mSave').addEventListener('click', () => {
   const img = mImgData || $('#mImg').value.trim();
   const planSel = $('#mPlan').value;
   HEBEL.setze(mCurrent, $('#mHebel').value);
+  speichereTradeAngaben(mCurrent);
   if(!tags.length && !note && !rating && !img && !planSel){
     setTradeNote(mCurrent, {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()});
   }else{
@@ -11533,6 +14215,30 @@ $('#mSave').addEventListener('click', () => {
       plan:$('#mPlan').value || '', rating, deleted:false, updatedAt:Date.now()});
   }
   saveNotes(); closeModal(); renderAll();
+});
+$('#mMomAdd').addEventListener('click', () => {
+  if(!mCurrent || !mCurrent.open) return;
+  const was = mMomWahl, text = $('#mMomText').value.trim();
+  if(!was && !text){ $('#mMomHint').textContent = txt('Erst antippen, was du fühlst oder entscheidest.'); return; }
+  const liste = (TMETA.get(mCurrent).momente || []).slice();
+  const art = GEFUEHLE.indexOf(was) >= 0 ? 'Gefühl' : (was ? 'Entscheidung' : 'Notiz');
+  liste.push({t:Date.now(), art, was:was || 'Notiz', text, r: rJetzt(mCurrent)});
+  TMETA.set(mCurrent, {momente:liste});
+  $('#mMomText').value = '';
+  fuelleTradeAngaben(mCurrent);
+});
+$('#mPlanNach').addEventListener('click', () => {
+  if(!mCurrent) return;
+  const t = mCurrent;
+  closeModal();
+  openPlan(null, new Date(t.openTime).toISOString().slice(0, 10));
+  $('#pTicker').value = LIVE.base(t.coin).toUpperCase();
+  $('#pSide').value = t.side;
+  $('#pTo').value = new Date(t.closeTime || Date.now()).toISOString().slice(0, 10);
+  $('#pEntry').value = t.avgEntry ? String(+t.avgEntry.toPrecision(6)) : '';
+  pNachFuer = t;
+  $('#planTitle').textContent = txt('Plan nachtragen');
+  $('#pRekoHint').classList.remove('hide');
 });
 $('#mDel').addEventListener('click', () => {
   if(!mCurrent) return;
@@ -11558,7 +14264,23 @@ $('#excClear').addEventListener('click', () => {
   if(!confirm('Alle gemessenen Ausschläge löschen?')) return;
   EXC.clear(); PATHS.clear(); renderExcursion(filtered()); renderLab(filtered());
 });
-$('#riskPct').addEventListener('input', () => { renderLab(filtered()); renderGrid(filtered()); });
+let epocheTimer = null, riskAlt = null;
+$('#riskPct').addEventListener('focus', () => { riskAlt = num($('#riskPct').value); });
+$('#riskPct').addEventListener('input', () => {
+  renderLab(filtered()); renderGrid(filtered());
+  // Neues Risiko = neue Epoche – erst wenn du kurz nicht mehr tippst
+  clearTimeout(epocheTimer);
+  const vorher = riskAlt !== null ? riskAlt : EPOCHEN.aktuell();
+  epocheTimer = setTimeout(() => { EPOCHEN.setze($('#riskPct').value, vorher); riskAlt = num($('#riskPct').value); renderAll(); }, 1500);
+});
+$('#ckSetup').addEventListener('change', () => { $('#ckText').value = (checklisten()[$('#ckSetup').value] || []).join('\n'); });
+$('#ckSave').addEventListener('click', () => {
+  const punkte = $('#ckText').value.split('\n').map(x => x.trim()).filter(Boolean);
+  if(!$('#ckSetup').value) return;
+  setCheckliste($('#ckSetup').value, punkte);
+  renderCheckEditor();
+});
+$('#kohReset').addEventListener('click', () => { KOHORTE.wahl = {}; renderKohorte(); });
 
 /* Kalender */
 function calStep(dir){
@@ -11709,6 +14431,7 @@ try{
 }catch(e){}
 S.wallets = loadWallets();
 S.notes = loadNotes();
+if(EPOCHEN.aktuell() > 0) $('#riskPct').value = EPOCHEN.aktuell();
 renderWalletBtn();
 renderNav();
 if(activeWallets().length){
@@ -11721,6 +14444,11 @@ if(activeWallets().length){
 // Beim Zurückkehren auf den Tab abgleichen – so ist das Handy sofort aktuell
 document.addEventListener('visibilitychange', () => {
   if(!document.hidden) LIVE.pull();
+  // Zurück in der App: was im Hintergrund am Markt passierte, auf Kerzen nachrechnen
+  if(!document.hidden && PAPER.laden()){
+    PAPER.nachfuellen().then(r => { if(r && r.n && S.tab === 'paper') paperZeichnen(); });
+    if(PAPER_SICHTBAR()) PWS.verbinden();
+  }
   if(!document.hidden && SYNC.active() && Date.now() - (S.lastSync || 0) > 20000) SYNC.run({});
 });
 </script>
