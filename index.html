@@ -193,6 +193,11 @@ tbody tr:hover{background:var(--panel2)}
 .ins.signal{border-left:3px solid var(--up)}
 .ins.hinweis{border-left:3px solid var(--warn)}
 .ins.notiz{opacity:.82}
+.pill.dn{color:var(--acc2);border-color:var(--acc2)}
+.dnbox{border:1px dashed var(--line);border-radius:12px;padding:10px 14px;margin:6px 0 12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px}
+.dnbox .dnkopf{flex:1 1 100%;font-size:13px}
+.dnbox .dnzahlen{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;flex:1 1 auto}
+.dnbox button{margin-left:auto}
 .kpis.kpis4{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media (max-width:640px){ .kpis.kpis4{grid-template-columns:repeat(2,minmax(0,1fr))} }
 .pp-grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:14px;align-items:start}
@@ -567,6 +572,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     </div>
     <div class="panel">
       <h2>Abgeschlossene Trades <span class="mut" id="tradeCount"></span></h2>
+      <div id="dnBox" class="hide"></div>
       <div class="filters">
         <select id="fSort">
           <option value="time">Neueste zuerst</option>
@@ -584,6 +590,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
           <option value="loss">Nur Verlierer</option>
           <option value="nonote">Ohne Notiz</option>
           <option value="unseen">Nicht durchgesehen</option>
+          <option value="dn">Delta neutral</option>
         </select>
         <button id="btnCsv">CSV export</button>
       </div>
@@ -1496,7 +1503,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 04.10.2026, 16:57</span><br>
+    <span class="build">Fassung 06.10.2026, 18:05</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1776,6 +1783,11 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       </div>
       <div id="mImgPrev"></div>
     </div>
+    <div class="f" id="mDnBox">
+      <label class="chk"><input type="checkbox" id="mDn">
+        Delta neutral – aus allen Auswertungen nehmen (Steuer bleibt vollständig)
+      </label>
+    </div>
     <div class="f">
       <label class="chk"><input type="checkbox" id="mGesehen">
         Durchgesehen – diesen Trade habe ich mir angeschaut
@@ -1819,6 +1831,15 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Vorteil: neue Texte funktionieren sofort weiter, nur eben zunächst deutsch.  */
 let LANG = 'de';
 const EN = {
+  /* --- en_dn --- */
+  "Delta neutral – aus allen Auswertungen nehmen (Steuer bleibt vollständig)": "Delta neutral – exclude from all statistics (tax stays complete)",
+  "in keiner Auswertung, nur in der Steuer": "in no statistics, only in tax",
+  "Kursergebnis": "Price result",
+  "Wieder alle gewerteten Trades": "Back to all counted trades",
+  "Delta-neutrale Trades anzeigen": "Show delta-neutral trades",
+  "Delta neutral – in keiner Auswertung": "Delta neutral – in no statistics",
+  "Delta neutral – nicht im Gesamt": "Delta neutral – not in the total",
+  "Delta neutral – nicht in den Summen": "Delta neutral – not in the totals",
   /* --- en_krypto2 --- */
   "Sicherung der Ausführungen": "Fill backup",
   "Hyperliquid gibt nur die letzten 10.000 Ausführungen heraus. Alles davor liegt sonst nur im Speicher dieses Geräts. Mit der Sicherung wandert jede Ausführung einmal nach Supabase; ein neues Gerät holt sie sich von dort.": "Hyperliquid only hands out the last 10,000 fills. Everything older otherwise lives only in this device's storage. With the backup, every fill goes to Supabase once; a new device fetches it from there.",
@@ -3608,7 +3629,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '04.10.2026, 16:57';
+const BUILD = '06.10.2026, 18:05';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -3622,7 +3643,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 04.10.2026, 16:57';
+      ' · Fassung 06.10.2026, 18:05';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -4126,7 +4147,7 @@ function attachFunding(trades, funding){
     while(i < arr.length && ende(arr[i]) < t0) i++;
     zeiger[d.coin] = i;
     const t = (i < arr.length && t0 >= arr[i].openTime) ? arr[i] : null;
-    if(t){ t.funding += usd; hit++; } else miss++;
+    if(t){ t.funding += usd; hit++; FUND_TRADE.set(f, t); } else miss++;
   }
   for(const t of trades) t.net = t.closedPnl - t.fees + t.funding;
   return {hit, miss};
@@ -5054,13 +5075,14 @@ async function loadOne(addr, incremental){
     ledgerUntil: led.length ? num(led[led.length - 1].time) : (num(cache && cache.ledgerUntil) || Date.now())});
   // Wichtig: Positionen sind kontobezogen, deshalb wird je Wallet einzeln gerechnet
   const r = buildTrades(fills);
-  const fundList = (Array.isArray(fund) ? fund : []);
+  // Dieselben Objekte, die später in S.funding stehen – so bleibt die Zuordnung zum Trade erhalten
+  const fundList = (Array.isArray(fund) ? fund : []).map(x => Object.assign({wallet:addr}, x));
   attachFunding(r.trades.concat(r.openTrades), fundList);
   r.trades.forEach(t => { t.wallet = addr; });
   r.openTrades.forEach(t => { t.wallet = addr; });
   return {addr, fills, trades:r.trades, openTrades:r.openTrades,
     positions:pos, portfolio:port,
-    funding:(Array.isArray(fund) ? fund : []).map(x => Object.assign({wallet:addr}, x)),
+    funding:fundList,
     ledger:(Array.isArray(led) ? led : []).map(x => Object.assign({wallet:addr}, x)),
     spot, vaults:Array.isArray(vaults) ? vaults : [], staking:stake,
     subAccounts:Array.isArray(subs) ? subs : [], fees,
@@ -5122,6 +5144,7 @@ async function load(incremental){
     S.fills   = [].concat.apply([], data.map(d => d.fills));
     S.oldestFill = S.fills.length ? Math.min.apply(null, S.fills.map(f => num(f.time))) : null;
     S.trades  = [].concat.apply([], data.map(d => d.trades)).sort((a,b) => a.closeTime - b.closeTime);
+    S.dnTrades = [];
     S.openTrades = [].concat.apply([], data.map(d => d.openTrades));
     S.funding = [].concat.apply([], data.map(d => d.funding));
     S.ledger  = [].concat.apply([], data.map(d => d.ledger));
@@ -5303,7 +5326,7 @@ function fillTagFilter(){
   sel.value = cur;
 }
 
-function filtered(von, bis){
+function filtered(von, bis, quelle){
   const days = parseInt($('#fRange').value, 10);
   const coin = $('#fCoin').value;
   const tag = $('#fTag').value;
@@ -5311,7 +5334,7 @@ function filtered(von, bis){
   // Ohne eigenen Zeitraum gilt der Filter oben
   const eigen = von !== undefined;
   const cutoff = (!eigen && days) ? Date.now() - days * 86400000 : 0;
-  return S.trades.filter(t => {
+  return (quelle || S.trades).filter(t => {
     if(eigen && (t.closeTime < von || t.closeTime >= bis)) return false;
     if(cutoff && t.closeTime < cutoff) return false;
     if(coin && t.coin !== coin) return false;
@@ -5362,6 +5385,7 @@ function openRealized(){
   for(const t of (S.openTrades || [])){
     if(mkt === 'perp' && t.spot) continue;
     if(mkt === 'spot' && !t.spot) continue;
+    if(istDN(t)) continue;
     const v = num(t.closedPnl) - num(t.fees) + num(t.funding);
     if(Math.abs(v) > 1e-9){ sum += v; n++; }
   }
@@ -5371,7 +5395,7 @@ function openRealized(){
 function unrealized(){
   const mkt = $('#fMarket') ? $('#fMarket').value : 'perp';
   if(mkt === 'spot') return {sum:0, n:0};
-  const rows = ((S.positions || {}).assetPositions || []).map(livePos).filter(Boolean);
+  const rows = ((S.positions || {}).assetPositions || []).map(livePos).filter(r => r && !r.dn);
   return {sum:rows.reduce((s,r) => s + r.uPnl, 0), n:rows.length};
 }
 
@@ -5650,6 +5674,10 @@ function renderTrades(tr){
   const multi = activeWallets().length > 1;
   $$('.wcol').forEach(el => el.classList.toggle('hide', !multi));
   const res = $('#fResult').value;
+  // Delta neutral: eigene Liste und eigene kleine Summe – getrennt von allem anderen
+  const dnListe = (S.dnTrades || []).length ? filtered(undefined, undefined, S.dnTrades) : [];
+  renderDnBox(dnListe, res === 'dn');
+  if(res === 'dn') tr = dnListe;
   const q = ($('#fSearch').value || '').trim().toLowerCase();
   let list = tr.filter(t => {
     if(q){
@@ -5675,7 +5703,8 @@ function renderTrades(tr){
       '<td class="mut">' + dt(t.closeTime) + '</td>' +
       '<td class="wcol mut">' + esc(walletLabel(t.wallet)) + '</td>' +
       '<td><b>' + esc(coinName(t.coin)) + '</b>' + (t.liquidated ? ' <span class="pill liq">LIQ</span>' : '') +
-        (t.partial ? ' <span class="pill" style="color:var(--muted);border-color:var(--line)" title="Eröffnung liegt vor dem geladenen Zeitraum">≈</span>' : '') + '</td>' +
+        (t.partial ? ' <span class="pill" style="color:var(--muted);border-color:var(--line)" title="Eröffnung liegt vor dem geladenen Zeitraum">≈</span>' : '') +
+        (istDN(t) ? ' <span class="pill dn" title="Delta neutral – in keiner Auswertung">DN</span>' : '') + '</td>' +
       '<td><span class="pill ' + t.side + '">' + (t.side === 'long' ? 'LONG' : 'SHORT') + '</span></td>' +
       '<td class="mono">' + price(t.avgEntry) + '</td>' +
       '<td class="mono">' + price(t.avgExit) + '</td>' +
@@ -5700,6 +5729,30 @@ function renderTrades(tr){
   S.modalList = list.map(t => t.id);
   tb.querySelectorAll('tr').forEach(row =>
     row.addEventListener('click', () => openTrade(row.dataset.id)));
+}
+
+function renderDnBox(liste, aktiv){
+  const box = $('#dnBox');
+  if(!box) return;
+  box.className = 'dnbox';
+  box.classList.toggle('hide', !liste.length && !aktiv);
+  if(!liste.length && !aktiv){ box.innerHTML = ''; return; }
+  const z = dnSumme(liste);
+  box.innerHTML =
+    '<div class="dnkopf"><b>Delta neutral</b> <span class="mut">· ' +
+      txt('in keiner Auswertung, nur in der Steuer') + '</span></div>' +
+    '<div class="dnzahlen">' +
+      '<span><span class="mut">Trades</span> <b>' + z.n + '</b></span>' +
+      '<span><span class="mut">Netto</span> <b class="' + cls(z.netto) + '">' + sgn(z.netto, 2) + '</b></span>' +
+      '<span><span class="mut">Kursergebnis</span> <b class="' + cls(z.brutto) + '">' + sgn(z.brutto, 2) + '</b></span>' +
+      '<span><span class="mut">Funding</span> <b class="' + cls(z.funding) + '">' + sgn(z.funding, 2) + '</b></span>' +
+      '<span><span class="mut">Gebühren</span> <b>' + usd(z.gebuehren, 2) + '</b></span>' +
+    '</div>' +
+    '<button id="dnZeigen">' + (aktiv ? txt('Wieder alle gewerteten Trades') : txt('Delta-neutrale Trades anzeigen')) + '</button>';
+  $('#dnZeigen').addEventListener('click', () => {
+    $('#fResult').value = aktiv ? '' : 'dn';
+    renderTrades(filtered());
+  });
 }
 
 /* ---------- Offene Positionen über der Trade-Liste ---------- */
@@ -5732,14 +5785,15 @@ function renderOpen(){
     const up = num(q.unrealizedPnl);
     const roe = num(q.returnOnEquity) * 100;
     const fnd = -num(q.cumFunding && q.cumFunding.sinceOpen);
-    uPnl += up; notional += num(q.positionValue); marg += num(q.marginUsed); funding += fnd;
+    const dn = posIstDN(a);
+    if(!dn){ uPnl += up; notional += num(q.positionValue); marg += num(q.marginUsed); funding += fnd; }
     const t0 = since[(a.wallet || '') + '|' + q.coin];
     const rt = (S.openTrades || []).find(x =>
       x.coin === q.coin && (x.wallet || '') === (a.wallet || ''));
     return '<tr' + (rt ? ' data-open="' + esc(rt.id) + '" style="cursor:pointer"' : '') + '>' +
       '<td class="mut">' + (t0 ? dt(t0) : '–') + '</td>' +
       '<td class="wcol mut">' + esc(walletLabel(a.wallet)) + '</td>' +
-      '<td><b>' + esc(q.coin) + '</b></td>' +
+      '<td><b>' + esc(q.coin) + '</b>' + (dn ? ' <span class="pill dn" title="Delta neutral – nicht in den Summen">DN</span>' : '') + '</td>' +
       '<td><span class="pill ' + (szi >= 0 ? 'long' : 'short') + '">' +
         (szi >= 0 ? 'LONG' : 'SHORT') + '</span></td>' +
       '<td class="mono">' + price(num(q.entryPx)) + '</td>' +
@@ -6727,7 +6781,7 @@ function renderCosts(tr){
   const fees = tr.reduce((s,t) => s + t.fees, 0);
   const days = parseInt($('#fRange').value, 10);
   const cutoff = days ? Date.now() - days * 86400000 : 0;
-  const fund = S.funding.filter(f => !cutoff || num(f.time) >= cutoff);
+  const fund = S.funding.filter(f => (!cutoff || num(f.time) >= cutoff) && !fundingIstDN(f));
   const fundSum = fund.reduce((s,f) => s + num(f.delta && f.delta.usdc), 0);
   const led = S.ledger.filter(l => !cutoff || num(l.time) >= cutoff);
   let dep = 0, wd = 0;
@@ -8694,6 +8748,8 @@ function fuelleTradeAngaben(t){
         : (t.open ? txt('Jetzt festhalten zählt – die Position läuft noch.')
                   : txt('Nur was vor dem Schließen festgehalten wurde, zählt in die Auswertung.')));
   $('#mGesehen').checked = !!m.gesehen;
+  $('#mDn').checked = !!m.dn;
+  $('#mDnBox').classList.toggle('hide', !!t.paper);
   // Momente: Liste immer, Erfassen nur bei laufender Position
   const mom = (m.momente || []).slice().sort((a, b) => a.t - b.t);
   $('#mMomList').innerHTML = mom.length ? mom.map((x, i) =>
@@ -8727,6 +8783,7 @@ function speichereTradeAngaben(t){
   const moodAlt = JSON.stringify(m.gefuehl || []) + '|' + (m.ueberzeugung || 0);
   const moodNeu = JSON.stringify(mMood) + '|' + (mConv || 0);
   const patch = {stop:stop || null, gesehen:$('#mGesehen').checked || null,
+    dn:(!t.paper && $('#mDn').checked) || null,
     gefuehl:mMood.slice(), ueberzeugung:mConv || null};
   // Der Zeitpunkt der Stimmung bleibt der erste – spätere Änderungen schieben ihn nicht
   if(moodNeu !== moodAlt) patch.gefuehlAm = m.gefuehlAm || Date.now();
@@ -8739,6 +8796,7 @@ let mCurrent = null;
 function openTrade(id){
   // Abgeschlossene und laufende Trades öffnen denselben Dialog
   const t = S.trades.find(x => x.id === id) ||
+            (S.dnTrades || []).find(x => x.id === id) ||
             (S.openTrades || []).find(x => x.id === id) ||
             (S.paperTrades || []).find(x => x.id === id) ||
             (S.paperOpen || []).find(x => x.id === id);
@@ -8750,6 +8808,7 @@ function openTrade(id){
     (t.side === 'long' ? 'LONG' : 'SHORT') + '</span>' +
     (laeuft ? ' <span class="pill jetzt">läuft</span>' : '') +
     (t.paper ? ' <span class="pill" style="color:var(--acc2);border-color:var(--acc2)">PAPER</span>' : '') +
+    (istDN(t) ? ' <span class="pill dn" title="Delta neutral – in keiner Auswertung">DN</span>' : '') +
     (t.liquidated ? ' <span class="pill liq">LIQUIDIERT</span>' : '');
   $('#mSub').textContent = laeuft
     ? txt('seit') + ' ' + dt(t.openTime) + '  ·  ' + dur(Date.now() - t.openTime)
@@ -9168,7 +9227,7 @@ function isoDay(ms){
 }
 function taxYears(){
   const set = new Set();
-  S.trades.forEach(t => set.add(new Date(t.closeTime).getFullYear()));
+  alleTradesListe().forEach(t => set.add(new Date(t.closeTime).getFullYear()));
   S.funding.forEach(f => set.add(new Date(num(f.time)).getFullYear()));
   S.ledger.forEach(l => set.add(new Date(num(l.time)).getFullYear()));
   return Array.from(set).sort((a,b) => b - a);
@@ -9179,7 +9238,7 @@ function computeTax(year){
   const derivate = [], spot = [], funding = [], ledger = [];
   let missingRate = false;
 
-  for(const t of S.trades){
+  for(const t of alleTradesListe()){   // Steuer: auch delta-neutrale Trades
     if(!inYear(t.closeTime)) continue;
     // Jeder Fill wird zu seinem eigenen Tageskurs umgerechnet
     let eurGross = 0, eurFees = 0, usdGross = 0, usdFees = 0;
@@ -9320,7 +9379,7 @@ async function runTax(){
   try{
     let min = Infinity, max = -Infinity;
     const track = ms => { if(ms < min) min = ms; if(ms > max) max = ms; };
-    S.trades.forEach(t => { t.fills.forEach(f => track(f.time)); track(t.closeTime); });
+    alleTradesListe().forEach(t => { t.fills.forEach(f => track(f.time)); track(t.closeTime); });
     S.funding.forEach(f => track(num(f.time)));
     S.ledger.forEach(l => track(num(l.time)));
     if(!isFinite(min)){ $('#taxStatus').innerHTML = '<span class="mut">Keine Daten vorhanden.</span>'; return; }
@@ -10485,6 +10544,38 @@ const TMETA = {
     saveNotes();
   }
 };
+
+/* ---------- Delta neutral ----------
+   Ein so markierter Trade ist Absicherung oder Funding-Ernte, keine Meinung zum
+   Markt. Er fliegt aus jeder Auswertung, bleibt aber in der Steuer vollständig.
+   S.trades enthält nur noch die gewerteten Trades, S.dnTrades die markierten. */
+function istDN(t){ return !!(t && !t.paper && TMETA.get(t).dn); }
+function dnAufteilen(){
+  const alle = (S.trades || []).concat(S.dnTrades || []);
+  if(!(S.dnTrades || []).length && !alle.some(istDN)){ S.dnTrades = []; return; }
+  alle.sort((a, b) => a.closeTime - b.closeTime);
+  S.trades = alle.filter(t => !istDN(t));
+  S.dnTrades = alle.filter(istDN);
+}
+/* Für die Steuer: alles, auch delta neutral */
+function alleTradesListe(){
+  return (S.dnTrades || []).length
+    ? S.trades.concat(S.dnTrades).sort((a, b) => a.closeTime - b.closeTime) : S.trades;
+}
+/* Eine laufende Position (aus clearinghouseState) – gehört sie zu einem markierten Trade? */
+function posIstDN(a){
+  const q = (a && a.position) || {};
+  const t = (S.openTrades || []).find(x => x.coin === q.coin && (x.wallet || '') === (a.wallet || ''));
+  return istDN(t);
+}
+/* Welche Funding-Zahlung gehörte zu welchem Trade? (ohne die Daten selbst zu verändern) */
+const FUND_TRADE = new WeakMap();
+function fundingIstDN(f){ const t = FUND_TRADE.get(f); return !!t && istDN(t); }
+function dnSumme(liste){
+  const o = {n:liste.length, brutto:0, gebuehren:0, funding:0, netto:0};
+  for(const t of liste){ o.brutto += num(t.closedPnl); o.gebuehren += num(t.fees); o.funding += num(t.funding); o.netto += num(t.net); }
+  return o;
+}
 
 /* Gefühle vor oder während des Trades – Wortwahl wie man sie spürt */
 const GEFUEHLE = ['Ruhig', 'Zuversichtlich', 'Zögerlich', 'Ungeduldig', 'FOMO', 'Revenge',
@@ -13069,7 +13160,7 @@ function livePos(a){
   return {coin:q.coin, szi, entry, mark, uPnl, roe, movePct, margin,
     value:Math.abs(szi) * mark,
     liqDist: liq > 0 ? Math.abs(mark - liq) / mark * 100 : null,
-    wallet:a.wallet};
+    wallet:a.wallet, dn:posIstDN(a)};
 }
 
 function renderLive(){
@@ -13084,7 +13175,7 @@ function renderLive(){
   // Offene Positionen
   const aps = ((S.positions || {}).assetPositions || []);
   const rows = aps.map(livePos).filter(Boolean);
-  const total = rows.reduce((s,r) => s + r.uPnl, 0);
+  const total = rows.filter(r => !r.dn).reduce((s,r) => s + r.uPnl, 0);
   const multi = activeWallets().length > 1;
   $('#livePos').innerHTML = rows.length
     ? rows.map(r =>
@@ -13093,6 +13184,7 @@ function renderLive(){
         '<span class="pill ' + (r.szi >= 0 ? 'long' : 'short') + '">' +
           (r.szi >= 0 ? 'LONG' : 'SHORT') + '</span>' +
         (multi ? '<span class="mut" style="font-size:11.5px">' + esc(walletLabel(r.wallet)) + '</span>' : '') +
+        (r.dn ? '<span class="pill dn" title="Delta neutral – nicht im Gesamt">DN</span>' : '') +
         '<span class="lm">' + price(r.entry) + ' → ' + price(r.mark) + ' · ' + usd(r.value, 0) +
           (r.liqDist !== null ? ' · Liq ' + pctn(r.liqDist, 1) : '') + '</span>' +
         '<span class="lr"><b class="' + cls(r.uPnl) + '">' + sgn(r.uPnl, 2) + '</b>' +
@@ -14058,6 +14150,7 @@ function mobilLabels(tabelle){
   });
 }
 function renderAll(){
+  dnAufteilen();
   S.totals = computeTotals();
   // Plan-Zuordnung über alle Trades zuerst – das Risiko je Trade hängt daran
   try{ S.planLink = linkPlans(S.trades); }catch(e){}
@@ -14287,7 +14380,7 @@ $$('[data-curve]').forEach(el => el.addEventListener('click', () => {
   S.curve = el.dataset.curve;
   renderEquity(filtered());
 }));
-$('#btnCsv').addEventListener('click', () => exportCsv(filtered()));
+$('#btnCsv').addEventListener('click', () => exportCsv($('#fResult').value === 'dn' ? filtered(undefined, undefined, S.dnTrades || []) : filtered()));
 
 /* Trade-Detail */
 $('#mClose').addEventListener('click', closeModal);
