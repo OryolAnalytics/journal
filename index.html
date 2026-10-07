@@ -194,6 +194,9 @@ tbody tr:hover{background:var(--panel2)}
 .ins.hinweis{border-left:3px solid var(--warn)}
 .ins.notiz{opacity:.82}
 .pill.dn{color:var(--acc2);border-color:var(--acc2)}
+.pill.boerse{font-size:10.5px;padding:1px 7px;color:var(--muted);border-color:var(--line)}
+.pill.boerse.b-lighter{color:#8b9cff;border-color:#8b9cff}
+.pill.boerse.b-txflow{color:#e0a24a;border-color:#e0a24a}
 .dnbox{border:1px dashed var(--line);border-radius:12px;padding:10px 14px;margin:6px 0 12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px}
 .dnbox .dnkopf{flex:1 1 100%;font-size:13px}
 .dnbox .dnzahlen{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;flex:1 1 auto}
@@ -469,6 +472,12 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <option value="perp">Nur Perps</option>
       <option value="all">Perps + Spot</option>
       <option value="spot">Nur Spot</option>
+    </select>
+    <select id="fVenue" class="hide">
+      <option value="">Alle Börsen</option>
+      <option value="hl">Hyperliquid</option>
+      <option value="lighter">Lighter</option>
+      <option value="txflow">TxFlow</option>
     </select>
   </div>
 
@@ -1503,7 +1512,7 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 06.10.2026, 18:05</span><br>
+    <span class="build">Fassung 07.10.2026, 21:11</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -1558,8 +1567,22 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     <div id="wAddBox" style="border-top:1px solid var(--line);padding-top:14px;margin-top:14px">
       <div class="f"><label>Name</label>
         <input type="text" id="wLabel" placeholder="z.B. Haupt-Wallet"></div>
+      <div class="f"><label>Börse</label>
+        <select id="wVenue">
+          <option value="hl">Hyperliquid</option>
+          <option value="lighter">Lighter</option>
+          <option value="txflow">TxFlow</option>
+        </select></div>
       <div class="f"><label>Adresse</label>
         <input type="text" id="wAddr" class="mono" placeholder="0x…" spellcheck="false" autocomplete="off"></div>
+      <div class="f hide" id="wTokenBox"><label>Lighter Read-only-Token (optional)</label>
+        <input type="text" id="wToken" class="mono" placeholder="ro:…" spellcheck="false" autocomplete="off">
+        <div class="mut" style="font-size:11.5px;margin-top:5px;line-height:1.5">Nur für das Funding je Trade nötig – Trades,
+          Positionen und Kontostand gehen ohne. Erstellen auf app.lighter.xyz unter „Read-only Tokens“.
+          Ein solcher Token kann nur lesen, nicht handeln und nichts abheben. Er bleibt auf diesem Gerät.</div></div>
+      <div class="mut hide" id="wTxHint" style="font-size:11.5px;margin:-4px 0 10px;line-height:1.5">TxFlow gibt nur die
+        jüngsten Ausführungen und keine Funding-Liste heraus. Das Journal sammelt die Ausführungen deshalb bei jedem Laden
+        und schätzt das Funding aus den offenen Positionen.</div>
       <div class="filters">
         <button class="primary" id="wAdd" style="flex:1">Wallet hinzufügen</button>
       </div>
@@ -1831,6 +1854,19 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
    Vorteil: neue Texte funktionieren sofort weiter, nur eben zunächst deutsch.  */
 let LANG = 'de';
 const EN = {
+  /* --- en_boersen --- */
+  "Börse": "Exchange",
+  "Alle Börsen": "All exchanges",
+  "Lighter Read-only-Token (optional)": "Lighter read-only token (optional)",
+  "Nur für das Funding je Trade nötig – Trades, Positionen und Kontostand gehen ohne. Erstellen auf app.lighter.xyz unter „Read-only Tokens“. Ein solcher Token kann nur lesen, nicht handeln und nichts abheben. Er bleibt auf diesem Gerät.": "Only needed for funding per trade – trades, positions and balance work without it. Create one on app.lighter.xyz under “Read-only Tokens”. Such a token can only read – it cannot trade or withdraw. It stays on this device.",
+  "TxFlow gibt nur die jüngsten Ausführungen und keine Funding-Liste heraus. Das Journal sammelt die Ausführungen deshalb bei jedem Laden und schätzt das Funding aus den offenen Positionen.": "TxFlow only hands out the most recent fills and no funding list. The journal therefore collects fills on every load and estimates funding from open positions.",
+  "Das ist kein Read-only-Token von Lighter (er beginnt mit „ro:“). Einen normalen API-Schlüssel hier bitte nicht eintragen.": "That is not a Lighter read-only token (it starts with “ro:”). Please do not enter a regular API key here.",
+  "Token hinterlegt": "token saved",
+  "ohne Token": "no token",
+  "Lighter Read-only-Token (beginnt mit „ro:“). Leer lassen zum Entfernen:": "Lighter read-only token (starts with “ro:”). Leave empty to remove:",
+  "Das ist kein Read-only-Token – er beginnt mit „ro:“.": "That is not a read-only token – it starts with “ro:”.",
+  "Nicht alles geladen.": "Not everything loaded.",
+  "– Hyperliquid und die übrigen Wallets sind trotzdem da.": "– Hyperliquid and the other wallets are there anyway.",
   /* --- en_dn --- */
   "Delta neutral – aus allen Auswertungen nehmen (Steuer bleibt vollständig)": "Delta neutral – exclude from all statistics (tax stays complete)",
   "in keiner Auswertung, nur in der Steuer": "in no statistics, only in tax",
@@ -3629,7 +3665,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '06.10.2026, 18:05';
+const BUILD = '07.10.2026, 21:11';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -3643,7 +3679,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 06.10.2026, 18:05';
+      ' · Fassung 07.10.2026, 21:11';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -3922,10 +3958,14 @@ function renderWalletList(){
     const val = d ? walletValue(d) : null;
     return '<div class="wrow' + (w.on ? ' on' : '') + '" data-id="' + esc(w.id) + '">' +
       '<input type="checkbox" class="wchk"' + (w.on ? ' checked' : '') + '>' +
-      '<div class="wi"><div class="wl">' + esc(w.label) + '</div>' +
-      '<div class="wa">' + esc(w.addr) + '</div></div>' +
+      '<div class="wi"><div class="wl">' + esc(w.label) +
+        ' <span class="pill boerse b-' + boerseVon(w.addr) + '">' + esc(boerseName(boerseVon(w.addr))) + '</span></div>' +
+      '<div class="wa">' + esc(rohAdresse(w.addr)) +
+        (boerseVon(w.addr) === 'lighter' ? ' · <span class="' + (w.token ? 'up' : 'mut') + '">' +
+          (w.token ? txt('Token hinterlegt') : txt('ohne Token')) + '</span>' : '') + '</div></div>' +
       (val !== null ? '<div class="wv">' + usd(val, 0) + '</div>' : '') +
-      '<div class="wact"><button class="wedit">Name</button><button class="wdel">✕</button></div>' +
+      '<div class="wact">' + (boerseVon(w.addr) === 'lighter' ? '<button class="wtoken">Token</button>' : '') +
+        '<button class="wedit">Name</button><button class="wdel">✕</button></div>' +
       '</div>';
   }).join('');
 
@@ -3937,6 +3977,16 @@ function renderWalletList(){
       saveWallets(S.wallets);
       row.classList.toggle('on', w.on);
       renderWalletBtn();
+    });
+    const tk = row.querySelector('.wtoken');
+    if(tk) tk.addEventListener('click', () => {
+      const n = prompt(txt('Lighter Read-only-Token (beginnt mit „ro:“). Leer lassen zum Entfernen:'), w.token || '');
+      if(n === null) return;
+      const v = n.trim();
+      if(v && !/^ro:/.test(v)){ alert(txt('Das ist kein Read-only-Token – er beginnt mit „ro:“.')); return; }
+      if(v) w.token = v; else delete w.token;
+      saveWallets(S.wallets);
+      renderWalletList();
     });
     row.querySelector('.wedit').addEventListener('click', () => {
       const n = prompt('Name für diese Wallet:', w.label);
@@ -4989,11 +5039,13 @@ function loadWallets(){
   return w;
 }
 function saveWallets(w){ localStorage.setItem(LS.wallets2, JSON.stringify(w)); }
-function activeWallets(){ return S.wallets.filter(w => w.on && /^0x[a-fA-F0-9]{40}$/.test(w.addr)); }
+function activeWallets(){ return S.wallets.filter(w => w.on && /^((lighter|txflow):)?0x[a-fA-F0-9]{40}$/.test(w.addr)); }
 
 function walletLabel(addr){
   const w = S.wallets.find(x => x.addr === addr);
-  return w ? w.label : (addr ? addr.slice(0,6) + '…' + addr.slice(-4) : '');
+  const v = boerseVon(addr), roh = rohAdresse(addr);
+  const name = w ? w.label : (roh ? roh.slice(0,6) + '…' + roh.slice(-4) : '');
+  return v === 'hl' ? name : name + ' (' + boerseName(v) + ')';
 }
 function renderWalletBtn(){
   const act = activeWallets();
@@ -5004,8 +5056,373 @@ function renderWalletBtn(){
     ' <span class="chev">▾</span>';
 }
 
+/* ---------- Weitere Börsen: Lighter und TxFlow ----------
+   Eine Wallet einer anderen Börse trägt ihre Börse vorne im Namen:
+   „lighter:0x…“ oder „txflow:0x…“. So bleibt jede Wallet überall eindeutig –
+   Zwischenspeicher, Sicherung, Notizen –, auch wenn dieselbe Adresse auf
+   mehreren Börsen handelt. Die Ausführungen werden in die Form gebracht, die
+   Hyperliquid liefert; danach rechnet das Journal mit ihnen wie mit allen
+   anderen. Kurse und Charts kommen immer von Hyperliquid.                   */
+const BOERSEN = {
+  hl:      {name:'Hyperliquid', kurz:'HL'},
+  lighter: {name:'Lighter',     kurz:'Lighter'},
+  txflow:  {name:'TxFlow',      kurz:'TxFlow'}
+};
+function boerseVon(id){ const m = /^(lighter|txflow):/.exec(String(id || '')); return m ? m[1] : 'hl'; }
+function rohAdresse(id){ return String(id || '').replace(/^(lighter|txflow):/, ''); }
+function boerseName(v){ return (BOERSEN[v || 'hl'] || BOERSEN.hl).name; }
+function aktiveBoersen(){ return Array.from(new Set(activeWallets().map(w => boerseVon(w.addr)))); }
+function boersePill(t){
+  const v = (t && t.venue) || 'hl';
+  return aktiveBoersen().length > 1
+    ? ' <span class="pill boerse b-' + v + '" title="' + esc(boerseName(v)) + '">' + esc(BOERSEN[v].kurz) + '</span>' : '';
+}
+
+const LIGHTER_API = 'https://mainnet.zklighter.elliot.ai/api/v1/';
+const TXFLOW_API = 'https://api.txflow.com/info';
+
+/* ---- Lighter ----
+   Ohne höhere Konto-Stufe erlaubt Lighter 60 Anfragen pro Minute und IP.
+   Darum liegt zwischen zwei Anfragen immer gut eine Sekunde.              */
+const LIGHTER = {
+  letzte:0, maerkte:null, kontenMerk:{},
+  abstand:1100,
+  async get(pfad, token){
+    const warte = this.letzte + this.abstand - Date.now();
+    if(warte > 0) await sleep(warte);
+    this.letzte = Date.now();
+    const opt = token ? {headers:{Authorization:token}} : {};
+    let r = await fetch(LIGHTER_API + pfad, opt);
+    if(r.status === 429 || r.status === 405){
+      // Zu schnell: Lighter verlangt eine Pause, dann noch ein Versuch
+      await sleep(this.abstand * 6);
+      this.letzte = Date.now();
+      r = await fetch(LIGHTER_API + pfad, opt);
+    }
+    let j = {};
+    try{ j = await r.json(); }catch(e){}
+    if(!r.ok || (j && j.code && j.code !== 200)){
+      const e = new Error('Lighter: ' + ((j && j.message) || ('Status ' + r.status)));
+      e.code = j && j.code;
+      throw e;
+    }
+    return j;
+  },
+  async markt(){
+    if(this.maerkte) return this.maerkte;
+    const j = await this.get('orderBooks');
+    const m = {};
+    for(const o of (j.order_books || [])) m[o.market_id] = {sym:o.symbol, typ:o.market_type};
+    this.maerkte = m;
+    return m;
+  },
+  /* Hauptkonto und Unterkonten zu einer Ethereum-Adresse */
+  async konten(raw){
+    if(this.kontenMerk[raw]) return this.kontenMerk[raw];
+    let liste = [];
+    try{
+      const j = await this.get('accountsByL1Address?l1_address=' + encodeURIComponent(raw));
+      liste = (j.sub_accounts || []).map(a => a.index).filter(i => i != null);
+    }catch(e){
+      if(e.code !== 21100) throw e;   // 21100: kein Konto zu dieser Adresse
+    }
+    this.kontenMerk[raw] = liste;
+    return liste;
+  },
+  /* Ein Lighter-Trade aus Sicht des eigenen Kontos, in Hyperliquid-Form */
+  fill(t, idx, m){
+    const mk = m[t.market_id];
+    if(!mk || mk.typ === 'spot' || t.market_kind === 'spot') return null;
+    const ichAsk = Number(t.ask_account_id) === Number(idx);
+    const ichBid = Number(t.bid_account_id) === Number(idx);
+    if(!ichAsk && !ichBid) return null;
+    const maker = t.is_maker_ask ? ichAsk : ichBid;
+    const start = num(maker ? t.maker_position_size_before : t.taker_position_size_before);
+    const quote = num(maker ? t.maker_entry_quote_before : t.taker_entry_quote_before);
+    const sz = Math.abs(num(t.size)), px = num(t.price);
+    const kauf = ichBid;
+    // Realisiertes Ergebnis aus dem Einstand vor diesem Trade – ohne Gebühren, wie bei Hyperliquid
+    let cp = 0;
+    const schliesst = (start > 0 && !kauf) || (start < 0 && kauf);
+    if(schliesst && Math.abs(start) > 0 && quote > 0){
+      const einstand = quote / Math.abs(start);
+      cp = Math.min(sz, Math.abs(start)) * (px - einstand) * (start > 0 ? 1 : -1);
+    }
+    // Gebühr: Lighter gibt den Satz in Millionsteln an (100 = 0,01 %)
+    const satz = num(maker ? t.maker_fee : t.taker_fee) / 1e6;
+    const fee = num(t.usd_amount || sz * px) * satz;
+    const liq = t.type === 'liquidation' && !maker;
+    return {coin:mk.sym, px:String(px), sz:String(sz), side:kauf ? 'B' : 'A',
+      time:num(t.timestamp) < 1e12 ? num(t.timestamp) * 1000 : num(t.timestamp),
+      startPosition:String(start), dir:liq ? 'Liquidation' : (kauf ? 'Buy' : 'Sell'),
+      closedPnl:String(cp), fee:String(fee), feeToken:'USDC',
+      tid:'L' + (t.trade_id_str || t.trade_id), oid:String(kauf ? (t.bid_id_str || t.bid_id) : (t.ask_id_str || t.ask_id)),
+      hash:t.tx_hash, crossed:!maker, acct:idx, venue:'lighter'};
+  },
+  /* Trades eines Kontos, neueste zuerst, bis zum letzten bekannten Zeitpunkt */
+  async trades(idx, ab, token, onP){
+    const out = [];
+    let cursor = '';
+    for(let s = 0; s < 500; s++){
+      const j = await this.get('trades?account_index=' + idx + '&sort_by=timestamp&limit=100' +
+        (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''), token);
+      const l = j.trades || [];
+      let fertig = false;
+      for(const t of l){
+        const ts = num(t.timestamp) < 1e12 ? num(t.timestamp) * 1000 : num(t.timestamp);
+        if(ts <= ab){ fertig = true; break; }
+        out.push(t);
+      }
+      if(onP) onP(out.length);
+      if(fertig || !j.next_cursor || l.length < 100) break;
+      cursor = j.next_cursor;
+    }
+    return out;
+  },
+  /* Funding-Zahlungen – nur mit Read-only-Token */
+  async funding(idx, ab, token, m){
+    const out = [];
+    let cursor = '';
+    for(let s = 0; s < 300; s++){
+      const j = await this.get('positionFunding?account_index=' + idx + '&limit=100' +
+        (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''), token);
+      const l = j.position_fundings || [];
+      let fertig = false;
+      for(const p of l){
+        const ts = num(p.timestamp) < 1e12 ? num(p.timestamp) * 1000 : num(p.timestamp);
+        if(ts <= ab){ fertig = true; break; }
+        const mk = m[p.market_id];
+        out.push({time:ts, hash:'LF' + p.funding_id + ':' + idx,
+          delta:{type:'funding', coin:mk ? mk.sym : String(p.market_id), usdc:String(num(p.change)),
+            szi:String(num(p.position_size) * (p.position_side === 'short' ? -1 : 1)), fundingRate:p.rate}});
+      }
+      if(fertig || !j.next_cursor || l.length < 100) break;
+      cursor = j.next_cursor;
+    }
+    return out;
+  },
+  async konto(idx){
+    const j = await this.get('account?by=index&value=' + idx);
+    return (j.accounts || [])[0] || null;
+  },
+  /* Konten in die Form von clearinghouseState bringen */
+  positionen(konten){
+    const ms = {accountValue:0, totalNtlPos:0, totalRawUsd:0, totalMarginUsed:0};
+    let frei = 0;
+    const aps = [];
+    for(const a of konten){
+      if(!a) continue;
+      ms.accountValue += num(a.total_asset_value != null ? a.total_asset_value : a.collateral);
+      frei += num(a.available_balance);
+      for(const p of (a.positions || [])){
+        const sz = num(p.position) * (num(p.sign) < 0 ? -1 : 1);
+        if(!sz) continue;
+        const imf = num(p.initial_margin_fraction), wert = num(p.position_value);
+        const marg = num(p.allocated_margin) || (imf > 0 ? wert * imf / 100 : 0);
+        ms.totalNtlPos += wert; ms.totalMarginUsed += marg;
+        aps.push({type:'oneWay', position:{coin:p.symbol, szi:String(sz), entryPx:String(num(p.avg_entry_price)),
+          positionValue:String(wert), unrealizedPnl:String(num(p.unrealized_pnl)),
+          returnOnEquity:String(marg > 0 ? num(p.unrealized_pnl) / marg : 0),
+          liquidationPx:num(p.liquidation_price) > 0 ? String(num(p.liquidation_price)) : null,
+          marginUsed:String(marg),
+          leverage:{type:num(p.margin_mode) === 1 ? 'isolated' : 'cross', value:imf > 0 ? Math.round(100 / imf) : 0},
+          // positiv = gezahlt, wie bei Hyperliquid
+          cumFunding:{sinceOpen:String(num(p.total_funding_paid_out))}}});
+      }
+    }
+    Object.keys(ms).forEach(k => ms[k] = String(ms[k]));
+    return {marginSummary:ms, crossMarginSummary:ms, withdrawable:String(frei), assetPositions:aps};
+  },
+  async positionenVon(raw){
+    const konten = await this.konten(raw);
+    const kd = [];
+    for(const idx of konten){ try{ kd.push(await this.konto(idx)); }catch(e){} }
+    return kd.length ? this.positionen(kd) : null;
+  }
+};
+
+/* ---- TxFlow ----
+   Die Schnittstelle ähnelt der von Hyperliquid, gibt aber nur einen Teil
+   heraus: die jüngsten Ausführungen (kein Blättern), keine Funding-Liste. */
+const TXFLOW = {
+  async info(body){
+    const r = await fetch(TXFLOW_API, {method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)});
+    if(!r.ok) throw new Error('TxFlow antwortet mit Status ' + r.status);
+    return r.json();
+  },
+  /* TxFlow meldet das Ergebnis schließender Ausführungen nach Abzug der Gebühr;
+     Hyperliquid (und damit das Journal) davor. Die Gebühr kommt also wieder dazu. */
+  fill(f){
+    if(!f || f.instrumentType === 'spot' || f.marketType === 'spot') return null;
+    const cp = num(f.closedPnl), fee = num(f.fee);
+    return Object.assign({}, f, {tid:'X' + f.tid, closedPnl:String(cp ? cp + fee : 0),
+      crossed:f.tradeSide ? f.tradeSide === 'Taker' : f.crossed, venue:'txflow'});
+  }
+};
+
+/* Startposition jeder Ausführung vom heutigen Bestand aus rückwärts bestimmen.
+   So stimmt die Zuordnung auch dann, wenn die Börse nur die jüngsten
+   Ausführungen herausgibt und eine Position schon vorher offen war.        */
+function startPositionenSetzen(fills, positionen){
+  const pos = {};
+  for(const ap of ((positionen || {}).assetPositions || [])){
+    const q = ap.position || {};
+    if(q.coin) pos[q.coin] = num(q.szi);
+  }
+  for(let i = fills.length - 1; i >= 0; i--){
+    const f = fills[i];
+    const s = Math.abs(num(f.sz)) * (f.side === 'B' ? 1 : -1);
+    const nach = pos[f.coin] || 0;
+    let vor = Math.round((nach - s) * 1e9) / 1e9;
+    if(Math.abs(vor) < 1e-9) vor = 0;
+    f.startPosition = String(vor);
+    pos[f.coin] = vor;
+  }
+}
+
+/* ---- Funding, wo die Börse keine Liste herausgibt ----
+   Bei TxFlow (und bei Lighter ohne Token) steht das bisherige Funding nur an
+   der offenen Position. Es wird bei jedem Abruf festgehalten; schließt die
+   Position, bleibt der letzte Stand am Trade. Das ist eine Schätzung.      */
+const FUNDMERK = {
+  key:'hlj_fund_obs',
+  lade(){ try{ return JSON.parse(localStorage.getItem(this.key) || '{}') || {}; }catch(e){ return {}; } },
+  speichern(m){ try{ localStorage.setItem(this.key, JSON.stringify(m)); }catch(e){} },
+  beobachten(addr, offene, positionen){
+    const aps = ((positionen || {}).assetPositions || []);
+    if(!aps.length || !offene.length) return;
+    const m = this.lade();
+    let neu = false;
+    for(const t of offene){
+      if(t.wallet && t.wallet !== addr) continue;
+      const ap = aps.find(a => (a.position || {}).coin === t.coin);
+      if(!ap) continue;
+      const usd = -num(((ap.position || {}).cumFunding || {}).sinceOpen);
+      const k = noteKey(t);
+      if(!m[k] || Math.abs(m[k].usd - usd) > 1e-9){ m[k] = {usd, t:Date.now()}; neu = true; }
+    }
+    if(neu) this.speichern(m);
+  },
+  liste(addr, trades){
+    const m = this.lade(), out = [];
+    for(const t of trades){
+      const o = m[noteKey(t)];
+      if(!o || !o.usd) continue;
+      t.fundingGeschaetzt = true;
+      out.push({time:t.open ? Math.max(t.openTime, Date.now()) : t.closeTime, wallet:addr,
+        hash:'geschätzt (' + boerseName(boerseVon(addr)) + ')',
+        delta:{type:'funding', coin:t.coin, usdc:String(o.usd)}, geschaetzt:true});
+    }
+    return out;
+  }
+};
+
+/* Laufende Positionen einer Wallet, egal welche Börse */
+async function positionenHolen(addr){
+  const v = boerseVon(addr), raw = rohAdresse(addr);
+  if(v === 'lighter') return LIGHTER.positionenVon(raw);
+  if(v === 'txflow') return TXFLOW.info({type:'clearinghouseState', user:raw});
+  return info({type:'clearinghouseState', user:addr});
+}
+async function ordersHolen(addr){
+  const v = boerseVon(addr), raw = rohAdresse(addr);
+  if(v === 'lighter') return [];            // offene Orders gibt Lighter nur mit Anmeldung heraus
+  if(v === 'txflow') return TXFLOW.info({type:'frontendOpenOrders', user:raw});
+  return info({type:'frontendOpenOrders', user:addr});
+}
+
+/* Eine Wallet von Lighter oder TxFlow laden – Ergebnis in derselben Form wie bei Hyperliquid */
+async function loadVenue(addr, incremental){
+  const v = boerseVon(addr), raw = rohAdresse(addr);
+  const w = S.wallets.find(x => x.addr === addr) || {};
+  const cache = incremental ? await CACHE.get(addr) : null;
+  let base = cache ? cache.fills : [];
+  if(!base.length && SYNC.active()){
+    const marke = 'hlj_sync_fills_geholt_' + String(addr).toLowerCase();
+    let geholt = false;
+    try{ geholt = localStorage.getItem(marke) === '1'; }catch(e){}
+    if(!geholt){
+      try{
+        const aus = await SYNC.holen(addr);
+        if(aus.length) base = mergeFills([], aus);
+        try{ localStorage.setItem(marke, '1'); }catch(e){}
+      }catch(e){}
+    }
+  }
+  let fills, positions = null, ledger = [], funding = [], spot = null, orders = [], neuN = 0;
+  const altFund = (cache && cache.funding) || [];
+  if(v === 'lighter'){
+    const m = await LIGHTER.markt();
+    const konten = await LIGHTER.konten(raw);
+    if(!konten.length) throw new Error('Zu ' + raw.slice(0, 8) + '… gibt es bei Lighter kein Konto.');
+    const ab = base.length ? num(base[base.length - 1].time) - 1 : 0;
+    const neu = [];
+    for(const idx of konten){
+      const tr = await LIGHTER.trades(idx, ab, w.token, n =>
+        setStatus('<span class="spin"></span> ' + esc(walletLabel(addr)) + ': ' + (neu.length + n) + ' Trades…'));
+      for(const t of tr){ const f = LIGHTER.fill(t, idx, m); if(f) neu.push(f); }
+    }
+    neuN = neu.length;
+    fills = mergeFills(base, neu);
+    positions = await LIGHTER.positionenVon(raw).catch(() => null);
+    if(w.token){
+      const fab = altFund.length ? num(altFund[altFund.length - 1].time) : 0;
+      const nf = [];
+      for(const idx of konten){
+        try{ nf.push.apply(nf, await LIGHTER.funding(idx, fab, w.token, m)); }
+        catch(e){ S.boerseHinweis = 'Lighter-Funding: ' + e.message + ' – Token prüfen.'; }
+      }
+      funding = mergeLedger(altFund, nf);
+    }
+  }else{
+    const [fr, pos, led, sp, ord] = await Promise.all([
+      TXFLOW.info({type:'userFills', user:raw}),
+      TXFLOW.info({type:'clearinghouseState', user:raw}).catch(() => null),
+      TXFLOW.info({type:'userNonFundingLedgerUpdates', user:raw}).catch(() => []),
+      TXFLOW.info({type:'spotClearinghouseState', user:raw}).catch(() => null),
+      TXFLOW.info({type:'frontendOpenOrders', user:raw}).catch(() => [])
+    ]);
+    const neu = (Array.isArray(fr) ? fr : []).map(f => TXFLOW.fill(f)).filter(Boolean);
+    neuN = neu.length;
+    fills = mergeFills(base, neu);
+    positions = pos;
+    if(positions) startPositionenSetzen(fills, positions);
+    ledger = Array.isArray(led) ? led : [];
+    spot = sp;
+    orders = Array.isArray(ord) ? ord : [];
+  }
+  S.geholt = S.geholt || {};
+  S.geholt[addr] = {fills:neuN, funding:funding.length - altFund.length, ledger:ledger.length};
+  await CACHE.put(addr, fills, {funding, ledger,
+    fundUntil:funding.length ? num(funding[funding.length - 1].time) : Date.now(), ledgerUntil:Date.now()});
+
+  // Lighter: jedes Unterkonto hat eigene Positionen – getrennt rechnen
+  const gruppen = {};
+  for(const f of fills){ const g = v === 'lighter' ? String(f.acct) : '0'; (gruppen[g] = gruppen[g] || []).push(f); }
+  let trades = [], offen = [];
+  for(const g in gruppen){
+    const r = buildTrades(gruppen[g]);
+    trades = trades.concat(r.trades); offen = offen.concat(r.openTrades);
+  }
+  trades.sort((a, b) => a.closeTime - b.closeTime);
+  for(const t of trades.concat(offen)){ t.wallet = addr; t.venue = v; t.id += '|' + v; }
+
+  let fundList = funding.map(x => Object.assign({wallet:addr}, x));
+  if(!fundList.length){
+    FUNDMERK.beobachten(addr, offen, positions);
+    fundList = FUNDMERK.liste(addr, trades.concat(offen));
+  }
+  attachFunding(trades.concat(offen), fundList);
+  return {addr, venue:v, fills, trades, openTrades:offen, positions, portfolio:null,
+    funding:fundList, ledger:ledger.map(x => Object.assign({wallet:addr}, x)),
+    spot, vaults:[], staking:null, subAccounts:[], fees:null,
+    orders:orders.map(o => Object.assign({wallet:addr}, o))};
+}
+
 /* ---------- Laden (eine oder mehrere Wallets) ---------- */
 async function loadOne(addr, incremental){
+  if(boerseVon(addr) !== 'hl') return loadVenue(addr, incremental);
   const cache = incremental ? await CACHE.get(addr) : null;
   let base = cache ? cache.fills : [];
   /* Leerer Speicher, aber eine Sicherung eingerichtet – ein neues Gerät.
@@ -5078,8 +5495,8 @@ async function loadOne(addr, incremental){
   // Dieselben Objekte, die später in S.funding stehen – so bleibt die Zuordnung zum Trade erhalten
   const fundList = (Array.isArray(fund) ? fund : []).map(x => Object.assign({wallet:addr}, x));
   attachFunding(r.trades.concat(r.openTrades), fundList);
-  r.trades.forEach(t => { t.wallet = addr; });
-  r.openTrades.forEach(t => { t.wallet = addr; });
+  r.trades.forEach(t => { t.wallet = addr; t.venue = 'hl'; });
+  r.openTrades.forEach(t => { t.wallet = addr; t.venue = 'hl'; });
   return {addr, fills, trades:r.trades, openTrades:r.openTrades,
     positions:pos, portfolio:port,
     funding:fundList,
@@ -5132,9 +5549,16 @@ async function load(incremental){
     S.spotPrices = buildSpotPrices(sMeta);
 
     const data = [];
+    S.boerseHinweis = '';
     for(const w of act){
       setStatus('<span class="spin"></span> Lade ' + esc(w.label) + '…');
-      data.push(await loadOne(w.addr, incremental));
+      if(boerseVon(w.addr) === 'hl'){ data.push(await loadOne(w.addr, incremental)); continue; }
+      try{ data.push(await loadOne(w.addr, incremental)); }
+      catch(e){
+        S.boerseHinweis = esc(walletLabel(w.addr)) + ': ' + esc(e.message);
+        data.push({addr:w.addr, venue:boerseVon(w.addr), fills:[], trades:[], openTrades:[], positions:null,
+          portfolio:null, funding:[], ledger:[], spot:null, vaults:[], staking:null, subAccounts:[], fees:null, orders:[]});
+      }
     }
     S.wdata = data;
     S.addr = act[0].addr;
@@ -5162,6 +5586,7 @@ async function load(incremental){
     S.portfolio = [['allTime', {accountValueHistory: mergeHistories(data.map(d => acctHistoryOf(d.portfolio))),
       pnlHistory:[]}]];
     S.totals = computeTotals();
+    if(S.boerseHinweis) showErr('<b>Nicht alles geladen.</b> ' + S.boerseHinweis + ' – Hyperliquid und die übrigen Wallets sind trotzdem da.');
     // Einzelheiten zu den Vaults, in denen wirklich Geld liegt
     if((S.vaults || []).some(v => num(v.equity) > 0)){
       setStatus('<span class="spin"></span> Lade Vaults…');
@@ -5331,6 +5756,7 @@ function filtered(von, bis, quelle){
   const coin = $('#fCoin').value;
   const tag = $('#fTag').value;
   const mkt = $('#fMarket').value;
+  const venue = $('#fVenue') ? $('#fVenue').value : '';
   // Ohne eigenen Zeitraum gilt der Filter oben
   const eigen = von !== undefined;
   const cutoff = (!eigen && days) ? Date.now() - days * 86400000 : 0;
@@ -5340,6 +5766,7 @@ function filtered(von, bis, quelle){
     if(coin && t.coin !== coin) return false;
     if(mkt === 'perp' && t.spot) return false;
     if(mkt === 'spot' && !t.spot) return false;
+    if(venue && (t.venue || 'hl') !== venue) return false;
     if(tag){
       const tl = tagsOf(noteOfTrade(t));
       if(tag === '__none'){ if(tl.length) return false; }
@@ -5702,7 +6129,7 @@ function renderTrades(tr){
     return '<tr data-id="' + esc(t.id) + '">' +
       '<td class="mut">' + dt(t.closeTime) + '</td>' +
       '<td class="wcol mut">' + esc(walletLabel(t.wallet)) + '</td>' +
-      '<td><b>' + esc(coinName(t.coin)) + '</b>' + (t.liquidated ? ' <span class="pill liq">LIQ</span>' : '') +
+      '<td><b>' + esc(coinName(t.coin)) + '</b>' + boersePill(t) + (t.liquidated ? ' <span class="pill liq">LIQ</span>' : '') +
         (t.partial ? ' <span class="pill" style="color:var(--muted);border-color:var(--line)" title="Eröffnung liegt vor dem geladenen Zeitraum">≈</span>' : '') +
         (istDN(t) ? ' <span class="pill dn" title="Delta neutral – in keiner Auswertung">DN</span>' : '') + '</td>' +
       '<td><span class="pill ' + t.side + '">' + (t.side === 'long' ? 'LONG' : 'SHORT') + '</span></td>' +
@@ -6952,6 +7379,7 @@ function feeAudit(tr){
 }
 
 function renderFeeAudit(tr){
+  tr = tr.filter(t => (t.venue || 'hl') === 'hl');
   const a = feeAudit(tr);
   const box = $('#feeAudit');
   if(!box) return;
@@ -8257,7 +8685,7 @@ function zeichneKarte(cv, t, opt){
   sp('Held', kDauer(d.dauer) || '–', P + 600);
   lin(904);
 
-  karteFuss(g, F, hell, kDatum(d.von) + (d.laeuft ? ' – open' : ' – ' + kDatum(d.bis)));
+  karteFuss(g, F, hell, kDatum(d.von) + (d.laeuft ? ' – open' : ' – ' + kDatum(d.bis)), boerseName(t.venue));
   return true;
 }
 
@@ -8287,7 +8715,7 @@ function karteGrund(g, F, akzent, hell){
   }
 }
 /* Fuß: Datum links, Referral mit QR rechts */
-function karteFuss(g, F, hell, datumText){
+function karteFuss(g, F, hell, datumText, boerse){
   const W = KARTE.W, P = 80;
   g.textAlign = 'left';
   g.font = '400 23px ' + SANS;
@@ -8309,7 +8737,7 @@ function karteFuss(g, F, hell, datumText){
   }else{
     g.font = '400 21px ' + SANS;
     g.fillStyle = F.mut;
-    g.fillText('Hyperliquid  ·  tracked with Oryol', P, 996);
+    g.fillText((boerse || 'Hyperliquid') + '  ·  tracked with Oryol', P, 996);
   }
 }
 
@@ -8325,7 +8753,8 @@ function zeitraumDaten(tr, label, von, bis){
   const best = tr.length ? tr.reduce((a, b) => (b.retPct > a.retPct ? b : a)) : null;
   const schlecht = tr.length ? tr.reduce((a, b) => (b.retPct < a.retPct ? b : a)) : null;
   const halte = tr.length ? tr.reduce((s, t) => s + (t.durationMs || 0), 0) / tr.length : 0;
-  return {zeitraum:true, label, von, bis, n:tr.length, netto:m.net, wins:m.wins, losses:m.losses,
+  const vs = Array.from(new Set(tr.map(t => boerseName(t.venue))));
+  return {zeitraum:true, boerse:vs.length ? vs.join(' + ') : 'Hyperliquid', label, von, bis, n:tr.length, netto:m.net, wins:m.wins, losses:m.losses,
     winrate:m.winrate, pf:m.pf, rSumme, rVorhanden, best, schlecht, halte};
 }
 function zeichneZeitraumKarte(cv, z, opt){
@@ -8408,7 +8837,7 @@ function zeichneZeitraumKarte(cv, z, opt){
   sp('Avg hold', z.n ? kDauer(z.halte) : '–', P + 600);
   lin(904);
 
-  karteFuss(g, F, hell, kDatum(z.von) + ' – ' + kDatum(z.bis));
+  karteFuss(g, F, hell, kDatum(z.von) + ' – ' + kDatum(z.bis), z.boerse);
   return true;
 }
 
@@ -8809,6 +9238,7 @@ function openTrade(id){
     (laeuft ? ' <span class="pill jetzt">läuft</span>' : '') +
     (t.paper ? ' <span class="pill" style="color:var(--acc2);border-color:var(--acc2)">PAPER</span>' : '') +
     (istDN(t) ? ' <span class="pill dn" title="Delta neutral – in keiner Auswertung">DN</span>' : '') +
+    (t.venue && t.venue !== 'hl' ? ' <span class="pill boerse b-' + t.venue + '">' + esc(boerseName(t.venue)) + '</span>' : '') +
     (t.liquidated ? ' <span class="pill liq">LIQUIDIERT</span>' : '');
   $('#mSub').textContent = laeuft
     ? txt('seit') + ' ' + dt(t.openTime) + '  ·  ' + dur(Date.now() - t.openTime)
@@ -13054,7 +13484,7 @@ const LIVE = {
     const ws = activeWallets();
     if(!ws.length){ this.posFehler = false; return; }
     const data = await Promise.all(ws.map(w =>
-      info({type:'clearinghouseState', user:w.addr})
+      positionenHolen(w.addr)
         .then(r => ({addr:w.addr, positions:r})).catch(() => null)));
     const ok = data.filter(Boolean);
     // Scheitert die Abfrage, wird das angezeigt statt „keine offene Position“
@@ -13067,6 +13497,14 @@ const LIVE = {
     }
     S.positions = mergePositions(S.wdata);
     try{ HEBEL.merken(); }catch(e){}
+    // Funding-Stand der Börsen ohne Funding-Liste festhalten
+    try{
+      for(const x of ok){
+        const d = S.wdata.find(y => y.addr === x.addr);
+        if(boerseVon(x.addr) !== 'hl' && d && !(d.funding || []).some(f => !f.geschaetzt))
+          FUNDMERK.beobachten(x.addr, (S.openTrades || []).filter(t => t.wallet === x.addr), x.positions);
+      }
+    }catch(e){}
     // Hat sich der Bestand geändert, fehlen dazu die Ausführungen
     const jetzt = ((S.positions || {}).assetPositions || [])
       .map(a => (a.wallet || '') + '|' + ((a.position || {}).coin || '') +
@@ -13090,7 +13528,7 @@ const LIVE = {
     if(!ws.length) return;
     try{
       const res = await Promise.all(ws.map(w =>
-        info({type:'frontendOpenOrders', user:w.addr})
+        ordersHolen(w.addr)
           .then(list => (Array.isArray(list) ? list : [])
             .map(o => Object.assign({wallet:w.addr}, o)))
           .catch(() => null)));
@@ -13693,7 +14131,7 @@ function archiveImport(file){
       let added = 0, notesAdded = 0;
       for(const w of d.wallets){
         const addr = String(w.addr || '').toLowerCase();
-        if(!/^0x[a-f0-9]{40}$/.test(addr)) continue;
+        if(!/^((lighter|txflow):)?0x[a-f0-9]{40}$/.test(addr)) continue;
         if(!S.wallets.some(x => x.addr === addr)){
           S.wallets.push({id:'w' + Date.now().toString(36) + S.wallets.length,
             addr, label:w.label || ('Wallet ' + (S.wallets.length + 1)), on:false});
@@ -14151,6 +14589,13 @@ function mobilLabels(tabelle){
 }
 function renderAll(){
   dnAufteilen();
+  // Der Börsen-Filter erscheint erst, wenn mehr als eine Börse dabei ist
+  const fv = $('#fVenue');
+  if(fv){
+    const mehr = aktiveBoersen().length > 1;
+    fv.classList.toggle('hide', !mehr);
+    if(!mehr) fv.value = '';
+  }
   S.totals = computeTotals();
   // Plan-Zuordnung über alle Trades zuerst – das Risiko je Trade hängt daran
   try{ S.planLink = linkPlans(S.trades); }catch(e){}
@@ -14222,22 +14667,36 @@ $('#walletBtn').addEventListener('click', openWallets);
 $('#wOpen2').addEventListener('click', openWallets);
 $('#wClose').addEventListener('click', closeWallets);
 $('#wModal').addEventListener('click', e => { if(e.target.id === 'wModal') closeWallets(); });
+$('#wVenue').addEventListener('change', () => {
+  $('#wTokenBox').classList.toggle('hide', $('#wVenue').value !== 'lighter');
+  $('#wTxHint').classList.toggle('hide', $('#wVenue').value !== 'txflow');
+});
 $('#wAdd').addEventListener('click', () => {
   const label = $('#wLabel').value.trim();
-  const addr = $('#wAddr').value.trim().toLowerCase();
-  if(!/^0x[a-fA-F0-9]{40}$/.test(addr)){
+  const roh = $('#wAddr').value.trim().toLowerCase();
+  const venue = $('#wVenue').value || 'hl';
+  const token = venue === 'lighter' ? $('#wToken').value.trim() : '';
+  if(!/^0x[a-fA-F0-9]{40}$/.test(roh)){
     showErr('Das sieht nicht nach einer gültigen Adresse aus. Erwartet wird 0x + 40 Zeichen.');
     return;
   }
+  if(token && !/^ro:/.test(token)){
+    showErr('Das ist kein Read-only-Token von Lighter (er beginnt mit „ro:“). Einen normalen API-Schlüssel hier bitte nicht eintragen.');
+    return;
+  }
+  const addr = venue === 'hl' ? roh : venue + ':' + roh;
   if(S.wallets.some(w => w.addr === addr)){
     showErr('Diese Wallet ist schon in der Liste.');
     return;
   }
   showErr('');
-  S.wallets.push({id:'w' + Date.now().toString(36), addr,
-    label: label || ('Wallet ' + (S.wallets.length + 1)), on:true});
+  const neu = {id:'w' + Date.now().toString(36), addr,
+    label: label || ('Wallet ' + (S.wallets.length + 1)), on:true};
+  if(venue !== 'hl') neu.venue = venue;
+  if(token) neu.token = token;
+  S.wallets.push(neu);
   saveWallets(S.wallets);
-  $('#wLabel').value = ''; $('#wAddr').value = '';
+  $('#wLabel').value = ''; $('#wAddr').value = ''; $('#wToken').value = '';
   renderWalletList(); renderWalletBtn();
 });
 $('#wApply').addEventListener('click', () => {
@@ -14371,7 +14830,7 @@ $('#simRun').addEventListener('click', renderSim);
 $('#simFromStats').addEventListener('click', simFromStats);
 
 /* Filter */
-['#fRange','#fCoin','#fTag','#fMarket','#fSort','#fResult'].forEach(sel =>
+['#fRange','#fCoin','#fTag','#fMarket','#fVenue','#fSort','#fResult'].forEach(sel =>
   $(sel).addEventListener('change', renderAll));
 $('#fSearch').addEventListener('input', () => renderTrades(filtered()));
 $$('[data-curve]').forEach(el => el.addEventListener('click', () => {
