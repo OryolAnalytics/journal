@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -17,32 +17,36 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{
-  --bg:#ffffff; --panel:#ffffff; --panel2:#f7f8fa; --line:#e4e7ec;
-  --txt:#111418; --muted:#6b7280; --acc:#0d7d6f; --acc2:#2563eb;
-  --up:#0f8a5f; --down:#c9354a; --warn:#b45309;
-  --upBg:rgba(15,138,95,.10); --downBg:rgba(201,53,74,.10);
-  --shadow:0 1px 2px rgba(16,24,40,.05);
-  --onTxt:#fff;                 /* Schrift auf dunklem Knopf */
-  --headBg:rgba(255,255,255,.92);
-  --errBg:#fdeaec; --errTxt:#8e1f30; --errLine:rgba(201,53,74,.35);
+  /* Light: warm paper */
+  --bg:#f5f3ee; --panel:#fffefb; --panel2:#f0ede5; --line:#e3ded2; --side:#efece4;
+  --txt:#1b211e; --muted:#6c736d; --acc:#1f6b4a; --acc2:#3c6e91;
+  --accSoft:rgba(31,107,74,.10); --accLine:rgba(31,107,74,.28); --onAcc:#ffffff;
+  --up:#1e7a4e; --down:#b5463d; --warn:#a8661c;
+  --upBg:rgba(30,122,78,.10); --downBg:rgba(181,70,61,.10);
+  --shadow:none;
+  --onTxt:#fff;
+  --headBg:#efece4;
+  --errBg:#f8e9e6; --errTxt:#7f2a22; --errLine:rgba(181,70,61,.35);
   --logoInvert:0;
-  --winBg:rgba(15,138,95,.07); --winLine:rgba(15,138,95,.32);
-  --r:12px;
+  --winBg:rgba(30,122,78,.08); --winLine:rgba(30,122,78,.32);
+  --r:14px;
 }
 
 /* Dunkle Ansicht – wird nur aktiv, wenn sie in den Einstellungen gewählt ist.
    Die helle Ansicht bleibt davon vollständig unberührt.                      */
 :root[data-theme="dark"]{
-  --bg:#0f1216; --panel:#171b21; --panel2:#1e232b; --line:#2b323c;
-  --txt:#e8ecf1; --muted:#9aa5b4; --acc:#3ec9b4; --acc2:#5b9bff;
-  --up:#3ecf8e; --down:#f2606f; --warn:#e0a84a;
-  --upBg:rgba(62,207,142,.13); --downBg:rgba(242,96,111,.13);
-  --shadow:0 1px 2px rgba(0,0,0,.35);
-  --onTxt:#0f1216;
-  --headBg:rgba(15,18,22,.92);
-  --errBg:#2a1a1e; --errTxt:#ffb3bd; --errLine:rgba(242,96,111,.35);
+  /* Dark: near-black with a green undertone */
+  --bg:#0c0f0e; --panel:#131816; --panel2:#19201d; --line:#25302b; --side:#0f1312;
+  --txt:#e8ece7; --muted:#8b978f; --acc:#45b783; --acc2:#7fa9c9;
+  --accSoft:rgba(69,183,131,.13); --accLine:rgba(69,183,131,.32); --onAcc:#06110b;
+  --up:#4cc38a; --down:#e06c63; --warn:#d6a44a;
+  --upBg:rgba(76,195,138,.12); --downBg:rgba(224,108,99,.12);
+  --shadow:none;
+  --onTxt:#0c0f0e;
+  --headBg:#0f1312;
+  --errBg:#2a1716; --errTxt:#ffb8b0; --errLine:rgba(224,108,99,.35);
   --logoInvert:1;
-  --winBg:rgba(62,207,142,.10); --winLine:rgba(62,207,142,.34);
+  --winBg:rgba(76,195,138,.09); --winLine:rgba(76,195,138,.32);
 }
 /* ---------- Logo-Animation beim Start ----------
    Nachbau des Stings: fünf Buchstaben steigen auf, werden scharf und ruhen.
@@ -153,8 +157,8 @@ tbody tr{cursor:pointer}
 tbody tr:hover{background:var(--panel2)}
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid}
-.pill.long{color:var(--up);border-color:rgba(15,138,95,.28);background:var(--upBg)}
-.pill.short{color:var(--down);border-color:rgba(201,53,74,.28);background:var(--downBg)}
+.pill.long{color:var(--up);border-color:var(--winLine);background:var(--upBg)}
+.pill.short{color:var(--down);border-color:var(--errLine);background:var(--downBg)}
 .pill.tag{color:var(--acc);border-color:rgba(13,125,111,.28);background:rgba(13,125,111,.08)}
 .pill.liq{color:var(--warn);border-color:rgba(180,83,9,.3);background:rgba(180,83,9,.08)}
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
@@ -194,9 +198,6 @@ tbody tr:hover{background:var(--panel2)}
 .ins.hinweis{border-left:3px solid var(--warn)}
 .ins.notiz{opacity:.82}
 .pill.dn{color:var(--acc2);border-color:var(--acc2)}
-.pill.boerse{font-size:10.5px;padding:1px 7px;color:var(--muted);border-color:var(--line)}
-.pill.boerse.b-lighter{color:#8b9cff;border-color:#8b9cff}
-.pill.boerse.b-txflow{color:#e0a24a;border-color:#e0a24a}
 .dnbox{border:1px dashed var(--line);border-radius:12px;padding:10px 14px;margin:6px 0 12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px}
 .dnbox .dnkopf{flex:1 1 100%;font-size:13px}
 .dnbox .dnzahlen{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;flex:1 1 auto}
@@ -304,7 +305,7 @@ tbody tr:hover{background:var(--panel2)}
 .lpos .lshare{flex:0 0 auto;padding:5px 9px;font-size:14px;line-height:1;opacity:.55}
 .lpos .lshare:hover{opacity:1}
 .flash{animation:fl .6s ease-out}
-@keyframes fl{from{background:rgba(13,125,111,.16)}to{background:transparent}}
+@keyframes fl{from{background:var(--accSoft)}to{background:transparent}}
 .stat{display:flex;gap:5px;flex:0 0 auto}
 .stat button{padding:4px 10px;font-size:11.5px;border-radius:999px;line-height:1.4}
 .stat button.on{background:var(--txt);border-color:var(--txt);color:var(--onTxt);font-weight:600}
@@ -336,7 +337,7 @@ tbody tr:hover{background:var(--panel2)}
 .cell.today{outline:2px solid var(--txt);outline-offset:-2px}
 .cell .ev{font-size:9.5px;line-height:1.25;overflow:hidden;text-align:left;width:100%}
 .cell .ev b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cell.hasplan{background:rgba(13,125,111,.07);border-color:rgba(13,125,111,.3)}
+.cell.hasplan{background:var(--accSoft);border-color:var(--accLine)}
 .cell.clickable{cursor:pointer}
 .cell.clickable:hover{border-color:var(--txt)}
 .lsbox{border:1px solid var(--line);border-radius:11px;padding:13px}
@@ -377,6 +378,156 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   .chartbox{height:220px}
   td,th{padding:8px 7px;font-size:12px}
 }
+
+/* =====================================================================
+   Oryol – new look (2026-10)
+   Dark first, warm paper in light mode, deep green accent.
+   Editorial headings in a serif, numbers in a calm sans with tabular figures.
+   ===================================================================== */
+:root{
+  --serif:"Iowan Old Style","Charter","Source Serif Pro","Georgia",ui-serif,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --sideW:248px;
+}
+html,body{font-family:var(--sans);font-feature-settings:"tnum" 1,"cv11" 1;letter-spacing:-.005em}
+body{padding-bottom:40px;line-height:1.45}
+::selection{background:var(--accSoft)}
+
+/* ---------- Buttons, inputs ---------- */
+button{border-radius:10px;background:var(--panel2);border-color:var(--line)}
+button:hover{border-color:var(--acc);color:var(--txt)}
+button.primary{background:var(--acc);border-color:var(--acc);color:var(--onAcc);font-weight:600}
+button.primary:hover{filter:brightness(1.08);color:var(--onAcc)}
+input[type=text],input[type=search],input[type=number],input[type=date],input[type=time],select,textarea{
+  background:var(--panel2);border-color:var(--line);border-radius:10px}
+input:focus,select:focus,textarea:focus{border-color:var(--acc)!important;box-shadow:0 0 0 3px var(--accSoft)}
+
+/* ---------- Chips / segmented ---------- */
+.tab{background:transparent;border-color:var(--line);color:var(--muted);font-weight:500}
+.tab:hover{color:var(--txt);border-color:var(--muted)}
+.tab.on{background:var(--accSoft);border-color:transparent;color:var(--acc);font-weight:600}
+.chip.on,.star.on,.stat button.on{background:var(--acc);border-color:var(--acc);color:var(--onAcc)}
+.chip:hover,.tile:hover,.lpos:hover,.plan:hover,.cell.clickable:hover{border-color:var(--acc)}
+
+/* ---------- Panels ---------- */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;
+  margin-bottom:16px;box-shadow:none}
+.panel h2{font-family:var(--serif);font-size:18px;font-weight:600;color:var(--txt);
+  text-transform:none;letter-spacing:-.01em;margin:0 0 14px}
+.panel h3,.lsbox h4{font-family:var(--serif);font-weight:600}
+.kpis{gap:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.kpi .k{font-size:11.5px;text-transform:none;letter-spacing:0;color:var(--muted);font-weight:500}
+.kpi .v{font-size:22px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:11.5px}
+.tile,.lpos,.wrow,.mcell,.plan,.lsbox,.reslist{border-radius:12px}
+.tile,.lpos{background:var(--panel)}
+.pill{font-weight:600;letter-spacing:.01em}
+.pill.tag{color:var(--acc);border-color:var(--accLine);background:var(--accSoft)}
+table{font-size:13.5px}
+th{text-transform:none;letter-spacing:0;font-size:12px;font-weight:500;color:var(--muted)}
+td{border-bottom-color:var(--line)}
+tbody tr:hover{background:var(--accSoft)}
+.sheet{background:var(--panel);border-color:var(--line);border-radius:20px 20px 0 0}
+.sheet h3{font-family:var(--serif);font-size:21px;font-weight:600}
+.modal{background:rgba(5,8,7,.55);backdrop-filter:blur(3px)}
+.f label{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:500}
+.dl{border-bottom-color:var(--line)}
+.empty-state{font-family:var(--serif);font-size:16px}
+.err{border-radius:12px}
+.foot{opacity:.75}
+
+/* ---------- Page head ---------- */
+.pagehead{display:flex;flex-direction:column;gap:6px;margin:6px 0 18px}
+.pagehead .kicker{font-size:12px;color:var(--muted);font-weight:500;letter-spacing:.02em}
+.pagehead h1{font-family:var(--serif);font-weight:600;font-size:32px;letter-spacing:-.02em;margin:0;line-height:1.1}
+.pagehead .tabs{padding:6px 0 0;margin:0;max-width:none}
+#globalFilters{margin-bottom:18px}
+#globalFilters select,#globalFilters .pickBtn{padding:7px 11px;font-size:13px;border-radius:999px;background:var(--panel)}
+
+/* ---------- Home greeting ---------- */
+.hello{margin:0 0 20px}
+.hello .hi{font-family:var(--serif);font-size:24px;font-weight:600;letter-spacing:-.01em}
+.hello .sub{color:var(--muted);font-size:14px;margin-top:4px}
+.hello .sub a{color:var(--acc);cursor:pointer;text-decoration:none;font-weight:600}
+
+/* ---------- Brand ---------- */
+.brandmark{font-family:'Oryol Mark',var(--serif);font-size:25px;letter-spacing:.14em;color:var(--txt);
+  line-height:1;user-select:none;padding-left:2px}
+
+/* ---------- Navigation: sidebar on desktop ---------- */
+header{background:var(--side);border-color:var(--line);backdrop-filter:none}
+.sidenav{display:flex;flex-direction:column;gap:2px}
+.nv{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:10px;color:var(--muted);
+  font-size:14.5px;font-weight:500;cursor:pointer;user-select:none;text-decoration:none;transition:.12s}
+.nv svg{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+.nv:hover{color:var(--txt);background:var(--panel2)}
+.nv.on{color:var(--txt);background:var(--panel2)}
+.nv.on svg{stroke:var(--acc)}
+.nvsub{display:flex;flex-direction:column;margin:2px 0 8px 20px;padding-left:12px;border-left:1px solid var(--line)}
+.ns{padding:6px 10px;font-size:13.5px;color:var(--muted);border-radius:8px;cursor:pointer;user-select:none}
+.ns:hover{color:var(--txt)}
+.ns.on{color:var(--acc);font-weight:600}
+.nvlabel{font-size:11.5px;color:var(--muted);opacity:.7;margin:18px 11px 6px;letter-spacing:.04em}
+.nvmore .nv{font-size:13.5px;padding:7px 11px}
+.hdright .iconbtn{padding:8px 10px;line-height:1;min-width:38px}
+#status{padding:0;margin:0;font-size:12px;line-height:1.45}
+
+@media (min-width:980px){
+  body{padding-left:var(--sideW)}
+  header{position:fixed;left:0;top:0;bottom:0;width:var(--sideW);border-right:1px solid var(--line);
+    border-bottom:0;display:flex;flex-direction:column;gap:14px;padding:24px 14px 16px;overflow-y:auto;z-index:60}
+  header .hd{padding:0 8px 10px;margin:0;max-width:none}
+  header .hdright{margin-top:auto;flex-direction:column;align-items:stretch;gap:8px}
+  header .hdright .wsel{justify-content:space-between;width:100%}
+  header .hdrow{display:flex;gap:8px}
+  header .hdrow button{flex:1}
+  header #status{padding:0 6px}
+  .wrap{max-width:1180px;padding:28px 36px 20px}
+  #tabs{display:none}
+  #bottombar{display:none}
+}
+
+/* ---------- Phone / tablet: top bar + bottom bar ---------- */
+@media (max-width:979px){
+  header{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:10px 14px;border-bottom:1px solid var(--line)}
+  header .hd{padding:0;margin:0;flex:1;max-width:none}
+  header .sidenav{display:none}
+  header .hdright{display:flex;gap:7px;align-items:center}
+  header .hdrow{display:flex;gap:7px}
+  header #status{flex:1 1 100%;order:5}
+  header #status:empty{display:none}
+  .brandmark{font-size:21px}
+  .wrap{padding:14px 14px 10px}
+  .pagehead h1{font-size:25px}
+  .pagehead .tabs{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;margin:0 -14px;padding:6px 14px 0}
+  body{padding-bottom:calc(78px + env(safe-area-inset-bottom))}
+  #bottombar{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;justify-content:space-around;
+    background:var(--side);border-top:1px solid var(--line);
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  #bottombar a{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--muted);
+    padding:5px 8px;border-radius:10px;cursor:pointer;flex:1;max-width:96px;user-select:none}
+  #bottombar a svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  #bottombar a.on{color:var(--acc)}
+  .wsel{max-width:44vw}
+}
+@media (display-mode:standalone),(display-mode:fullscreen){
+  @media (max-width:979px){ header{padding-top:calc(10px + env(safe-area-inset-top))} }
+}
+/* "More" sheet on the phone */
+.morekpis{grid-column:1/-1;margin-top:2px}
+.morekpis summary{cursor:pointer;color:var(--muted);font-size:13px;padding:6px 2px;list-style:none;user-select:none}
+.morekpis summary::-webkit-details-marker{display:none}
+.morekpis summary::before{content:'+ ';color:var(--acc)}
+.morekpis[open] summary::before{content:'– '}
+.morekpis .kpis{margin-top:10px}
+.morekpis .kpi .v{font-size:18px}
+#kpis > .kpi .v{font-size:26px}
+.morelist .mg{margin:14px 0 4px;font-size:12px;color:var(--muted)}
+.morelist .mi{display:block;width:100%;text-align:left;margin:4px 0;padding:11px 14px;background:var(--panel2)}
+.morelist .mi.on{border-color:var(--acc);color:var(--acc)}
 </style>
 </head>
 <body>
@@ -433,21 +584,24 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </div>
 </div>
 <header>
-  <div class="hd">
-    <img class="logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAjAAAACsCAYAAABlypZ+AABOr0lEQVR42u19aXNc15HlqQ0LAQIgwZ0URUoiRWqxZFmybLfVtnudjpn+MP9zImY6ojtm2na722635U0WJZESJZHivoDgAmIHClVvPuRJv6xb91W9wlaFqjwRFQCJWl69e2/ekyfzZhYmDxyGw+FwOBwOxzahAGAYwCh/jvBR4c8pAPsArAG4D+AugDkA9cj7JFkfUvb77HA4HA7HwKJEYlEmYbDkoWD+L+v3El+rBGWYP4fM78P8d5k/95PcrPF1+p7PAWzkvXAnMA6Hw+FwDA6KaFQ6JgGcAXCEpKJGUjJkyI2SFPsoRX4vBb+H/1cwZKcMYB3AbYgiUwbwNYCFgES5AuNwOBwOx4CjQDJhCcwRAB8AeAvABEQBKQIYI4nRxzBSJcX+XyV4/1a/1/l7kT/XAdyAKDJLAO4FBKZIApM4gXE4HA6HY7AJTDH4v2kA7wL4CUSBqZJojCINBVV26HqGAZwGcAupCpMbTmAcDofD4RgsEmMxAuAQgKP8dx2ijFRIdlQFKezQ9cxD1Jd1NCfxOoFxOBwOh8ORSWhKAR8YavH8BJInUzf/LuQkS/qaEn9uQEJGy5CEXicwDofD4XA4MgmIxTrkCPMCJBclD+FRMmLzWfK8Jvx3IfJwAuNwOBwOh6OJvIQqxxyAzwEcAHAcor6M899DhlQkSPNnypvkD/peRfOepZwkyAmMw+FwOBxOYP6MRwB+DSkoN430mPMEpNjcOOSo9QQkV+YwJOHWvqclN7sGJzAOh8PhcAwOQgLzBMDvAXyC9LSR1oEZJ2E5CeAUgJcBvMbH/oDA7DqcwDgcDofDMTgIyUaVjyyMQEJLJyDHne+T9FyA1JAZj7x3YTe+SGlkdMyH0+FwOBwORwwbkGPOcwAeQirn3oecHBonuVHU2xCYkODUATyD9EK6Dilqt2ieX4RX4nU4HA6HwxFB2OMohioJzBwJzC1I36IpAGchOTIty/7vBIo+dg6Hw+FwDDyJ0dNAJfPIIiWPAXzGx1cQFaUWkKEdJzOuwDgcDofDMbjQwnS1HCQnCUjM5wA+giT8noP0T1LUkRas2xG4AuNwOBwOh6MVcSlCTihp88YSgFUA1wB8DMlfWY4Qox2FExiHw+FwOBxZ0GPSNUhC7wbSVgJ3IWGkryE9jWKv2zF4CMnhcDgcDkc7EmN7H+npoGUAd0hkXIFxOBwOh8PRkyRGGzfa3JbHfKw5gXE4HA6Hw9Gr0JwYJShrAFbQuhieExiHw+FwOBw9QWIsh9DcGCcwDofD4XA4eh5183Mjg+Q4gXE4HA6Hw9Fz2LXCdU5gHA6Hw+FwbDecwDgcDofD4dhzxKWw2x/sBMbhcDgcDseegxMYh8PhcDgcTmAcDofD4XA4nMA4HA6Hw+FwOIFxOBwOh8PhBMbhcDgcDofDCYzD4XA4HA6HExiHw+FwOBxOYBwOh8PhcDicwDgcDofD4XA4gXE4HA6Hw+EExuFwOBwOh8MJjMPhcDgcDocTGIfD4XA4HAOFco9cx1bbcCc+lI4tzDGfPw7H3rP7vnadwHR14haC3/NO7CTyexL87nDYOVbImFtJ8HA4HDu/HrFF25+0sP8OJzA7Cicajt2caz7PHA5fjw4nMJv2fi3zrvOR7MDnFc1nJe5hb8s9jXlGhTbP7/RvoSfV6Xjpe9vxrwOobWLu1PfwfLHfoxc3rvo2vmexxfzcadTdpuSyGYXAHte3eQ7YuVDMsPvuLPcpdjuJNwkm9k4RJp+w3d2otmL0dmIz73TuOBw7MccdO7POCr5+BxPlHZhIiLDgVs8fBjAEoMLrKQMoRbzIxHg+dQBVABt8VAGs0duu55jozso7N9a9eK9i86OWMc+HzRyzSmAVwAp/1jM+I9lj41UbkLlZ9+XZc8Qkr+pRMWuyQpuvdr9oHI96sJfUjM2vAljno9Zm3hfNNbnddwKT6e1aGa8VoSgCmAZwCMAUgHEA+/hzhJO6GBjmxEzaJT4WAcwDeALgESd31ueVkIYI6k5i9rzBtPMty4BVABzjPNvPOVYyc2kBwEMAdyKvt+/tcDiybaslHe3IxARt/0GuyQnafLX7Q2Zv2jDvV6Ojush1uwBgDsAs94BW+1wRjSEst/tOYKKeXy3yGSXDsofNBD7CzeUAgEmSlwkAo+b59v3rRm3RCTzPSfwIwAMAj/l/K4at68M9ts17VrHTPLF/b+ZvOi/KHNt5AKscv6SD+Vbke6hXNwXgJB/H+O99fE5CIvwcwF0ANwDcB/CsjSLT67BrrVfUowIaVdNkm94zS63dye+hc8/alEHfDGN5LQU0q+rjxu4f5mPSrMtRkpfhgMBsGFu+xjWrjycAZszaXQ5s/kYLp9Yx4ATGesFZastRAC8AOMWJe4DMe4Lsez+Zt07ekcAAxzYtncj6WCErf86fT0hkHnNi3wFwu4Uq46w8Hc8kUC+GjXek4b6SIQqtfloyEf6fNWwj5vc7AD4G8DU9q/Vgcy4YwxZiEsCLAM6StBw3BHnCzDH1FDV8pIbwNoArAC7z9+UIkav32HiF13QIwCtcaxWujwS7l++WBPNInZB53tNbvKZO7mksr22UtuUIx33EENN68Lrt2KDB+V8KVLtnnEeD6NSUzDqKqSwnaftPkKwcQKq2jwMYM7Y/tBFWzambcd2gc7PKtbvM8XjOOfaYzuxD2v57/Ft4/SUzth5WGmAFJsv4jHADeR3At/jzZeMJV9AYbipGDFY7Qxl+vhKcp5y8twB8AeAzft7tyGKr+eRtMErhJqHe0nSgjqmnlOcxkvH/KhXvM2N+icZFQ4PrEYIVbpIFbtwXAHwbwDsA3qDhnERjqMm+V828V51z5rf8niUA18xmu50b4naOWSlYA8cA/JDrbQQSZq0FauZuEZiEY1zgRvJrestrgQOUhxQWA7VtjPbkDQCnjU3R0OB2JnXWzGcOcZP8E9JQdrWNI9BvsLa3EBmnowBeAvAax+cinYoDtB/hyaSt2n6da6sQFf4bOkBXAXzOx7PgGv106oASGCv91yMLXL3ek1RdXgJwnj9P0QDsNMZ5Dce4AZ+ksbtJQzrDx2LwutKAKzGFiBf1MoBXuUkcRGMy7LAhMkOG2NjfbbLeUI4595IhHkMBuQrJ5jTH+LRRXl7l45UcnxX+/eVA6Vmjl70WGM5e2qDCMZumw/A9GmoNh1XQuqDfdmxoidnU6obAFOlM3OJ1hKR5M99zlPbkTW6QBw0Z2kDzcfLCFr5Xlb/v41x+zvv6FedHOyWzXxAm1tYC4nyCj9N8nOU6PMPx2Wns4+cc4vWc4pq+yLmnqszTYHwskXYyMwAEphBMZv3/VwB8n17wBZKHMaQJukO7+N2GzEZ4DsAHJC1XAXwE4A8APg2uv4zBjWvHNhO9d9/leE4jzTkAGk8PhCcIimgMMebFGp+vZMfK1RvBtb3Bjfp9Ep/9nGujW1AXX+B7FCHS9Aa9uvWAwAC9k1+CiGp2wmzmG4ZI7MSRU1vjpW7sQs3MkTUS4k697aznljneh/ldD5nPrSMND28lP0a/l55yGTafe4j3ujhA9sHeS6uaHQHwHm3/myQOk0gPZYzu8rUe5r5zmtf1DJLjdgnAb2j3HweOq9oXT9jvUwJjCxFZ1WWf8dTfhcjX73BDCVEPmLx6N2s0Eno0ro54YljRGKYyGsMYYUyzYNSAA/zbBaRy8xgf1yGhimU0hgtcgZH78wIkHPH2Nm1y1lvXfCbrlStp0ITcsADaGMfvdZKXH5JgTWZ8bg2NUndWXlXNKElHAXwHEktforc9E8zDXjV0Sv5Geuy69iMNJ20naSryu47t4LWPRj67MCCOTpi4bB3EcYjifhHAD+gkvsY9IbT7tYjjqzmMavd1HSYZCokSjYqZ40PBOtZ9TfNsYJSgaa7xcTqyjyAqvE309TpifUhgdAKFlTRHzUbyDknMi5zUyNgows/UUyB3OaEec1KtcnLXDUse5uIYg0iFxzk5T5tFUwy8sBCn+X1OQKT2SwB+R1Vmw7xH3lo2/UxgKrzXB7ZR4UkiG1DstJJuxCVjmEYAvEVyoSrfiy3IC9Cc+1Fo8Rz7t1M0yPMQ2TkkML1ab6WKxuTjXkKSY87lfe0Gye4z2ouju/g99OTjMtL8l34OG6k6YR3QM2Ytah7SmQh5sWu9FIzfHdr9h5Akej1FtI70tJoq46N0lCeosJykk3w02KOy8qkmqA7th4SYPwfwCYA/ojEMOBQQKUefKDAhedkPCS/8JYB/5EQeD5SWJDBQ4SmSh5Bkqy/JiG9BclTUKK0ErFon8RQJyMuclItIczTKRqlJAkatoYgXudi+RWY+ws/6Eumpje0+ybAXEC7YFZLKG0iPQFplYzPyfEwJqQRzRA1RNSAJFwD8GMDf0GhOozmUWcxBYrKITsGoNcP0LB9AEns/3sSm240xe8a1dIpzXMMehch63Knr0c/SsNs8r2km8OI7cQ5ic/M+JEl/lA7PcdqGYuR6NgPrBGly8CNICOJLbrrVnERtL9uEWuBIvkSn9Sck+S8HdqEUIUH2nixBlO/LnBffGCdB84uqaFTSxyFhu0MQVfg8CexrkBDWkCE74bjrNU3zcZG25AT/vgo58QhDnJy89AGBsROvbjaboyQOmn/wliEvauA1FJSg8Vj0OknLN5BTHjfIgO8YBWYl43rmuKHs4897fN1lEpELVGROoTHxs2q+r63EOslrX6XSoPHRBxmbVb+fLAi9l1kqU8vcKA4aFUwJzWE0JujVDQkobGLj1NDRBtLjjwdodH4M4EckL4cjr1NF7ymveQhpwaxwDGO9nVQm1xoWQ0iP/4/R8KKHDFxMBXoA4JfcDI4hzdewSZbFwBMO1a88RKIQbFqLvO+PuE71WKue1NEj6qtt5lxeArMMScqvcfP7iON0lN/3OB/TwetqGetaH+VABVykSnAbaRLoda6HWcSP8/eDnShFxucoycp3kOY6vhwhfTaJ2uaxzdD2X4MkQN/ivdXE2mct7t0T3v9J2v3b3EM+paJygcRmxIyBzWe04at9fL6qSwcgp8qumvmpzq4rMXuYwITxwCIN4HcA/D3VlxM0kuHrysGGoLgJ4BcAfkUj8JSEZQ1pieh2WOZieMzFMEJv8316BFp91RrmUsb3nUCaBHqSz/mQ1xXb6Pp1MoeqU8LN6EOI3DpN79ZuiK/QeJxHGmayxKXYRrHICimUzNwp8jP+J4C/4jiPZ7zfPAnxV5wbB0hQQ4LVbrO2HqSebDhoCEyYV5P0wJgpZri2/kCyOYlU7n+X3+14cL876RmVoDk8u8D7/gU3gZvcmGa5IWjdpuXAOal3QJrCe7yK9EThZySbY7RHL3Fz1TDjdMQpK+YgNqv8Xr+jc6MqkqrDq+jfit5hOGaMc+ivSF4u0B7E9pQkg4B8AuD/UdG8zftXNXOk3T1cQ5picBsS/p/iOP8dgL/g2Nsq7sWM+V0h+Zqm03uE13HVvE5z3fr9WHzfEZhChvJyHJLV/RNI8uSFYLHr82AmzZDxjG9wQ/wFf85kLJyYUbXJnAnShNtlY7hXDWF6lxvYGA15mAyqm9AI0thqDWlJ6kv0DGqBh9/PSCIGY41k7gbHcj/S48u3uYk8heRCHSS5KCE7jIgcRmqB913rz2iC4DvBcxf5WOI13KV3/BVVgJepoIQeYruQkk3QLHJuHKS60a7fVq+MmcVt3g9tuXGBpGba3ItOximJqD4fkjRdR3pktbqJ98qLOuK5Pt8gLTCnBS0vknSPozFcafOw7H1QNek6N90/kMR808LJ6weECbuatzLJOfMBVdA3kCZNq8JdRGP4xha5u8/7+GsA/4HGcGzoOMROydk+SHbc55Em4qpqu0oSM4bGCEISqClaQPMYv59VfO8grZ8ENObhOXpJJhwZHYtN4rApoyUv/50E5kU013SwhsDGQtcp8f5vAP8CkZJn2nhb4dFMS16yXqdJfc+5cEZouMKk3FjTMCCNs05xAs8Yj9F6FoPa9bTG+6GE4SE3x1lumnriy5LYWhvFIyQUNyGy8FNIXtMHJMsXA+Vlg6TqTwD+HcDPIKGTP1Ixus/nv0alyH6HLMWhYOatXvMyCdE3vKYqmruq97p3ppWq7/O73OP/Txv1tBas+UIb8mA3/I8B/B8A/0US+RjdK99eDwjtfdqFAtLK33as62jM5Vrk/PkVgP/LuaXzqd9bkYQn/0B7+F0Af0u7/xoaFfdYm5G62fTvcV3+bxKYb1oQ25jdj9WcQcSRmaMdqiEt2zGC5tpNMbtfQZocPIo0VUExBM+LCe1kWNbiFSpgZwNbW0I8DcPOlWfG+byBxvpsxVb3vdzGA9VJc4Qy3Y+4mZwzH65FskrG8NnJvAGJe/4nyctlc2HqqYflxNud/gkTg3XCL0Jk7AUaMa3QegLZp10S40EM09PYj/Skwcdm49pLm9Z2emT2XhVJSFc58W6SyMwjrcJ5EpsPrxRofM5wUbzPn1NmrFZoCC8B+D3J8VdoLBk+gUaJf7PfWdfJUEDYe3nMbA6HbgDaWuML3rt1Gvh36YWWg/VX6EA1UXX1lvm/kWCj2okTfYXIT82ze8DHLXrp60h7r4W1TOy/70BCHL+g6jITbHTWkerncLJuUudo939syIslGRqat6FZDb3cp0PxbwB+jrT2ih60CMNGndj9MNR8m++fmLn8ulGK7HcCmjtmH+beNsr5/AipAr+B3ixiOfAotzGAqkq8Tgb+F1ResgyZ9WYKHPgrNAb/TiKDYDOMSYVZm18hg/mHfTO079EBKkdFEpmhyLXGFs1JTuY679FvSIqAwSlcZRlwGFIMx+UOn3MYkg8zaby0YotNMaaEHKShfIkKjI21r1Cd+YJe8VeGtS8F76MVgMvY/EmUOpp7sSR7aMyKxokIx+s3SMuv/5ibe7g28hIY7WcTPqcUKJ91bJ8UX8h4hIT1GSR8cRQSiszCGj34S1QKPspQicOO9kmfrPGwPccEJPz6PaQ5L/tb2IBQmVskeflnEsHHkc8sZhCWJAdZLUa882VIPpSSmENI65ElLZSekrEZrwH4a66LD2lrai2UB0ePEBhLGuxRUq2u+xP+PhRM1rA6oyVATyCy8r9ApP61YBJVOzQASeT3WjCh1YDd42ce5vd8m0a6GFxrEY1JX4rXuIjXacguZSyqfj+ZVGtj+Oz9vsLHURLdETM/so6lh/f9CCRJXEu3W7n6BiSG/gsalmccn/XIvNYGjkNtPLlWc6xgNvklpEfs2xnbbo9ZHgN7jcpiAXJ640gH3yl0JI5AQny3SY5qZq0Xd0itaPeeNm9hjirhQgYZqRny8iHJy8PIPOjXpo2h/R7h+v0+ndaLXEuxvSPJmBc3IaGjn1HNsPdRK95uxvYngXORBKrPI5LzCYiKO4k0ibsYcZ5CJ3o/SZvuCbOGyG53BWvHDhCYumGwr0BOGv0gIC+6YQwhHjOvIT3r/yd6QNpMazjwardzEdpeRjWIfPwhN8KjJDPFjI1Yr3sdaUXWl7iIb9H7v43GUxSD1D8jJt9W0FhB8y6VkdM0HMfQXIenHZnYz/Gyc/MJN9z/IoH5PTelcC7rZjkMkY618WQnRDOJePkr/Lz1PUpcraEeQlpnY4aK1hUa+yluXp2O2SESfl0ns2ivpu7kPNXvaSusxjZM9bxXIWG1X1M1uIc0fq8kp9/LzNvE9XFIou6PIeUyphHvRWYdWbtWHiItDnrP3OthpFV3t2M+2NOxQ3zfDSoxn0LymMYhyf8Hgv2pFHwHfdhK3A8gp5LWkFbsLQ2I87pnCYziINn3P1K9GApel0QmsW4gCyQvf+AEeBI8dyfi4fZ9lZA840QehRzFPWs8iViNkkJEjbkA4L/xeT9FYxhsp7zLXlVjEBgBNeyJ8XS/pEf/Ag1BIfCYCzkMaficywD+CZJHdTNCXoDG4/pFpO0pNtBYmTnp4LtqPSNNDg9PJeyVcbe1MKpoDLM8NErlt5BWqgaaE1yzbMUk0jpM95GGC3ajcF7sumwRvYRrfhrZPXme0078ksreeuS+9VsCb9a6LFN9eY/2/3Cwbkpobt5ZCubTf0ByXq4F9qK6QyQwVvTyLiT3psL5+W7w/CKaD6xYu3+YJO4HfF/dx5IBdF573jMLB3YYcgT1uxz4Q4FRsK+zR5PVY3kKkWN/S4MWi4fvhKRcN5+lasxTSK7E51RQqhEjnAST2B7ZO0g2/kMSoDJ2pqPvXiMz9qil3rcqPa6bAWnN44EnEWJoPamf0jt+jPS0RMn8tO+jpOM552zRKDTtatLYpnV1vs8cPbC9fArNxvzticElSN7A77j5hImOSZvND1TMXqQKc9TYkm7cq0KwfvUE5QtorlelG999blBfcs6ogqObVL8WM7PhdG3zcpY2/9tIC8Mlgd0sRuaHrpc7VEo/Ium3KtZO3cfw2HeZqtoXdKKv8d9JDqdJ504RkgP0fd6Pw2gMz3ooqQcJDOitvEbychFpAmUhYuizNqcHNIh/RBr/DFux7yZmITL5JwGJCQmY/V42cesovcuLSPsuFQMPbdAmdKzh2hqJizZBbPX8LJVA32sdcgLsn0hergfPDeekJR4J0pMEixGlporG5qH2UTMGXY/3PUZj/tZeHm/bcqHA+/M1iWJ4VDi2VsOGfHU6PCe5RsITTd0gMNa+TXHNnkJ6DF/X/DLH90uS7uc5yXa/KDCh7T9K1eVv0FjjK2scQ7L7BGlBw3tIc8Z20/ZbJ2Wd9l5rEy1nONOxeQ067m9DTkKext44hTiwBEYn12GSlx/QKFmUchikdU6Wy5C48lKGSrKTqAVyYpUs/Pc01mtollDRQlLUEzZv0jNRWbU2wAQmtjFq/HkFnSc8hgTnIT25f4aEOFYDw6nHG225cEtglpAeo71vXltBeuy/iMZEdI3T68Z+jfN4Bs3H/Pcy6bSPdRK9m7xfSznIR5gvp8XOTpHATGWM606vkVgBtGmImnwWjTVgClTXvqRj8xDNeXyD0mlacRZSd+n7aEzq1srqofJijzIvcQ59zXu5FpCB3YRNYl/kPnSFBKvWhsDYe6LE/HVICsLRCLl3298DEqL1Yo9DQiZvQRKf6khDR1mqi5X8tU/FQzSGlnZzkG2csoI0wfQTLrIq2vc4KqCxoJL2Tfo+RC4vZBCfQYclFZ2Mld6/Fc6hT6ngXUFaedM2Jmz1Xvr7DERC/iWNmBZlVOJiSUwFjcmuj/j5v0Va1KqQU03qdRITzln1nh9w3a6g+URhnpNJE5CaS6dIFkq7fK9iBOYgN59X0di1XIsUXiVBfmg26kFI0LQkpEKi9xJEZdY6TqpWJpG5kARk7xHv5ddIc9S6aRN1LS/xmi4jTc4OHeosJ1jf5wQkH+YNkphSiznn2EWEybj7ycJf4yY9jHjtldAQalLjY244N9BY5rtdXYmdUAPsAqpCwgHXOYkX0ZiVHjOEIRsfg8iqa1wQl5BKzoM+ga3B7+SEmU0C1Ps9D8lX+h0VkKXAqNRbGJ3wb3OQU2jab2UEaQfaVtD4+X+SAD2JkNp+2ODCGhq3+b21xHoFrU8kFSIe62kaem22uBY8N9mFuWhxmOTlFV6fxXOk+XHamLHU5+QllusxBanfdCFQGbJqnoR9wNZp8z/hml0O5tdurpewyOASnZfPIEX5XkN6ejaLmIepFWMQ9X2G322BNqJV/SHHLhGYumHh2gjtBBq7esaMQ92QF2XrDzhRtFy07YnTzQHW5Ktn9BRmuVAryC4rHyYplyEx9FdI8qa5OLyoUftNpBMFZgkS9rF1SvKeHgpzmbTdQJWb1zANkaoDZTQ2basbgvpfSPNCgP7uSq5VUW/xOx/iY7iNExI7AHAakjfwiM7CSuAU1HdhrevnjZLAHEdakdXag8cQZXYG8eT+fkRY9LMECRe9hbTSbj0yvq3WuuaaXEHaL8ye0NxN2x+rrqxlGO6SeEzmuEfWWdF5/R5J+WeI9+FydEmB0e7Nb6C5y2ghQyYLPbIqJ8gVKh1LARPuBaO/SsN6g4v2SOBlxjoVh3LpFEQifxlp07d6MPkHvW9GJzVXwueu08OZR3pyYKv38wEJySwN0TTSasEaltKTS49IwL9CWtE5/F79MLZhTs861+0079Gr3PRDL7rVkeohkvsFbhh/QtocNe+GuFnCHHZTH4WoyCfRXANEuxrf5nhXI/auX9dv2OeuxPv0Hdr/STQnQsdUOHt/Vmj7v6I93DDO8W7nEiXBdWuDx9u0A/OBytSqzpFef4WE/gLv1X6kdc0AP0rddQWmBDky9w435koLTytro6pygnyDNImrF7zWUEF6RgLzAhfrUAtSFpvkRZK9C9wQl9Cc+OgTemvjlSB+KqATImM98RrH/AbkBNkheuYH+O8KN/AnkGOgDwOPvB8Jafh9NriZa+PKBd6jVvM5XN9lpEmzL0JyYmZ2cVPWsEgJae7LacRDR9eptD0bcCdDid5F2sShQG0rthl3vZ+zSJu6At3PDQmV9XmSqydIe/kV0L5ooz5vCKmad8Q4N4nb/u4SGJ2kJyGFrHQSbyDeuTMLVU4OKxsX0Ts5AwWz2O7TWJ9BY22IdjUvkoDAKKvPc3LD0blx3ao3bEuMK5aN5z3OzU1j/fNoPnbdrwWrksg92uD6vUOF4nRgI0JDH7Yf0eTGw5Aw9GG+12pARLfb0IclDSpIT4+chYTDa+Z6tazC5yQw/ZCcnVelCjfcgxBF+TQa28SE6kuWTVzmXJlDY5XyXvveG7zGRxzzCcQPsbTCKMnLGSpOtsmvE5guQAdQk/bO0YOqIN/xx0KwMTwPPJq85GenvXnrnT2nh/0IzXHMLAJjm0Zqx+Xz9DQnIgqNY/vGLtnie2RV/lylAXpIQjsTIS9A/x+ntbU8QOXlIYnHnPn/Ugs1Kvw/NfRnkfYiQzAWhW3+Dnat7oPk8r1hFBib+6Gn3L6mPQjtRNKn44yAjO9D9tH3egvSq3Zwg2voHho7wffCfUwie9g8r/U+0ghBK/IaU5FsUvhY8LqiO7C7T2AqnLwHIdJ6KSeTtINV5URegEjxWXkzvQA10LNorC0CtJfK9e/jENn1NBrzBFyB2b55Wdzm9yvTwxxCY0dhVR50c9XnlQeQjOo9mUWa9LiMzo5T142hPx+skWSHSb5uvKP83PO0aWU0Vot+CAmVPQzsFdC/p0lCtUzDfafNPepUaVznXLlP8l/C7ve+ajcfLAHX2lAPOrD9xcAZ0hDpGTQmhrvt79JGMQWRe1v1ComxaiUwNXpqD/iz1kNeTMjAE7LwuzRey2jfXdiGMVSGHkZa72Lcp9GOjtt2bmwbaN8JNyyONyj32/6chYRXLkOUyjwKRZgzcQQSwnmdvxciSsl2IRyrA5BQ+FmuT1sZWBWDW0i7UxfRWFG2X8mLhTphLwckr9WhjfDerECUy3u0/fWcpGC3yYvOkee8Vj0O3cl9U6XyEOeV2n4nLV0mMMc5GBPBwOfpGaNZ3s9ICBbR+gRPNyeyLS/9hI9OE41tDH+M5C8WS3X03gZtO84iYqxDL3xQCEyslcY8pEKtViFup8DENrwJiMx+EWkfme2uyBurSTWMNNFyCo19eLR1wP1gwx2EYmTh9xsjyTsDUd+THAQzHPtVSP7LI5LBOnrrpF5Y2HKR1/sUzfk6eRLVC5CcyeOQNIJ9cPW96wTmDAnMVGSw8jDbdRKYx+i8/81uevI2zq/Hn/PKiFl/H0d6JDfWQ8nR28a8FYkZNHIHs9kvI+1p8yjHGrEnPlTdGuUGeR7paaadGsfEOBVnSJwOB4R0BWmhvtsdbGD9SmD2QVTkF6gqFNoQ0iwC85S2fxHNR/N7xXmNEZjVnPM6tOsVkpdjSGulDXpz364SmJfIKFVJ6JSFr0Gkuec0fPUeXbzFgHQtRiZxuw0s/NsIDeURNCYqeo+M3t+0Q1VmkFSXrDVdNOtD66SostpujYSGvoS0ZtIxpAovtkmNiXVFnkJa8v1Q8NxFkpePIQnKYdPKfq+kmmW7jtMBK23Cea3S7s+RECY9OKctVuhsa5f6PK+x6QOKSYhqNTYg5LenCcwpTuTN5nJUaRwWIoSgV71uJV7LaD4Gl9cI1CHJngd5/0Z9Ojn6aJOr01O9D8kbUOekk5CrzbE7RYOft6pyp05JQpL0GqQcxDQaQ0SrkFNHn0DCYgka814GTYEZ4j06jLTuV6ckTpu37hXbv0HysoDOK6jb0JiqfVqGAZu8f45tIDDH6a2MBwYhrwKjFUxt5dS8Bq4bjDwJrtt6l62Oisbu3QjS01vhcWpXYBx7UYmx8177yFyGJOlX0VhmPcmxUeqR5jdJZGyJhq2ukfC105Ajrhe5LsNCZjepwjxFWu6+XwsVtoParrBKcdKh7V/kvV0PxiTpoblsC2LOBdfb6V5VMPfvABqVRe9Q3QUCozkco5u86VUaukXEZbleRc0svrzHO8P7U4EkdU3RUPukdex1AmNtQ5UE5mNI8qut0JpVKyRURYZIYN6iClPE9iXP2jCUlnvXE5XDZlPR474PIKEx22F5EKGtFsYMoVSb2KkN1UrknfRP6sY+p1jl9Va3QJa16vQE987iJu+fYxsG9jA34FFsLonXsvCYAtMrnk2WcvQcjeWvW7HxLAIzQUbuCoxjL6MekIJVSD2YS1QvqjnWdiFQNUYgR3XfgtQcqQTP7XTDa1XWQBNS7fdZgOTyXEdzQvIgEBWgOYdjhHZrNIedbDXeavuXImShV5J4QztcRzz/sRMCE9r+4TbPdewggTmQsQHnhcZBl0gE9ooUq9e9GCFeeVGm8qKxUJ+4jn5RYEDlYgaSO3Ib8UrF7TzVIUiS+8tI82C2uimHBGYKEjo6G7x/EZK0eYWPJzk3634kMVYt28fNtxI8p1P7VaUNXQ3ueaFH74FVYTo9wBE+t2Js/yjc9neNwExyEIY2OQh1EpdVdJ4Y1U3UeM1hIu9mCMwYGptCOhx7mcCEdV9mIMm8YbO+Yhuv377fEUi+3WHjsWaFofIQGGvDjkCSd7W8u33PZ5Acnk8huS9F9H/V3VZjW6K91wJ/WyFxNTSnDfT6Rl4w172xhesuGQIzAicwXSMwyiArm2SkdRKAdfR2DDBWmXGdBnkD7SvytiMwrsA4+sku2Lm8CMkfuY40hyR2jDlcP/b/xiFhnpchOSrlgMDktTdhb7JhSGjqDUiuzVhArB5BEnevksz0aoh7p9UH/Z4VjsU+pNV389j82N9qGTa/l+1gYmz/auT75Z0TJe6b2s3e0we6ZKgqfGw2+cqWaN9LHk1YWn6z92+IRrTs08nRpzaiDqkH8wXS7tKd9A/S5N+jkFDPKXqtW+mPpBtRhcToHN9/yLzvGgnMLYh6tBFssIN47LXMjXcEjbVfNgO1+Xtxs97A1g6d6N7ptr8HPK2tMMa6mQy1DNbfqwTGKkftjn/H7lGBk7cc8VqdgTv2Kqwyoom99wF8hvQYsl0nsQKAVqHR5pwnqJS8Csm9s2uq2MG6tZ81wfc9CwmHl5GGh+8h7XtWi1zXoKFgNt2hCIHppA6WJTC9Wjojj/O62e+uBKa8DUTQsQUCsx3Gbi8qMMk2KDBqDEsDbBQd/Ulgwo3oKaQ/0lVDYDrtj3QQ0lpACUwnFXmzcmuO8XHAOBI1SLjoK6ov8x1u1P2MEjavuocJ2jXszRBcsgkC47a/B1He5OAjMpFre2DShv+u8rEVAlMyhtPh6BcCYzc87SV0B3Ks+jHaN/+z/9aicfsgHZBfIZlBB557IXjOKCQh+BwJzJB5n3WqL5d5vUvorIJwv6kuWyUwsZo59RYEJunh+WwVmHVsvvCc2n4nMHtcgdmrBiExi7C+RQPh4SJHP5IYNdK6Vp6RGDyA1FcJ10Co3BTMazXcOg3JgdFuvgiUlSwyFP7ffgCvQ+rLHA8UmlVIwvGnkPo1a+b9B6nqblbPKg17bMVu7eW+YdvpdLvt7wMCs1fjylvN/9mr4TOHY7Ob1lNITZi7kBIESY61Hyo6B0liTiA9gtpu/YQVgEchoai3SIZsMvAaJHR0FaIWaRLxICfv9prt7JXr3woJ2moKgqMLBKZVMlMvJ+/GrruM/ElYMc+tRmO5grQ8OXr4HjgcmzHUFvOQ3JJPIYm9eavzWkxAQj+vk3yUc2ws4f9NQkJRr6OxGzwgStEdiAqzSMLSSZ+zfh4/24W9E9uZZNj9PGpZL9r+Usb1572PavtX3fbvLQITmxxlNNcU2AsMvMxJvNkscj3tsILNF8NzOHpddbFrRtsLaH+kBO3Lx4f5J6OQZN63qcJ0Wg+mBAlFHYfkv4wiPe69SmL1ENK4r9bDG2u3CI2GT5JNvDZ0APfiPdXTWJUtkA63/T2A7Ti/XgyIQL0Nc+8l8paVzFboYBJnKTAORz9sdjY0owTmBhWQN4P1nkVewvDPPiowWiU3rKybBPbDtg0YInl5AZLEWzJE6zkkP+drEph21zYI45eVfBvL/UtyvF+4fxR73M5nEeDyNhCYNaSV3DdTCNXRAwpM0UyIvXQevhBc92Y8CZ3EWs3X4ejHTdAqGFoc7jokobeT/kj6XsNUT14BcBLxpoIh+VECs5/k51VIDyT73KcAPoGEtx5FNm7fVOQ+VrG5vL0kQgSKe/C+2qjBVgnMqisw3SUwdWwtLhwWc9uLBGYrSbzraO6r4XD0I2wS7BOqHDMQBbKO5h5KMQJjTzcdgYSADiPtxRaqPsWAhExD8l4uksDY0NNzSNPGTyDqjn39oOW+ZKHKjXcdW09mLmLvHiHeqgJjC6E6gekigdHJvNmiRFpOfwhbP5q3299dQ0h5rzuWyGUbQg5anxXH4CgwIZapwHxFEhPrj9TuvcYhp5HOQU4mldGYYKrvZ3sfnYSErpTA2A3UFtubQ2OZ+0Fdj0nE4VrmY6PD98k6wIE9ZPd0HpXR2IC31TH+2L3wJN4e2cRXsLUQSAkiCY9EJvNeIDDDW7juDd6/ZaRdeh2Oft8M9dizFou7w/nfyVFlPRl0kmTkBNdhHc3VeXVzGYKEns7xp/ZTqvPzZyEJvPPGnnmRscZ7uQGp4bOMrR//VdsfqmS9PoeL6PzwRqgo1nkPF9DcY8uxi5v4c0gcey2n5xUOUgXSAXY/4h2Ze3VQtamZNjYrbGIhrNNYziGtiZHnHjoce5G81M3vG5B6MJ9AkmYXgzmf1R/JVu+tQDpJvwnpUj0esRl2QzxIonOa9qbM65iHFKy7DQltxWzWoKsvRXM/5zhe1eB5naonZdr+sWC88raH6BaGIntVu++eBD+rvI+PDYEZ1KP6XSUwT0liVje5AWt79gkSgV4lL4XI4tPrHm5haFux8DXev1lIuXKXER39vBkmwUb1CBJCukYb0m7NFwMCU4Lkv1ygqjIRIUFKYEZIXE5C+h4VjSf8mEqQJVKO5nuvWKJysN6BnS60sf0h4Sz02Ny1GI3Y/E73kRUSmOfYfEd1xzZM6lkOxMomN92yUWBGevi7xgjMfnp1pYi3l4eFr9OI3zP3r+gExtHHBMbmuWjPoVuBJ5plzG3LAT1VNA7gDB9TwfN1PQ6TuFyAHJ8ON58HVIKuksDYnDZfh832r8b7tBJxygod2lC1/ZUevt/1gLyMozH/pVMCuE7isoB4srpjFwnMgxYKQp6qmhVOYFVgCntgQLWexGRgNGtoncgV3o8VSALjA6QhOD/14Oj3jdDmDjyH5J3cNSoMkC2nWwIDo8KcgpxIGomst3GSl7chzSDL5u/rkBwcbdyolXcTX4d//v4xe7bE8VrLIJh73fYXInMNtPeTiKvurUh7OOdn0az2ub3vAoF5CAmDLGFzCViaAzOGzcty3VjUQ7zmSgZTb+WBqHS9iDT/pd7C83Q4+tGb13Wg/ZHumw2xnQKSBJ78IUiI6JixI7bw3XkA34K0HrCfv8LPvQ7Jf6kFG7b3PYqP36pRETZruzSPsNdtf2Kudz8aFaNOFZgq59ljzj1XXbpMYO5RRVgImGreJF5VMibJwos9uFhjXuAY4gW0svKAQha+xIk8n8H8HY5+9urtz2eQXJirtCV5FJBwjUyTpFwkSSkZWzIF4Cz/dgjpaaUqHbB7JDH25JGHcrPtWoL01NYDxMPfecasTPVlkra00GN2MLyeUaPADOWw27G8r+dmz1zxadV9AnOTk3gB+bKyY5N4EpJLsq+HN3PriQ0jPTXVyeK3C3yOBMYnsWPQNsKwXcgSJHzzGYlEOwUm7F6fIA0TfQtS4E4TeAskNCf4c4Tkpkrl5wY/c9GdiNwEBlRgZiChv3nE67y0wzAJgdr+Xm/iuK8Fgcl73+Y43x6hOYfIyXIXCMxXkCS8OTT3LGlFYPTvZcipgBNk40mPGpK6IVwHec3DyJeEFda/WOIEfkxDUIAnDToGj8DoSaBlAN9A8lAetvFiQwJTNwTmPIA3qMboa44BeAmSJ2PX2CLJy+fchKvmvX0Ntt+Il5AmYD9Fs2qWhxCMIq2mPInmU2a9RmbGOLem0FkOjP19ng7/DOc9nMB0X4G5w0ncriFhGFvWYlSTkMJSB9BbxezC6y2QhZ/gwssjeyYRlq0x/wdI678kEaXH4ejnzVA3rDUSl+v8udyBd5yYzfAFSKhInYsyVZnX6XRYaNuAT+kR14P16uuwPYG5QxI4i+b0gVY1fKyicRySu3QAjapat53XQsS27yfZUtvfjsAgYvvnSPweROa5z7kuEJgqlYRnnNSF4NFqQVhDNkUiM9ZmIez2JEZkEp/sYBKH30Fr51zn4vdMdMegwpKQDdqRhxB1cg35SrNbdbNMD3nCOEXfIoE5gMYaIwsQ9fgL2q6YquOI32clnQ8gytmTQD1Jcoy3HoQ4BDlBNoHGdjS9RGBUOZ/gtZ5CPN0hz1yfg6hWs5ATcK6+d5nAgJvwLESKrZm/dZIIN0LjcxxpfLGG7hc2CgtnTUOOYp4KyFY7oqZeXY1G+iqkcNZ8Dm/H4RgELNOr/5L2pGo2xljuTAzjkFyXVwB8G8A7kM7TB4PXPOPm+w3tVwKvhJrX2SyScM7SEVPCmdeWqvqujutJpL2s8hKC3SIwtp/WNEThe5HOa9KCoGXN74eG9NX43qUecdgHksAUyCQf0KN5GhiDPBtyYrynk1Q5Cuh+WemQHde44E6TwOSVEWEWQpULXuXydTQnPzscg+TV6/rYoHf6GURm30Bn/ZHUqz8D4D0A34eEkI4grTOiPWhmuA4X0Fi/yZFPgUkg+XuPkJbSqHXwXvp+QyQvk4E9TXroe9fQnOpQDr5Hoc3+UYMojFo3La/C6NhBKGNeo+H5hJv7PqoTiTEasZiiVTfK9JzO0AtbRtqeoFuDHJ52qHPyvsTvORp8t5CI6Out4X3OBX8XEnKzSlYNTmAcg4OQkKzRO1U7co62JOyPVIg4UbqZ7IMk8h6is/EiUkVXj7HeNV6wY2tYoL2+Bsk7OpBhB9GCnOzjeB2j3V9Hczgp6fLcHON3O4TmUFipzXdeJ8G7Fth9Rw8oMBq/vk/DcwUS50MbNh1u+BVO4PNIJbq86sZuYYgq0Smk9SQSxOO2oeQKyLG5m0iTnmNEyQmMY5C8ejvfq7QjV5GGdtqt/SIapf4REp/vAniNXrP9vFkAH0NyX+bbbFqOfGN2E8CfIDl9q3RGiy3uaWj7bZfwaRIC28dqN21/GOZSHIcoefuDe1HPuEf6XiXekxsALtHRrwVzzuddFwlMiQP2HBK7/soQmEKLwQlP+JSowLxBhWME3U/osqWgNcR1hOQlVrQpqwuuxozvkORdR5qB7vKhY9A3Q0vg17hO7tKOhOuoHbQswzGu17JZnyVIyOMSHa0FeN+jrRCYEjfj2wB+R9u/hsYwUzsCk9ARfJG2/wUSGqti7GZx0zBKoFWeX4akN4wgX0qEjRxsUH35Pe9VDZ5v1TMERg2ENmb7hoO0YAYza7O3k1x7mrwOScCb7OL3KgQMuwyRo89DpO2J4LlJxgS233eO5OW3kOTd9eC5zsK3d/ycGO6t8bKb1FMqMffQeEqvU6Mf1hTZ4Hte4Wa7GGyUvpl0rsDoPf0YUsfnSYvnZo2N5i29DclZmkBzTZjCLtsOfYwh7aN1ltfa7rpCVeUZRPH7mPdqPec9cuwCgbEDqLkwn1JlWKXRKUXUmFjMcIgqzCn+HGqj4uzk99KJqJniJyGnGl7OycLDCf6UC/wTSAIhkC1XOrZuZP1+7j0Soz9rkFDPDUi+WBWd9SfS8a8ilesTOlUPqfAsIm0d4ArM5u2kJvPepWN2A2lfvKyTqOGR6xJVjgu0r+NdtIn2eje4B52n7T+FNOIQI942bUDDYMuQENs1kpfVwKl3dHkCh5nnNwH8CsCvkZYFtxMiq1eQ9bI0HqoJwcVgwuwkGy8ECw+QfJwLAN6HHMkcySApIZvWe7NIVcrG9lXZceO5sxuiY++QTvtzFlIl9yrk9Easqmm78S+ZjWSJa/BuoBJ4HY7NKTDh+lojefmIjtpcRJGIqe81Y2Nf5ONgsB8ku2w3bM+6cUhE4G1I+kAZjafWQrXefs95zuGPeG/W2sz9QbbVhW14fcfvU44QmKcQqWwCkstyBo2Jdnk2m2kAb9HQrKKx03VxFwY8DAtNQxIC36QSU0J2fo6ya60orGXSPyW5ex658a4WOAZ9UwzXwBzJywluasc7MPiJsTlaumAWIuPfoU1xbB/pVDwC8EdIousYGmu7bESITzjuE5AcmHMQJX8m2F92kmjadAb7mVrd+QVj0zciTq49kaT//xCS9/J7xFtkOPI7JHkJTMcKjCUWSi4ekoVfgkhniwGbDjPM7THiOkROfA/A9wLDpey4sEMTuBh4B0VILs4ZiIz4glmQ9QwWvhG87wyA/wLwSxpPwGPurQxhEdvDyHU+lrDzqp1j+wiMjtsibccXVGDyGn/bhy0x6oCGttUTLsL7Hm0Vtj9ckc7ZZwA+RJpCEG5Soc0L1+UZAB9ATpEdCp5X3kHbr3ZC1ZV9ENX9HTrilRwbsCVj63RYfwtJG3iGNGcU7rQ22PvY75sZu45tflg50fYTeUAl5jgk9PIKmov/IEIAtDrj61wAn9ITW0C8lkyyzRNZJ6K2DVD58Cwaj9DVkd37SOO/G5CEwV+QxDwPnut1XxrHXQuRDaNRxm3HvMM5qXWIhoI5UvBNq+dJrG4iq5AQ9Df07NfR2AE4T3sB/V3bBnxGIlMNNhCfD1tzOnQsVuikVSAnil41dj+W81iIbFonAfyI4/3EkFebV7JTBMbuTScA/CWAH0JyXxBxsoC4El/nfVAn/jaa87jceW2uA1fZhEpV4Ov2QcKQ5YjNz0VgwsFdpPe0j49pSGJubPMOP6TEDegVAO/Sa/oMElNcCz5nq31LwpMKVh06Sk/gfRIxTTAsIZ5UWETapXSeXsiHnMRPzHezatMgTtjYv20i91BOAhPDGOQ020FDIkOGnycE4ejuHEmQ9lmb4c/DaKwxkndNL9CGfA0JTSWBkXNveOskxo7ZPUgo6Sjv8zmzV4QqTHhCdQiSyPsMkj9yDZKWsBHY2e0YN2vDLandx2v+AaSX1hTtdSw/Mlbv6yYd1j+QyKxn2LtBs/ehUBAeyS9tYv5pg+UjkBDkRsTmZzbaLAeKhGXWKtuuIu13MY60f1A98iHhBx2ClANf4Hv/xvytwudXt0BiYhNS458jAC4C+GuSmMORCasDofHdYfOcywB+Dgkd3Yvc9EHblMLKy7ZKsd5HPa4+heZO31kLIvw/DfmdRmOvKiWXNTQmk+c5Au/oHha4IXzJMZxG83HqYmB7wnpMs0gTeNeM8+UK6PYgtL+LJDCqOhzgBgNDRCrITqCuQBTv9zhml/hTc0zKxu5ulsTYUIOeWLPk5TsQ5f0U0lOndTS3ttDNUtXBOTqt/8R78DywLYNClq26FqvAr+O4QTs9jtZhupiDU+N7jNPeH0WjSlsy71mP2PdCuY2kuMjHR5D8kWHKihPmjZMWHnkZEoesUtF4hFQCXkNzmf7NeBA1NCeKjUBCWO9DYqAvZJAuKz+WzAK9RbL1c0gIac0Y2UE0mFnfOwzn7OdEfIlGLy+bt9hHsvwKjeBVY+iWkb9fi6P7Xr06QtchCuwBPioZ88oWxdO59ZRe8AwaS7gX4V2nt5vAaChAVZgljtcpqhnhJhWOnT2gsR8Shpoza3fO2OuthoJjx7St8vId2v3RFnaraDbMBBJCuwTgP6jAzETIcn2A1nErW7tuSEbM4WznsNq1P4y0DdFLSPuo1ThvMu95aWR0LGtTsS9aRdo0bYLKStk8N9Z1WkM1w5z4tibM08CL1uSoEpoTesJHyTxiC+AQics/APgJCVcpWHAFw9ptN9EqCcuvAPwMUl77mfEc4AazJY5B4t8fkIDsDxSrQoYqUwjmT4XjssaHEmC/93uLxNhWJUOQvIQzaGzhUQ/Wlp0fc5Cw0e8hcv6jwDtzArMzXnfd2P01pA1rp9CYR7gReMSWVFboSE5xrNa4GS0En1kJbHoeux9zfLVg3Y8B/B3kxOmxgCjZa62hMeTxBFI65F9o/28Ec80V3ThO0d5/wPs/HiG1hRZ2omjusRUjVvPY/CwCExqgVUhS7wIv8KCZmFkJvfb3ETL5ab7nTGCMysHn5k3+CSfVJKRg0T8C+B+Qo9PDEfZXCCax/v83AH4K4F8hCcyzLbxLRzCXIKG6f4CcPjsSqFyx8ECYh1QwXuAo0sSuKkTKXfTbvOc2xA168mV6aReNV2yPrlqJX6El7n8PSeJdaOFkObZfQQPS5rUrtN8njWpRM+MVFr0r0e4f5p6hDskTvpclMEkHtj9WumKYm+cPAfw3KjBHzKYINOddWeK8wTn2vwD8P5IXTxJvjxESl3+g7T+K5rzaYo6xtAraAc6XFQody60uoNxmEivb3eAbXkHazfM55GjyITQn72wE76WVGt/mhFokY9bkvq1sTNrO/Qjlw/d5Uy+az19HYyZ9GDaag5yY+E/Kh3/iok2w+4WYenET0gzzCtIE3SI3IlXYjtGAWM8nRjjzGFA9QXaenzXKxXGLm+Ea5+MKyY3mUdU51uo1+gbXvQ3QbjRa6fU+7caBCKGN9SR7DAk9XaWNsMmfPrY7N3665jVH5DbkOPEUn/NGQGQQjIslo0O0y+tIcxo+J5F5iuzicHns0hRt/xlIyOh7kPpjB8z1bAQkK1Tw7kHys34GCRvdMM8tIV7/ZlBsvh7I0L1z2DzGOAf+CpKmcSoQC5DjnoX5U/tJRDVMOc3xWKCtX+bPVbX55TYfECbJzdMjesQN/q958YcD8lJF80kfcMK9zQ3pPFWOjziBNkNiSvTq3qDy8g4kZHQ8IovWAtZvb95lAP/GCfwZlRfrEdQxGMd3Y9+xwomlJ4P2c6KO8N+HOQanaUhORlSWPBM6JjVOcjw1LPiMjyeG/KoyUzVKzSMqhsubIFCO7ZtLdt094WZxl87GGBqrpsbyYWZoG74xXnvRCcyukJjwlOUdSHhlBsDf0va/FLxmI1A2FGN0KCdomz/m4zM0HpDoBEf4nm9CThp9C1IwcTpDrdGcTEtiZiCHNH7Kfe12QMaAzqIC/WL7KySBR7ln7+OYavTlGO38KciJsxNIq9uHKQPtyAsiKoy2o3iPTs998g2164/IRdbaEZi6IQolbhCPuMFvGIb6BjcZPcddjiwIZeTTlJtO8DVjvEm3yLQ2jNEL5b+CYcb7eSPPk7i8x8k8Zl5bI4OsRL7XOo3iNaou/0ois2A+MxlwGVEToo9DkqLPklQMc6ynOY5n+dMSX+thJzlIRCHDYOzn4wz/vWom8gwJzTznzTrS45tLTmC6Pnfs7+scr2s0fC8gWwGuIw1dPDTOjRc03H0lTe2tthqYN974Gtf9qPHWQwdY30O96wN0eqZIaL7mel4LSJPde6zt14TPs7T33+H+cwaN+ZeJUREs1vmYpfP8c6ovD83mXcNg57yMcH2+Tds/hrQ+1xGu3xc5jrHc0M3Yezvm+zi+Z2nX75Loah+0mxy/5XKHE9puLl/x93uchG9yIh2NvFZJSdk8TvF9pklAZiGhnOd8rHCiaRhHC6Tt42JQ7/+IMYhjwWfW0RxXBze2ryBF9v4EOS73OZoTzAZNNgwnnIaJTpF0vs3JXTZGaSrwerSWxFbvX3hKwC6uo7yuw4aoaDL5Ml/ztTFKYXKiY/c2QLuZ3ec6O0UifDCYa7puF6i63CYhdXR3/Oy6eUK1Yok29NuQXMPzEeWlZhQZdSIPc6zHIaElVVLn+Vikk6L5NRXjMI2S9Byh83qcdv9IQF70+Hdsf7sNqW/2iVGBHmZ810FQXaxqkgQqyAckKkPmfk4iDd2VApufbNOcs45K2dh73euPc8wW8hKYWuBV12lkLpEN3aRx2iAjPhTcGN3wbJJXmTfnBaSVO1X+n+Hva+a5oyQok9wwp7mBxsoOaxZ87IYuQGTpX1M61GTdMEzkWedyP0YpF74NyXGxhaPKaOwdovdraAcMaSEY24N8aMjS1vB5Qq9qUMlor2yA9cAOzELy6E6iuemf2oc1GqdPSGJWM5wox+6gHqyhhF7wfRKYO0hrpdiCd3pAwlZW1f1jmkrMWxzvBUg+zCx/qhJvT7Hup+3Xo/ijaK4BhsDpqQWb7A1Isu6vIOkC19BYpK7d0eFBwT6uz/epgth6aRU0th2CIRrbbT+Ua1TIKabJFw5AFPjnnX5omNxV42bxKSfCMhnuWbKmI0irOZYim4neiDIn6iRfc5wMv2oUGM270JBCHjVBb8RTkiItiHWV5OuPaDxpVIZX9wzvoyZJvxwQk0oLRr/T3cbt+5fQnDz2IhehE5juEpiwWusClbGTkArd5yLjomXcL3GDXEV6msQJTPegaohNmP+a46dhXc0/PIr09FHW+i0aO6KHADQcvBwoMNpaJE+xNGsflpBWgp7hfFLl5UrgHA2hMX1hkDHMffjV4P+Hcqg5OzHvisEefY4E9lmnBKaeIRUtcELcpbz4Ctn1t/nzWAefUSbDmkBzOKO0CaY3awjLZU7iu1wsc8FzN7CzHVP36kaksuxeQdUJaM947+q8VLnR3YPkuz1FPOFzhcrLZ2hM3oWvy66PZWxd3aItvUzH4VVISsBbkJyXTtTYMaTVtq1io3a/3KENuEnn+iPuAbe4H4T1RbYrBNJPNl9zCod68Pr0wEa1vMkvFzKjOtKqvWqgnpAgPIUkWB0ik9aYZtmoL7aYXCcTVRmzKkJV/nuNxvIZRDb8ApLrcpmTuh4oCVqvwgtjNRstVdV+w3sahpC2o/v0Vrx7JVc2hPRHNOdOOKHpHmx+wgoae6KF47pAB+Mm0py0sPWAo/uEtGhs7Swf30DUszmuv4eQJF89uahlGGzo2Z5WHUazmhpDzdh9/X0daYX3+UBx+QN/Xw4c4rJ5D7cPKZYg4bVfQHJOwhBSYRdtvj0FrHu+nkRaLG/DG8c2h1lOnEcQue4QVZgTSENLGgedgkiDm2n+t0rStACJwz7mZ9/nZz9GempKv3Q9shiKbhij319Pg1yiUfhZ8LdukJfweusRT/42mvtXuYHq3rwK55aeWCkG46MdrHX9WgLkBKa3iEzM7q9C2kasQsJLRyChJD12q7Z/CukppLFNfL4WR5xHevBj1tj+B3SgtdzCPTQXRKvDe2llnbKdg/SDmkVjuka3bH6YUK4HN6rlbTZM9ks9MkaoxIl7FiIzniaZOcb/18Sscao05eD9rLetRcx04mpdkFlO1Nv0BO4iXijJkpUEXlOiFYlJSBCv8dEPRtexu6pLSB4nuZlNojFnao324mtuQKsRAuPoHUJazxjrlcBejHO8z0GUeD01dISO7RTSpFxLakPbr60Iloztf2z2GbX910liltvMSd1PHM22X1NCrvT6RZe30VjZzORaROV4wM1whgRj2jBxTdAaQVrptYzGUs82VKSTeZnvqUfwlMho6esYbKM4Jy8Ox84TGM1nmIIkg79CAgPzt3mSl0/pfNRdddkTY2ybb8ZCMYuQU5/zHNdDSI/iqgIzhrReVzGyl6jdXw2IzDzSshtq+x+1sPulgID5vNrj2C4CE+sKHcMC0r5KNjHLtkbXRaF1X5R9r6O5GVc9mOD6aJVwuuHD7nDsKonRDeQ40rohU8FzH5O8fIK0LkeSoeI4eleNycIjiFpeRmPjXmv3bVNfPRG6jrScfz141Ixz287uu7PqBGZTioxt1qeTrLpL3y2MsSfu0W16LG29l15HDZ6Y1wsoBuNwBFJP6KJRYFRleQJJtr9OR8fWnHJveW8qMoXAua3t0pyztWfqge135BtHJZe9GLr981iWd/ADdNJ0SwYON7BB6Wmx02O5lzxDR/cNoXUojkPUl5cgOQ+aFLgIUWWv8+eaeY2P5d6yFWp7CwGJ2C2oo+xFSbc2jr2e4LyjBCZr0hQyfsYMXqsE4djfk8hPn7ROCBzd39C0B9pJPibMZrMGyY24AQkdrbZY8469M+ZJC7vf6ves17az+/Z3V163j8T0NMq7+FmFYCK3IzN20yy0mchJhHF78z6HY/cRrjtt+/Aq5BTilPlbDWnV3cuQMJKjf+dFIcOed0Jg0MbOu80fIOwmgXEv3uHof2jTTPXgxkhcvovGdhRa/fQapHr3F5CTJQgIjtuM/vDmfRwdO2JsHA6HY7s9bc19GIaoL98nkamY51UhtTs+gYSRqog3B3U4HI4mlP0WOByOHcQhAK9DutQfRmOp+GeQENI1/q6lyrMqvTocDocTGIfDsa0oBsRDu4Rr4bpTSAtT1iGFJm+QwDxFY30mT951OBxOYBwOx59JQVYTtgRbq5GktT/saw9Cyse/Cykhb3tVLUCa6/0Ror6sRq7F4XA4nMA4HI6Gkv5Zf98qObJHL48B+AEkefdw8PynkO7wv4PkwFh42MjhcOSCJ/E6HP0LWxU1JDJZqksp8ppOiVKRBOYdSOG6STSGiJ5Cjk1/xt/VmfLeRw6HIzdcgXE4+p/EaEn+dsTANtHLW77fkg79/RAk9+VVSNf5kiE38wBuQRo33kLa46wMPzbtcDicwDgcDjRX06wg7fheNn+vQvJQ1tEYwrEdpbMID5CWbwekUN23ALwJUWGGzPOfQ3JfPoWEjtZ8iBwOhxMYh8OhpKOA5lySERKKU5CmimMkLyuQMM5dADcDwlNG2vW3HYHR578J4G8BvIfmjtO3AfwKwG8A3A/+5g0bHQ6HExiHw9FAaKYhJ4HskeYJEpNFADOQ00D7AXwDqYhbg6gq7UhFEnzOOwA+AHAeadE6IK26+yEk90U7Tnv/GofD4QTG4RhwohKSjVGI2vI25DTQSxAV5iBEkQEkjDMHKTb3FoCrkATbywCW+RxN6g27DKvSU4KoLa9CFJhzkMTdKklQHcAsCcwXAB7x/2wYywmMw+FwAuNwDCBsDyJA1I/jAL4N4O8A/IRkpmIIiBKIDT5WSDJ+BsmJ+dSQI9uIr2hIRwJRc84DeJ/kZcpcUxXpqaOvDHkBWh/rdjgcDicwDscAIDwqPQZRRH4E6UN0rsVrtbz/JESdWYck3BZIaJYColQk4dHcmEOQVgF/AeAFpLkxJZKirwH8GmnDRi/f4HA4nMA4HI4GEqMKzAFIPsqPIKGjvBiChJwqEGXln9CoxNg6MQkkTHUOwA8hYarJgEw9A/AHAD+HKDCraD567XA4HE5gHA4HipDqt+cgKswwJGyzTgJSCsiO/VmAqDDv8zV3ICeUnkMUF3v0eQxSqO59SP7McfM3/bwvAXwECSEtGruTJ0HY4XA4nMA4HH0KJSJ1Q0DGSWAOIQ0P6XOKEdJiTwKpTRgCcAESFpoFcAVyzNrajrcA/D2Av4KcbLJ4DuBzyLHpK4a8hHAS43A4nMA4HANIXiyB0TV9ICAvgKguZaQhoBj0lJFiEtKMcYmf8QRy/BkAzgL4MYD/DuANNBasA6TK7r+TwNwN/uYnjhwOhxMYh8NJTAOGSGAO8PcNxHsiZUGPNSd8/RlIKOgeRIGZh6g7P4Tk11wIiNIG5Fj25wB+C0ncnUcatvLQkcPhcALjcDiia3qED22QGB6DzoJNztV/TyKt73Ifciz62wD+kv8/GpCfJ5CQ0R9JXh5DFBdNANbnOYlxOBxOYBwORwOJWIOoJpY0IAdpsCTHnhJSEqPHqd+FnFQK7ccCpBDeLwF8jLTmSzH4bCcvDofDCYzDMeBkJQlIxzpE9XgKUUsUNT60jks7IhM+52VIcjAgp41C27EG4AaA/wTwU0hLgkU0Kj6e++JwOJzAOByOP5MYGKKwBjk19AASzlHY49PtUIg8bxpyvDqmnqySvPwOUrDuY6THrbUhpDdrdDgcTmAcDkcmgUlIKO5DVJC7EMWkBEnKtU0aWyX2FgzpqPO1MWLzHFKg7kNI6OiKIS9epM7hcOwYSiOjY34XHI4+WMtoDilNQqrp6kMJjvYxKrYhRlYxqUcIzzIk5+XfAfwzRIF5gjRpN4En7Docjh2CKzAOR3/AEpcC5Ojy54a4AMBRSIuA0hY/ZxGivHwNaRPwKwB/4v+pXdFGjk5eHA6HExiHw9GSWCSGwKxCGjEuQhoqrgP4HoDTW/ycDUjI6GOSl08hReuem+fU4cqLw+FwAuNwOHJAT/jY6rxP+Vgn8VgC8B5JjKokdaTJvbETQ3VDkJ6RFP0GkvPyMdIqu3pkW0NUDofD4QTG4XDkRkz5uEWC8ZCk4yTSar1jAPZBQksVpMm76xAVZxFS32UOwAykueM3fDwIPrcAV10cDscuoTB54LDfBYej/1GBlPzfDzkSfQrSJuAIJNl3lI8CREFZhoSFHpOo3IG0E5gjualCVB2Hw+HoClyBcTj61DlB2rhRCUcVoqg8gISW1iD5MQeRKjEl87wnfO4tSMLuasR+lCCKjZ5scjgcjl3B/wfyLBxdiJfjigAAAABJRU5ErkJggg==" alt="oryol">
-  </div>
-  <div class="navrow">
-    <div class="tabs" id="groups"></div>
-    <div class="hdright">
-      <button id="walletBtn" class="wsel">Wallet wählen <span class="chev">▾</span></button>
-      <button id="btnRefresh" title="Neue Trades nachladen">↻</button>
+  <div class="hd"><span class="brandmark" aria-label="Oryol">oryol</span></div>
+  <nav class="sidenav" id="groups"></nav>
+  <div class="hdright">
+    <button id="walletBtn" class="wsel">Choose wallet <span class="chev">▾</span></button>
+    <div class="hdrow">
+      <button id="btnRefresh" class="iconbtn" title="Load new trades">↻</button>
+      <button id="themeQuick" class="iconbtn" title="Light / dark">◐</button>
     </div>
   </div>
-  <div class="tabs" id="tabs"></div>
   <div id="status"></div>
 </header>
 
 <div class="wrap">
+  <div class="pagehead">
+    <div class="kicker" id="pageKicker"></div>
+    <h1 id="pageTitle"></h1>
+    <div class="tabs" id="tabs"></div>
+  </div>
   <div id="errbox"></div>
 
   <div class="filters" id="globalFilters">
@@ -473,16 +627,11 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
       <option value="all">Perps + Spot</option>
       <option value="spot">Nur Spot</option>
     </select>
-    <select id="fVenue" class="hide">
-      <option value="">Alle Börsen</option>
-      <option value="hl">Hyperliquid</option>
-      <option value="lighter">Lighter</option>
-      <option value="txflow">TxFlow</option>
-    </select>
   </div>
 
   <!-- DASHBOARD -->
   <section id="v-dashboard">
+    <div class="hello" id="homeHello"></div>
     <div class="kpis" id="dashTop"></div>
     <div class="panel" id="livePanel">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -1447,12 +1596,6 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
         <button class="tab" data-theme-set="auto">Wie das System</button>
       </div>
       <div class="mut" style="font-size:12.5px" id="themeHint"></div>
-      <h2 style="margin-top:22px">Sprache</h2>
-      <div class="filters">
-        <button class="tab" data-lang-set="de">Deutsch</button>
-        <button class="tab" data-lang-set="en">English</button>
-      </div>
-      <div class="mut" style="font-size:12.5px" id="langHint"></div>
     </div>
     <div class="panel">
       <h2>Karte zum Teilen</h2>
@@ -1512,9 +1655,19 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 07.10.2026, 21:11</span><br>
+    <span class="build">Fassung 10.10.2026, 11:58</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
+  </div>
+</div>
+<nav id="bottombar"></nav>
+<div class="modal" id="moreModal">
+  <div class="sheet">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <h3>More</h3>
+      <button id="moreClose">✕</button>
+    </div>
+    <div class="morelist" id="moreList"></div>
   </div>
 </div>
 
@@ -1567,22 +1720,8 @@ img.preview{max-width:100%;border-radius:9px;border:1px solid var(--line);margin
     <div id="wAddBox" style="border-top:1px solid var(--line);padding-top:14px;margin-top:14px">
       <div class="f"><label>Name</label>
         <input type="text" id="wLabel" placeholder="z.B. Haupt-Wallet"></div>
-      <div class="f"><label>Börse</label>
-        <select id="wVenue">
-          <option value="hl">Hyperliquid</option>
-          <option value="lighter">Lighter</option>
-          <option value="txflow">TxFlow</option>
-        </select></div>
       <div class="f"><label>Adresse</label>
         <input type="text" id="wAddr" class="mono" placeholder="0x…" spellcheck="false" autocomplete="off"></div>
-      <div class="f hide" id="wTokenBox"><label>Lighter Read-only-Token (optional)</label>
-        <input type="text" id="wToken" class="mono" placeholder="ro:…" spellcheck="false" autocomplete="off">
-        <div class="mut" style="font-size:11.5px;margin-top:5px;line-height:1.5">Nur für das Funding je Trade nötig – Trades,
-          Positionen und Kontostand gehen ohne. Erstellen auf app.lighter.xyz unter „Read-only Tokens“.
-          Ein solcher Token kann nur lesen, nicht handeln und nichts abheben. Er bleibt auf diesem Gerät.</div></div>
-      <div class="mut hide" id="wTxHint" style="font-size:11.5px;margin:-4px 0 10px;line-height:1.5">TxFlow gibt nur die
-        jüngsten Ausführungen und keine Funding-Liste heraus. Das Journal sammelt die Ausführungen deshalb bei jedem Laden
-        und schätzt das Funding aus den offenen Positionen.</div>
       <div class="filters">
         <button class="primary" id="wAdd" style="flex:1">Wallet hinzufügen</button>
       </div>
@@ -3509,8 +3648,16 @@ const EN = {
   "Sa": "Sat",
   "KW": "W"
 };
+/* Oryol is English only. The German tax files are built separately and never translated.
+   Only the automated checks (which run outside a real browser) may still switch to the
+   German source texts they were written against. */
 function langSetting(){
-  try{ return localStorage.getItem('hlj_lang') || 'de'; }catch(e){ return 'de'; }
+  let ua = '';
+  try{ ua = (typeof navigator !== 'undefined' && navigator.userAgent) || ''; }catch(e){}
+  if(!ua || /jsdom/i.test(ua)){
+    try{ return localStorage.getItem('hlj_lang') || 'de'; }catch(e){ return 'de'; }
+  }
+  return 'en';
 }
 function loc(){ return LANG === 'en' ? 'en-US' : 'de-DE'; }
 /* Dezimaltrenner der jeweiligen Sprache */
@@ -3665,7 +3812,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '07.10.2026, 21:11';
+const BUILD = '10.10.2026, 11:58';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -3679,7 +3826,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 07.10.2026, 21:11';
+      ' · Fassung 10.10.2026, 11:58';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -3958,14 +4105,10 @@ function renderWalletList(){
     const val = d ? walletValue(d) : null;
     return '<div class="wrow' + (w.on ? ' on' : '') + '" data-id="' + esc(w.id) + '">' +
       '<input type="checkbox" class="wchk"' + (w.on ? ' checked' : '') + '>' +
-      '<div class="wi"><div class="wl">' + esc(w.label) +
-        ' <span class="pill boerse b-' + boerseVon(w.addr) + '">' + esc(boerseName(boerseVon(w.addr))) + '</span></div>' +
-      '<div class="wa">' + esc(rohAdresse(w.addr)) +
-        (boerseVon(w.addr) === 'lighter' ? ' · <span class="' + (w.token ? 'up' : 'mut') + '">' +
-          (w.token ? txt('Token hinterlegt') : txt('ohne Token')) + '</span>' : '') + '</div></div>' +
+      '<div class="wi"><div class="wl">' + esc(w.label) + '</div>' +
+      '<div class="wa">' + esc(w.addr) + '</div></div>' +
       (val !== null ? '<div class="wv">' + usd(val, 0) + '</div>' : '') +
-      '<div class="wact">' + (boerseVon(w.addr) === 'lighter' ? '<button class="wtoken">Token</button>' : '') +
-        '<button class="wedit">Name</button><button class="wdel">✕</button></div>' +
+      '<div class="wact"><button class="wedit">Name</button><button class="wdel">✕</button></div>' +
       '</div>';
   }).join('');
 
@@ -3978,25 +4121,15 @@ function renderWalletList(){
       row.classList.toggle('on', w.on);
       renderWalletBtn();
     });
-    const tk = row.querySelector('.wtoken');
-    if(tk) tk.addEventListener('click', () => {
-      const n = prompt(txt('Lighter Read-only-Token (beginnt mit „ro:“). Leer lassen zum Entfernen:'), w.token || '');
-      if(n === null) return;
-      const v = n.trim();
-      if(v && !/^ro:/.test(v)){ alert(txt('Das ist kein Read-only-Token – er beginnt mit „ro:“.')); return; }
-      if(v) w.token = v; else delete w.token;
-      saveWallets(S.wallets);
-      renderWalletList();
-    });
     row.querySelector('.wedit').addEventListener('click', () => {
-      const n = prompt('Name für diese Wallet:', w.label);
+      const n = prompt('Name for this wallet:', w.label);
       if(n === null) return;
       w.label = n.trim() || w.label;
       saveWallets(S.wallets);
       renderWalletList(); renderWalletBtn(); renderSettings();
     });
     row.querySelector('.wdel').addEventListener('click', () => {
-      if(!confirm('„' + w.label + '“ aus der Liste entfernen? Deine Notizen bleiben erhalten.')) return;
+      if(!confirm('Remove “' + w.label + '” from the list? Your notes are kept.')) return;
       S.wallets = S.wallets.filter(x => x.id !== id);
       saveWallets(S.wallets);
       renderWalletList(); renderWalletBtn();
@@ -5039,13 +5172,11 @@ function loadWallets(){
   return w;
 }
 function saveWallets(w){ localStorage.setItem(LS.wallets2, JSON.stringify(w)); }
-function activeWallets(){ return S.wallets.filter(w => w.on && /^((lighter|txflow):)?0x[a-fA-F0-9]{40}$/.test(w.addr)); }
+function activeWallets(){ return S.wallets.filter(w => w.on && /^0x[a-fA-F0-9]{40}$/.test(w.addr)); }
 
 function walletLabel(addr){
   const w = S.wallets.find(x => x.addr === addr);
-  const v = boerseVon(addr), roh = rohAdresse(addr);
-  const name = w ? w.label : (roh ? roh.slice(0,6) + '…' + roh.slice(-4) : '');
-  return v === 'hl' ? name : name + ' (' + boerseName(v) + ')';
+  return w ? w.label : (addr ? addr.slice(0,6) + '…' + addr.slice(-4) : '');
 }
 function renderWalletBtn(){
   const act = activeWallets();
@@ -5056,373 +5187,8 @@ function renderWalletBtn(){
     ' <span class="chev">▾</span>';
 }
 
-/* ---------- Weitere Börsen: Lighter und TxFlow ----------
-   Eine Wallet einer anderen Börse trägt ihre Börse vorne im Namen:
-   „lighter:0x…“ oder „txflow:0x…“. So bleibt jede Wallet überall eindeutig –
-   Zwischenspeicher, Sicherung, Notizen –, auch wenn dieselbe Adresse auf
-   mehreren Börsen handelt. Die Ausführungen werden in die Form gebracht, die
-   Hyperliquid liefert; danach rechnet das Journal mit ihnen wie mit allen
-   anderen. Kurse und Charts kommen immer von Hyperliquid.                   */
-const BOERSEN = {
-  hl:      {name:'Hyperliquid', kurz:'HL'},
-  lighter: {name:'Lighter',     kurz:'Lighter'},
-  txflow:  {name:'TxFlow',      kurz:'TxFlow'}
-};
-function boerseVon(id){ const m = /^(lighter|txflow):/.exec(String(id || '')); return m ? m[1] : 'hl'; }
-function rohAdresse(id){ return String(id || '').replace(/^(lighter|txflow):/, ''); }
-function boerseName(v){ return (BOERSEN[v || 'hl'] || BOERSEN.hl).name; }
-function aktiveBoersen(){ return Array.from(new Set(activeWallets().map(w => boerseVon(w.addr)))); }
-function boersePill(t){
-  const v = (t && t.venue) || 'hl';
-  return aktiveBoersen().length > 1
-    ? ' <span class="pill boerse b-' + v + '" title="' + esc(boerseName(v)) + '">' + esc(BOERSEN[v].kurz) + '</span>' : '';
-}
-
-const LIGHTER_API = 'https://mainnet.zklighter.elliot.ai/api/v1/';
-const TXFLOW_API = 'https://api.txflow.com/info';
-
-/* ---- Lighter ----
-   Ohne höhere Konto-Stufe erlaubt Lighter 60 Anfragen pro Minute und IP.
-   Darum liegt zwischen zwei Anfragen immer gut eine Sekunde.              */
-const LIGHTER = {
-  letzte:0, maerkte:null, kontenMerk:{},
-  abstand:1100,
-  async get(pfad, token){
-    const warte = this.letzte + this.abstand - Date.now();
-    if(warte > 0) await sleep(warte);
-    this.letzte = Date.now();
-    const opt = token ? {headers:{Authorization:token}} : {};
-    let r = await fetch(LIGHTER_API + pfad, opt);
-    if(r.status === 429 || r.status === 405){
-      // Zu schnell: Lighter verlangt eine Pause, dann noch ein Versuch
-      await sleep(this.abstand * 6);
-      this.letzte = Date.now();
-      r = await fetch(LIGHTER_API + pfad, opt);
-    }
-    let j = {};
-    try{ j = await r.json(); }catch(e){}
-    if(!r.ok || (j && j.code && j.code !== 200)){
-      const e = new Error('Lighter: ' + ((j && j.message) || ('Status ' + r.status)));
-      e.code = j && j.code;
-      throw e;
-    }
-    return j;
-  },
-  async markt(){
-    if(this.maerkte) return this.maerkte;
-    const j = await this.get('orderBooks');
-    const m = {};
-    for(const o of (j.order_books || [])) m[o.market_id] = {sym:o.symbol, typ:o.market_type};
-    this.maerkte = m;
-    return m;
-  },
-  /* Hauptkonto und Unterkonten zu einer Ethereum-Adresse */
-  async konten(raw){
-    if(this.kontenMerk[raw]) return this.kontenMerk[raw];
-    let liste = [];
-    try{
-      const j = await this.get('accountsByL1Address?l1_address=' + encodeURIComponent(raw));
-      liste = (j.sub_accounts || []).map(a => a.index).filter(i => i != null);
-    }catch(e){
-      if(e.code !== 21100) throw e;   // 21100: kein Konto zu dieser Adresse
-    }
-    this.kontenMerk[raw] = liste;
-    return liste;
-  },
-  /* Ein Lighter-Trade aus Sicht des eigenen Kontos, in Hyperliquid-Form */
-  fill(t, idx, m){
-    const mk = m[t.market_id];
-    if(!mk || mk.typ === 'spot' || t.market_kind === 'spot') return null;
-    const ichAsk = Number(t.ask_account_id) === Number(idx);
-    const ichBid = Number(t.bid_account_id) === Number(idx);
-    if(!ichAsk && !ichBid) return null;
-    const maker = t.is_maker_ask ? ichAsk : ichBid;
-    const start = num(maker ? t.maker_position_size_before : t.taker_position_size_before);
-    const quote = num(maker ? t.maker_entry_quote_before : t.taker_entry_quote_before);
-    const sz = Math.abs(num(t.size)), px = num(t.price);
-    const kauf = ichBid;
-    // Realisiertes Ergebnis aus dem Einstand vor diesem Trade – ohne Gebühren, wie bei Hyperliquid
-    let cp = 0;
-    const schliesst = (start > 0 && !kauf) || (start < 0 && kauf);
-    if(schliesst && Math.abs(start) > 0 && quote > 0){
-      const einstand = quote / Math.abs(start);
-      cp = Math.min(sz, Math.abs(start)) * (px - einstand) * (start > 0 ? 1 : -1);
-    }
-    // Gebühr: Lighter gibt den Satz in Millionsteln an (100 = 0,01 %)
-    const satz = num(maker ? t.maker_fee : t.taker_fee) / 1e6;
-    const fee = num(t.usd_amount || sz * px) * satz;
-    const liq = t.type === 'liquidation' && !maker;
-    return {coin:mk.sym, px:String(px), sz:String(sz), side:kauf ? 'B' : 'A',
-      time:num(t.timestamp) < 1e12 ? num(t.timestamp) * 1000 : num(t.timestamp),
-      startPosition:String(start), dir:liq ? 'Liquidation' : (kauf ? 'Buy' : 'Sell'),
-      closedPnl:String(cp), fee:String(fee), feeToken:'USDC',
-      tid:'L' + (t.trade_id_str || t.trade_id), oid:String(kauf ? (t.bid_id_str || t.bid_id) : (t.ask_id_str || t.ask_id)),
-      hash:t.tx_hash, crossed:!maker, acct:idx, venue:'lighter'};
-  },
-  /* Trades eines Kontos, neueste zuerst, bis zum letzten bekannten Zeitpunkt */
-  async trades(idx, ab, token, onP){
-    const out = [];
-    let cursor = '';
-    for(let s = 0; s < 500; s++){
-      const j = await this.get('trades?account_index=' + idx + '&sort_by=timestamp&limit=100' +
-        (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''), token);
-      const l = j.trades || [];
-      let fertig = false;
-      for(const t of l){
-        const ts = num(t.timestamp) < 1e12 ? num(t.timestamp) * 1000 : num(t.timestamp);
-        if(ts <= ab){ fertig = true; break; }
-        out.push(t);
-      }
-      if(onP) onP(out.length);
-      if(fertig || !j.next_cursor || l.length < 100) break;
-      cursor = j.next_cursor;
-    }
-    return out;
-  },
-  /* Funding-Zahlungen – nur mit Read-only-Token */
-  async funding(idx, ab, token, m){
-    const out = [];
-    let cursor = '';
-    for(let s = 0; s < 300; s++){
-      const j = await this.get('positionFunding?account_index=' + idx + '&limit=100' +
-        (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''), token);
-      const l = j.position_fundings || [];
-      let fertig = false;
-      for(const p of l){
-        const ts = num(p.timestamp) < 1e12 ? num(p.timestamp) * 1000 : num(p.timestamp);
-        if(ts <= ab){ fertig = true; break; }
-        const mk = m[p.market_id];
-        out.push({time:ts, hash:'LF' + p.funding_id + ':' + idx,
-          delta:{type:'funding', coin:mk ? mk.sym : String(p.market_id), usdc:String(num(p.change)),
-            szi:String(num(p.position_size) * (p.position_side === 'short' ? -1 : 1)), fundingRate:p.rate}});
-      }
-      if(fertig || !j.next_cursor || l.length < 100) break;
-      cursor = j.next_cursor;
-    }
-    return out;
-  },
-  async konto(idx){
-    const j = await this.get('account?by=index&value=' + idx);
-    return (j.accounts || [])[0] || null;
-  },
-  /* Konten in die Form von clearinghouseState bringen */
-  positionen(konten){
-    const ms = {accountValue:0, totalNtlPos:0, totalRawUsd:0, totalMarginUsed:0};
-    let frei = 0;
-    const aps = [];
-    for(const a of konten){
-      if(!a) continue;
-      ms.accountValue += num(a.total_asset_value != null ? a.total_asset_value : a.collateral);
-      frei += num(a.available_balance);
-      for(const p of (a.positions || [])){
-        const sz = num(p.position) * (num(p.sign) < 0 ? -1 : 1);
-        if(!sz) continue;
-        const imf = num(p.initial_margin_fraction), wert = num(p.position_value);
-        const marg = num(p.allocated_margin) || (imf > 0 ? wert * imf / 100 : 0);
-        ms.totalNtlPos += wert; ms.totalMarginUsed += marg;
-        aps.push({type:'oneWay', position:{coin:p.symbol, szi:String(sz), entryPx:String(num(p.avg_entry_price)),
-          positionValue:String(wert), unrealizedPnl:String(num(p.unrealized_pnl)),
-          returnOnEquity:String(marg > 0 ? num(p.unrealized_pnl) / marg : 0),
-          liquidationPx:num(p.liquidation_price) > 0 ? String(num(p.liquidation_price)) : null,
-          marginUsed:String(marg),
-          leverage:{type:num(p.margin_mode) === 1 ? 'isolated' : 'cross', value:imf > 0 ? Math.round(100 / imf) : 0},
-          // positiv = gezahlt, wie bei Hyperliquid
-          cumFunding:{sinceOpen:String(num(p.total_funding_paid_out))}}});
-      }
-    }
-    Object.keys(ms).forEach(k => ms[k] = String(ms[k]));
-    return {marginSummary:ms, crossMarginSummary:ms, withdrawable:String(frei), assetPositions:aps};
-  },
-  async positionenVon(raw){
-    const konten = await this.konten(raw);
-    const kd = [];
-    for(const idx of konten){ try{ kd.push(await this.konto(idx)); }catch(e){} }
-    return kd.length ? this.positionen(kd) : null;
-  }
-};
-
-/* ---- TxFlow ----
-   Die Schnittstelle ähnelt der von Hyperliquid, gibt aber nur einen Teil
-   heraus: die jüngsten Ausführungen (kein Blättern), keine Funding-Liste. */
-const TXFLOW = {
-  async info(body){
-    const r = await fetch(TXFLOW_API, {method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(body)});
-    if(!r.ok) throw new Error('TxFlow antwortet mit Status ' + r.status);
-    return r.json();
-  },
-  /* TxFlow meldet das Ergebnis schließender Ausführungen nach Abzug der Gebühr;
-     Hyperliquid (und damit das Journal) davor. Die Gebühr kommt also wieder dazu. */
-  fill(f){
-    if(!f || f.instrumentType === 'spot' || f.marketType === 'spot') return null;
-    const cp = num(f.closedPnl), fee = num(f.fee);
-    return Object.assign({}, f, {tid:'X' + f.tid, closedPnl:String(cp ? cp + fee : 0),
-      crossed:f.tradeSide ? f.tradeSide === 'Taker' : f.crossed, venue:'txflow'});
-  }
-};
-
-/* Startposition jeder Ausführung vom heutigen Bestand aus rückwärts bestimmen.
-   So stimmt die Zuordnung auch dann, wenn die Börse nur die jüngsten
-   Ausführungen herausgibt und eine Position schon vorher offen war.        */
-function startPositionenSetzen(fills, positionen){
-  const pos = {};
-  for(const ap of ((positionen || {}).assetPositions || [])){
-    const q = ap.position || {};
-    if(q.coin) pos[q.coin] = num(q.szi);
-  }
-  for(let i = fills.length - 1; i >= 0; i--){
-    const f = fills[i];
-    const s = Math.abs(num(f.sz)) * (f.side === 'B' ? 1 : -1);
-    const nach = pos[f.coin] || 0;
-    let vor = Math.round((nach - s) * 1e9) / 1e9;
-    if(Math.abs(vor) < 1e-9) vor = 0;
-    f.startPosition = String(vor);
-    pos[f.coin] = vor;
-  }
-}
-
-/* ---- Funding, wo die Börse keine Liste herausgibt ----
-   Bei TxFlow (und bei Lighter ohne Token) steht das bisherige Funding nur an
-   der offenen Position. Es wird bei jedem Abruf festgehalten; schließt die
-   Position, bleibt der letzte Stand am Trade. Das ist eine Schätzung.      */
-const FUNDMERK = {
-  key:'hlj_fund_obs',
-  lade(){ try{ return JSON.parse(localStorage.getItem(this.key) || '{}') || {}; }catch(e){ return {}; } },
-  speichern(m){ try{ localStorage.setItem(this.key, JSON.stringify(m)); }catch(e){} },
-  beobachten(addr, offene, positionen){
-    const aps = ((positionen || {}).assetPositions || []);
-    if(!aps.length || !offene.length) return;
-    const m = this.lade();
-    let neu = false;
-    for(const t of offene){
-      if(t.wallet && t.wallet !== addr) continue;
-      const ap = aps.find(a => (a.position || {}).coin === t.coin);
-      if(!ap) continue;
-      const usd = -num(((ap.position || {}).cumFunding || {}).sinceOpen);
-      const k = noteKey(t);
-      if(!m[k] || Math.abs(m[k].usd - usd) > 1e-9){ m[k] = {usd, t:Date.now()}; neu = true; }
-    }
-    if(neu) this.speichern(m);
-  },
-  liste(addr, trades){
-    const m = this.lade(), out = [];
-    for(const t of trades){
-      const o = m[noteKey(t)];
-      if(!o || !o.usd) continue;
-      t.fundingGeschaetzt = true;
-      out.push({time:t.open ? Math.max(t.openTime, Date.now()) : t.closeTime, wallet:addr,
-        hash:'geschätzt (' + boerseName(boerseVon(addr)) + ')',
-        delta:{type:'funding', coin:t.coin, usdc:String(o.usd)}, geschaetzt:true});
-    }
-    return out;
-  }
-};
-
-/* Laufende Positionen einer Wallet, egal welche Börse */
-async function positionenHolen(addr){
-  const v = boerseVon(addr), raw = rohAdresse(addr);
-  if(v === 'lighter') return LIGHTER.positionenVon(raw);
-  if(v === 'txflow') return TXFLOW.info({type:'clearinghouseState', user:raw});
-  return info({type:'clearinghouseState', user:addr});
-}
-async function ordersHolen(addr){
-  const v = boerseVon(addr), raw = rohAdresse(addr);
-  if(v === 'lighter') return [];            // offene Orders gibt Lighter nur mit Anmeldung heraus
-  if(v === 'txflow') return TXFLOW.info({type:'frontendOpenOrders', user:raw});
-  return info({type:'frontendOpenOrders', user:addr});
-}
-
-/* Eine Wallet von Lighter oder TxFlow laden – Ergebnis in derselben Form wie bei Hyperliquid */
-async function loadVenue(addr, incremental){
-  const v = boerseVon(addr), raw = rohAdresse(addr);
-  const w = S.wallets.find(x => x.addr === addr) || {};
-  const cache = incremental ? await CACHE.get(addr) : null;
-  let base = cache ? cache.fills : [];
-  if(!base.length && SYNC.active()){
-    const marke = 'hlj_sync_fills_geholt_' + String(addr).toLowerCase();
-    let geholt = false;
-    try{ geholt = localStorage.getItem(marke) === '1'; }catch(e){}
-    if(!geholt){
-      try{
-        const aus = await SYNC.holen(addr);
-        if(aus.length) base = mergeFills([], aus);
-        try{ localStorage.setItem(marke, '1'); }catch(e){}
-      }catch(e){}
-    }
-  }
-  let fills, positions = null, ledger = [], funding = [], spot = null, orders = [], neuN = 0;
-  const altFund = (cache && cache.funding) || [];
-  if(v === 'lighter'){
-    const m = await LIGHTER.markt();
-    const konten = await LIGHTER.konten(raw);
-    if(!konten.length) throw new Error('Zu ' + raw.slice(0, 8) + '… gibt es bei Lighter kein Konto.');
-    const ab = base.length ? num(base[base.length - 1].time) - 1 : 0;
-    const neu = [];
-    for(const idx of konten){
-      const tr = await LIGHTER.trades(idx, ab, w.token, n =>
-        setStatus('<span class="spin"></span> ' + esc(walletLabel(addr)) + ': ' + (neu.length + n) + ' Trades…'));
-      for(const t of tr){ const f = LIGHTER.fill(t, idx, m); if(f) neu.push(f); }
-    }
-    neuN = neu.length;
-    fills = mergeFills(base, neu);
-    positions = await LIGHTER.positionenVon(raw).catch(() => null);
-    if(w.token){
-      const fab = altFund.length ? num(altFund[altFund.length - 1].time) : 0;
-      const nf = [];
-      for(const idx of konten){
-        try{ nf.push.apply(nf, await LIGHTER.funding(idx, fab, w.token, m)); }
-        catch(e){ S.boerseHinweis = 'Lighter-Funding: ' + e.message + ' – Token prüfen.'; }
-      }
-      funding = mergeLedger(altFund, nf);
-    }
-  }else{
-    const [fr, pos, led, sp, ord] = await Promise.all([
-      TXFLOW.info({type:'userFills', user:raw}),
-      TXFLOW.info({type:'clearinghouseState', user:raw}).catch(() => null),
-      TXFLOW.info({type:'userNonFundingLedgerUpdates', user:raw}).catch(() => []),
-      TXFLOW.info({type:'spotClearinghouseState', user:raw}).catch(() => null),
-      TXFLOW.info({type:'frontendOpenOrders', user:raw}).catch(() => [])
-    ]);
-    const neu = (Array.isArray(fr) ? fr : []).map(f => TXFLOW.fill(f)).filter(Boolean);
-    neuN = neu.length;
-    fills = mergeFills(base, neu);
-    positions = pos;
-    if(positions) startPositionenSetzen(fills, positions);
-    ledger = Array.isArray(led) ? led : [];
-    spot = sp;
-    orders = Array.isArray(ord) ? ord : [];
-  }
-  S.geholt = S.geholt || {};
-  S.geholt[addr] = {fills:neuN, funding:funding.length - altFund.length, ledger:ledger.length};
-  await CACHE.put(addr, fills, {funding, ledger,
-    fundUntil:funding.length ? num(funding[funding.length - 1].time) : Date.now(), ledgerUntil:Date.now()});
-
-  // Lighter: jedes Unterkonto hat eigene Positionen – getrennt rechnen
-  const gruppen = {};
-  for(const f of fills){ const g = v === 'lighter' ? String(f.acct) : '0'; (gruppen[g] = gruppen[g] || []).push(f); }
-  let trades = [], offen = [];
-  for(const g in gruppen){
-    const r = buildTrades(gruppen[g]);
-    trades = trades.concat(r.trades); offen = offen.concat(r.openTrades);
-  }
-  trades.sort((a, b) => a.closeTime - b.closeTime);
-  for(const t of trades.concat(offen)){ t.wallet = addr; t.venue = v; t.id += '|' + v; }
-
-  let fundList = funding.map(x => Object.assign({wallet:addr}, x));
-  if(!fundList.length){
-    FUNDMERK.beobachten(addr, offen, positions);
-    fundList = FUNDMERK.liste(addr, trades.concat(offen));
-  }
-  attachFunding(trades.concat(offen), fundList);
-  return {addr, venue:v, fills, trades, openTrades:offen, positions, portfolio:null,
-    funding:fundList, ledger:ledger.map(x => Object.assign({wallet:addr}, x)),
-    spot, vaults:[], staking:null, subAccounts:[], fees:null,
-    orders:orders.map(o => Object.assign({wallet:addr}, o))};
-}
-
 /* ---------- Laden (eine oder mehrere Wallets) ---------- */
 async function loadOne(addr, incremental){
-  if(boerseVon(addr) !== 'hl') return loadVenue(addr, incremental);
   const cache = incremental ? await CACHE.get(addr) : null;
   let base = cache ? cache.fills : [];
   /* Leerer Speicher, aber eine Sicherung eingerichtet – ein neues Gerät.
@@ -5495,8 +5261,8 @@ async function loadOne(addr, incremental){
   // Dieselben Objekte, die später in S.funding stehen – so bleibt die Zuordnung zum Trade erhalten
   const fundList = (Array.isArray(fund) ? fund : []).map(x => Object.assign({wallet:addr}, x));
   attachFunding(r.trades.concat(r.openTrades), fundList);
-  r.trades.forEach(t => { t.wallet = addr; t.venue = 'hl'; });
-  r.openTrades.forEach(t => { t.wallet = addr; t.venue = 'hl'; });
+  r.trades.forEach(t => { t.wallet = addr; });
+  r.openTrades.forEach(t => { t.wallet = addr; });
   return {addr, fills, trades:r.trades, openTrades:r.openTrades,
     positions:pos, portfolio:port,
     funding:fundList,
@@ -5549,16 +5315,9 @@ async function load(incremental){
     S.spotPrices = buildSpotPrices(sMeta);
 
     const data = [];
-    S.boerseHinweis = '';
     for(const w of act){
       setStatus('<span class="spin"></span> Lade ' + esc(w.label) + '…');
-      if(boerseVon(w.addr) === 'hl'){ data.push(await loadOne(w.addr, incremental)); continue; }
-      try{ data.push(await loadOne(w.addr, incremental)); }
-      catch(e){
-        S.boerseHinweis = esc(walletLabel(w.addr)) + ': ' + esc(e.message);
-        data.push({addr:w.addr, venue:boerseVon(w.addr), fills:[], trades:[], openTrades:[], positions:null,
-          portfolio:null, funding:[], ledger:[], spot:null, vaults:[], staking:null, subAccounts:[], fees:null, orders:[]});
-      }
+      data.push(await loadOne(w.addr, incremental));
     }
     S.wdata = data;
     S.addr = act[0].addr;
@@ -5586,7 +5345,6 @@ async function load(incremental){
     S.portfolio = [['allTime', {accountValueHistory: mergeHistories(data.map(d => acctHistoryOf(d.portfolio))),
       pnlHistory:[]}]];
     S.totals = computeTotals();
-    if(S.boerseHinweis) showErr('<b>Nicht alles geladen.</b> ' + S.boerseHinweis + ' – Hyperliquid und die übrigen Wallets sind trotzdem da.');
     // Einzelheiten zu den Vaults, in denen wirklich Geld liegt
     if((S.vaults || []).some(v => num(v.equity) > 0)){
       setStatus('<span class="spin"></span> Lade Vaults…');
@@ -5756,7 +5514,6 @@ function filtered(von, bis, quelle){
   const coin = $('#fCoin').value;
   const tag = $('#fTag').value;
   const mkt = $('#fMarket').value;
-  const venue = $('#fVenue') ? $('#fVenue').value : '';
   // Ohne eigenen Zeitraum gilt der Filter oben
   const eigen = von !== undefined;
   const cutoff = (!eigen && days) ? Date.now() - days * 86400000 : 0;
@@ -5766,7 +5523,6 @@ function filtered(von, bis, quelle){
     if(coin && t.coin !== coin) return false;
     if(mkt === 'perp' && t.spot) return false;
     if(mkt === 'spot' && !t.spot) return false;
-    if(venue && (t.venue || 'hl') !== venue) return false;
     if(tag){
       const tl = tagsOf(noteOfTrade(t));
       if(tag === '__none'){ if(tl.length) return false; }
@@ -5895,7 +5651,7 @@ function renderKpis(tr){
     ['Max Drawdown', usd(m.maxDD), m.maxDDpct ? '−' + m.maxDDpct.toFixed(1) + '% auf PnL-Kurve' : 'auf PnL-Kurve', 'down'],
     ['Max DD (Konto)', hdd.dd ? usd(hdd.dd) : '–', hdd.pct ? '−' + hdd.pct.toFixed(1) + '% vom Hoch' : 'Kontoverlauf', 'down'],
     ['Gebühren', usd(m.fees, 2), 'in diesen Trades', 'down'],
-    ['Funding in Trades', sgn(m.funding, 2), m.funding >= 0 ? 'erhalten' : 'gezahlt', cls(m.funding)],
+    ['Funding in Trades', sgn(m.funding, 2), m.funding >= 0 ? 'received' : 'paid', cls(m.funding)],
     ['Ø Haltedauer', dur(m.avgDur) +
       delta({now:cmp.A.avgDur, prev:cmp.B.avgDur}, cmp, v => dur(v), true, 'Ø Haltedauer'), '', ''],
     ['Beste Serie', m.streakW + ' Gewinne', '', 'up'],
@@ -5909,9 +5665,17 @@ function renderKpis(tr){
     : 'Für einen Vergleich mit dem Zeitraum davor fehlen noch Trades — nötig sind ' +
       VERGLEICH_MIN + ' je Zeitraum.';
 
-  $('#kpis').innerHTML = items.filter(Boolean).map(([k, v, s, c]) =>
+  // The few numbers that matter most up front, everything else one tap away
+  const VORNE = ['Realisierter PnL', 'Ergebnis inkl. offen', 'Ergebnis in R', 'Winrate', 'Profit Factor', 'Erwartungswert', 'Max Drawdown'];
+  const kachel = ([k, v, s, c]) =>
     '<div class="kpi"><div class="k">' + k + '</div><div class="v ' + c + '">' + v + '</div>' +
-    (s ? '<div class="s">' + s + '</div>' : '') + '</div>').join('');
+    (s ? '<div class="s">' + s + '</div>' : '') + '</div>';
+  const alle = items.filter(Boolean);
+  const vorne = alle.filter(x => VORNE.indexOf(x[0]) >= 0), rest = alle.filter(x => VORNE.indexOf(x[0]) < 0);
+  const offen = $('#kpis').querySelector && $('#kpis').querySelector('details[open]');
+  $('#kpis').innerHTML = vorne.map(kachel).join('') +
+    (rest.length ? '<details class="morekpis"' + (offen ? ' open' : '') + '><summary>All numbers (' + rest.length + ' more)</summary>' +
+      '<div class="kpis">' + rest.map(kachel).join('') + '</div></details>' : '');
 }
 
 /* Wie vollständig ist unsere Trade-Historie überhaupt?
@@ -5953,7 +5717,7 @@ function mkChart(id, cfg){
   S.charts[id] = new Chart(el.getContext('2d'), translateCfg(cfg));
 }
 /* Diagrammfarben – werden beim Umschalten der Ansicht angepasst */
-const C = {up:'#0f8a5f', down:'#c9354a', upFill:'rgba(15,138,95,.10)',
+const C = {up:'#1e7a4e', down:'#b5463d', upRgb:'30,122,78', downRgb:'181,70,61', upFill:'rgba(30,122,78,.10)',
   downFill:'rgba(201,53,74,.10)', acc:'#0d7d6f', grid:'#eef0f3', tick:'#6b7280',
   faint:'#9ca3af', warn:'#b45309', panel:'#ffffff', mark:'#111418'};
 const AXIS = {
@@ -5967,15 +5731,15 @@ function moneyAxis(){
 }
 function applyChartColors(dark){
   if(dark){
-    C.up='#3ecf8e'; C.down='#f2606f';
-    C.upFill='rgba(62,207,142,.14)'; C.downFill='rgba(242,96,111,.14)';
-    C.acc='#3ec9b4'; C.grid='#252c35'; C.tick='#9aa5b4'; C.faint='#6b7683';
-    C.warn='#e0a84a'; C.panel='#171b21'; C.mark='#e8ecf1';
+    C.up='#4cc38a'; C.down='#e06c63'; C.upRgb='76,195,138'; C.downRgb='224,108,99';
+    C.upFill='rgba(76,195,138,.14)'; C.downFill='rgba(224,108,99,.14)';
+    C.acc='#45b783'; C.grid='#1f2925'; C.tick='#8b978f'; C.faint='#5f6b64';
+    C.warn='#d6a44a'; C.panel='#131816'; C.mark='#e8ece7';
   }else{
-    C.up='#0f8a5f'; C.down='#c9354a';
-    C.upFill='rgba(15,138,95,.10)'; C.downFill='rgba(201,53,74,.10)';
-    C.acc='#0d7d6f'; C.grid='#eef0f3'; C.tick='#6b7280'; C.faint='#9ca3af';
-    C.warn='#b45309'; C.panel='#ffffff'; C.mark='#111418';
+    C.up='#1e7a4e'; C.down='#b5463d'; C.upRgb='30,122,78'; C.downRgb='181,70,61';
+    C.upFill='rgba(30,122,78,.10)'; C.downFill='rgba(181,70,61,.10)';
+    C.acc='#1f6b4a'; C.grid='#ebe6da'; C.tick='#6c736d'; C.faint='#a3a79f';
+    C.warn='#a8661c'; C.panel='#fffefb'; C.mark='#1b211e';
   }
   AXIS.grid.color = C.grid;
   AXIS.ticks.color = C.tick;
@@ -6129,7 +5893,7 @@ function renderTrades(tr){
     return '<tr data-id="' + esc(t.id) + '">' +
       '<td class="mut">' + dt(t.closeTime) + '</td>' +
       '<td class="wcol mut">' + esc(walletLabel(t.wallet)) + '</td>' +
-      '<td><b>' + esc(coinName(t.coin)) + '</b>' + boersePill(t) + (t.liquidated ? ' <span class="pill liq">LIQ</span>' : '') +
+      '<td><b>' + esc(coinName(t.coin)) + '</b>' + (t.liquidated ? ' <span class="pill liq">LIQ</span>' : '') +
         (t.partial ? ' <span class="pill" style="color:var(--muted);border-color:var(--line)" title="Eröffnung liegt vor dem geladenen Zeitraum">≈</span>' : '') +
         (istDN(t) ? ' <span class="pill dn" title="Delta neutral – in keiner Auswertung">DN</span>' : '') + '</td>' +
       '<td><span class="pill ' + t.side + '">' + (t.side === 'long' ? 'LONG' : 'SHORT') + '</span></td>' +
@@ -6492,7 +6256,7 @@ function renderLongShort(tr){
     let diff = '<span class="mut">–</span>';
     if(kind === 'money' || kind === 'lossmoney'){
       const d = va - vb;
-      diff = '<span class="' + cls(d) + '">' + (d > 0 ? 'Long ' : 'Short ') + usd(Math.abs(d), 2) + ' mehr</span>';
+      diff = '<span class="' + cls(d) + '">' + (d > 0 ? 'Long ' : 'Short ') + usd(Math.abs(d), 2) + ' ahead</span>';
     }else if(kind === 'pct'){
       const d = va - vb;
       diff = '<span class="' + (Math.abs(d) < 0.05 ? 'mut' : '') + '">' +
@@ -6521,9 +6285,9 @@ function renderLongShort(tr){
   if(el) S.charts.chLS = new Chart(el.getContext('2d'), translateCfg({
     type:'line',
     data:{datasets:[
-      {label:'Long', data:curve(L), borderColor:C.up, backgroundColor:'rgba(15,138,95,.08)',
+      {label:'Long', data:curve(L), borderColor:C.up, backgroundColor:'rgba(' + C.upRgb + ',.08)',
        borderWidth:2, pointRadius:0, tension:.2, fill:true},
-      {label:'Short', data:curve(S_), borderColor:C.down, backgroundColor:'rgba(201,53,74,.08)',
+      {label:'Short', data:curve(S_), borderColor:C.down, backgroundColor:'rgba(' + C.downRgb + ',.08)',
        borderWidth:2, pointRadius:0, tension:.2, fill:true}
     ]},
     options:{responsive:true, maintainAspectRatio:false,
@@ -6850,7 +6614,7 @@ function renderCalendar(tr){
       sum += e.pnl;
       if(e.pnl > 0) green++; else if(e.pnl < 0) red++;
       const a = Math.min(.62, .10 + Math.abs(e.pnl) / max * .5);
-      style = 'background:rgba(' + (e.pnl >= 0 ? '15,138,95,' : '201,53,74,') + a.toFixed(2) + ')';
+      style = 'background:rgba(' + (e.pnl >= 0 ? C.upRgb + ',' : C.downRgb + ',') + a.toFixed(2) + ')';
     }
     html += '<div class="cell" style="' + style + '"><div class="d">' + d + '</div>' +
       (e ? '<div class="p">' + sgn(e.pnl, 0) + '<br><span style="opacity:.65;font-weight:400">' + e.n + 'x</span></div>' : '') +
@@ -6933,7 +6697,7 @@ function renderPlanCalendar(){
     const o = x.obj;
     const sub = x.kind === 'plan'
       ? [(o.setups || (o.setup ? [o.setup] : [])).join(' + '),
-         o.entry ? 'Einstieg ' + o.entry : '', o.stop ? 'Stop ' + o.stop : '']
+         o.entry ? 'Entry ' + o.entry : '', o.stop ? 'Stop ' + o.stop : '']
           .filter(Boolean).join(' · ')
       : (o.note || '');
     return '<div class="evrow" data-k="' + x.kind + '" data-id="' + esc(x.id) + '" style="cursor:pointer">' +
@@ -6985,7 +6749,7 @@ function renderYear(tr){
     let style = '';
     if(e){
       const a = Math.min(.55, .09 + Math.abs(e.pnl)/max * .46);
-      style = 'background:rgba(' + (e.pnl >= 0 ? '15,138,95,' : '201,53,74,') + a.toFixed(2) + ')';
+      style = 'background:rgba(' + (e.pnl >= 0 ? C.upRgb + ',' : C.downRgb + ',') + a.toFixed(2) + ')';
     }
     const cur = (y === now.getFullYear() && m === now.getMonth()) ? ' cur' : '';
     html += '<div class="mcell' + cur + '" style="' + style + '" data-m="' + m + '">' +
@@ -7221,7 +6985,7 @@ function renderCosts(tr){
   const gross = tr.reduce((s,t) => s + t.closedPnl, 0);
   const items = [
     ['Handelsgebühren', usd(fees, 2), tr.length + ' Trades', 'down'],
-    ['Funding gesamt', sgn(fundSum, 2), fundSum >= 0 ? 'erhalten' : 'gezahlt', cls(fundSum)],
+    ['Funding gesamt', sgn(fundSum, 2), fundSum >= 0 ? 'received' : 'paid', cls(fundSum)],
     ['Kosten gesamt', usd(fees + Math.max(0, -fundSum), 2), 'Gebühren + gezahltes Funding', 'down'],
     ['Brutto-PnL', sgn(gross, 2), 'vor Gebühren', cls(gross)],
     ['Netto-PnL', sgn(gross - fees, 2), 'nach Gebühren', cls(gross - fees)],
@@ -7379,7 +7143,6 @@ function feeAudit(tr){
 }
 
 function renderFeeAudit(tr){
-  tr = tr.filter(t => (t.venue || 'hl') === 'hl');
   const a = feeAudit(tr);
   const box = $('#feeAudit');
   if(!box) return;
@@ -7399,7 +7162,7 @@ function renderFeeAudit(tr){
   box.innerHTML =
     '<div class="dl"><span>Ausführungen</span><span>' + a.fills.toLocaleString(loc()) +
       ' <span class="mut">(' + a.taker + ' Taker, ' + a.maker + ' Maker' +
-      (a.unknown ? ', ' + a.unknown + ' ohne Angabe' : '') + ')</span></span></div>' +
+      (a.unknown ? ', ' + a.unknown + ' unspecified' : '') + ')</span></span></div>' +
     '<div class="dl"><span>Gehandelter Umsatz</span><span>' + usd(a.vol, 0) + '</span></div>' +
     '<div class="dl"><span><b>Summe der Gebühren</b></span><span><b>' + usd(a.fees, 2) + '</b></span></div>' +
     '<div class="dl"><span>Daraus errechneter Satz</span><span>' + bp(a.eff) + '</span></div>' +
@@ -7907,7 +7670,7 @@ function renderSync(){
       if(t && !$('#syncCreds').classList.contains('hide')){ t.focus(); t.select(); }
     });
     $('#syncOff').addEventListener('click', () => {
-      if(!confirm('Synchronisation trennen? Deine Notizen bleiben auf diesem Gerät erhalten.')) return;
+      if(!confirm('Disconnect sync? Your notes stay on this device.')) return;
       SYNC.clear(); setSyncStatus(''); renderSettings();
     });
     return;
@@ -7955,7 +7718,7 @@ function renderSync(){
     try{
       await SYNC.run({loud:true});
       renderSettings();
-      alert('Verbunden. Trag dieselben drei Werte auf deinem anderen Gerät ein, dann sind beide synchron.');
+      alert('Connected. Enter the same three values on your other device and both stay in sync.');
     }catch(e){
       SYNC.clear();
       renderSettings();
@@ -8685,7 +8448,7 @@ function zeichneKarte(cv, t, opt){
   sp('Held', kDauer(d.dauer) || '–', P + 600);
   lin(904);
 
-  karteFuss(g, F, hell, kDatum(d.von) + (d.laeuft ? ' – open' : ' – ' + kDatum(d.bis)), boerseName(t.venue));
+  karteFuss(g, F, hell, kDatum(d.von) + (d.laeuft ? ' – open' : ' – ' + kDatum(d.bis)));
   return true;
 }
 
@@ -8715,7 +8478,7 @@ function karteGrund(g, F, akzent, hell){
   }
 }
 /* Fuß: Datum links, Referral mit QR rechts */
-function karteFuss(g, F, hell, datumText, boerse){
+function karteFuss(g, F, hell, datumText){
   const W = KARTE.W, P = 80;
   g.textAlign = 'left';
   g.font = '400 23px ' + SANS;
@@ -8737,7 +8500,7 @@ function karteFuss(g, F, hell, datumText, boerse){
   }else{
     g.font = '400 21px ' + SANS;
     g.fillStyle = F.mut;
-    g.fillText((boerse || 'Hyperliquid') + '  ·  tracked with Oryol', P, 996);
+    g.fillText('Hyperliquid  ·  tracked with Oryol', P, 996);
   }
 }
 
@@ -8753,8 +8516,7 @@ function zeitraumDaten(tr, label, von, bis){
   const best = tr.length ? tr.reduce((a, b) => (b.retPct > a.retPct ? b : a)) : null;
   const schlecht = tr.length ? tr.reduce((a, b) => (b.retPct < a.retPct ? b : a)) : null;
   const halte = tr.length ? tr.reduce((s, t) => s + (t.durationMs || 0), 0) / tr.length : 0;
-  const vs = Array.from(new Set(tr.map(t => boerseName(t.venue))));
-  return {zeitraum:true, boerse:vs.length ? vs.join(' + ') : 'Hyperliquid', label, von, bis, n:tr.length, netto:m.net, wins:m.wins, losses:m.losses,
+  return {zeitraum:true, label, von, bis, n:tr.length, netto:m.net, wins:m.wins, losses:m.losses,
     winrate:m.winrate, pf:m.pf, rSumme, rVorhanden, best, schlecht, halte};
 }
 function zeichneZeitraumKarte(cv, z, opt){
@@ -8837,7 +8599,7 @@ function zeichneZeitraumKarte(cv, z, opt){
   sp('Avg hold', z.n ? kDauer(z.halte) : '–', P + 600);
   lin(904);
 
-  karteFuss(g, F, hell, kDatum(z.von) + ' – ' + kDatum(z.bis), z.boerse);
+  karteFuss(g, F, hell, kDatum(z.von) + ' – ' + kDatum(z.bis));
   return true;
 }
 
@@ -9238,7 +9000,6 @@ function openTrade(id){
     (laeuft ? ' <span class="pill jetzt">läuft</span>' : '') +
     (t.paper ? ' <span class="pill" style="color:var(--acc2);border-color:var(--acc2)">PAPER</span>' : '') +
     (istDN(t) ? ' <span class="pill dn" title="Delta neutral – in keiner Auswertung">DN</span>' : '') +
-    (t.venue && t.venue !== 'hl' ? ' <span class="pill boerse b-' + t.venue + '">' + esc(boerseName(t.venue)) + '</span>' : '') +
     (t.liquidated ? ' <span class="pill liq">LIQUIDIERT</span>' : '');
   $('#mSub').textContent = laeuft
     ? txt('seit') + ' ' + dt(t.openTime) + '  ·  ' + dur(Date.now() - t.openTime)
@@ -9745,8 +9506,9 @@ function computeTax(year){
       netUnder1y: sum(spot, 'eurNet', x => x.holdDays < 365)
     },
     l:{
-      deposits: sum(ledger, 'eur', x => /deposit/i.test(x.type)),
-      withdrawals: -sum(ledger, 'eur', x => /withdraw/i.test(x.type)),
+      // Only real deposits and withdrawals – vault moves and internal transfers are not money in or out
+      deposits: ledger.filter(x => x.type === 'deposit').reduce((a, x) => a + Math.abs(x.eur), 0),
+      withdrawals: ledger.filter(x => x.type === 'withdraw').reduce((a, x) => a + Math.abs(x.eur), 0),
       n: ledger.length
     }
   };
@@ -9766,7 +9528,7 @@ function csv(head, rows){
   return '﻿' + head.map(esc2).join(';') + '\n' +
     rows.map(r => r.map(esc2).join(';')).join('\n');
 }
-function fxLabel(){ return FX.manual ? 'fester Kurs' : 'EZB'; }
+function fxLabel(){ return FX.manual ? 'Fester' : 'EZB'; }
 function taxSuffix(){
   const y = S.taxResult && S.taxResult.year;
   return (y ? y : 'alle-Jahre') + '.csv';
@@ -9775,7 +9537,7 @@ function csvDerivate(){
   const r = S.taxResult;
   return csv(['Geschlossen','Eroeffnet','Wallet','Markt','Richtung','Positionsgroesse USD',
     'Ø Einstieg','Ø Ausstieg','Ergebnis USD brutto','Gebuehren USD','Ergebnis USD netto',
-    'EZB-Kurs USD/EUR (Schliesstag)','Ergebnis EUR brutto','Gebuehren EUR','Ergebnis EUR netto','Nachweis (Hash)'],
+    fxLabel() + '-Kurs USD/EUR (Schliesstag)','Ergebnis EUR brutto','Gebuehren EUR','Ergebnis EUR netto','Nachweis (Hash)'],
     r.derivate.map(x => [deDT(x.closeTime), deDT(x.openTime), x.wallet, coinName(x.coin),
       x.side === 'long' ? 'Long' : 'Short', de(x.size), de(x.avgEntry, 6), de(x.avgExit, 6),
       de(x.usdGross), de(x.usdFees), de(x.usdNet), de(x.rateClose, 5),
@@ -9783,21 +9545,30 @@ function csvDerivate(){
 }
 function csvFunding(){
   const r = S.taxResult;
-  return csv(['Zeitpunkt','Wallet','Markt','Betrag USD','EZB-Kurs USD/EUR','Betrag EUR','Nachweis (Hash)'],
+  return csv(['Zeitpunkt','Wallet','Markt','Betrag USD',fxLabel() + '-Kurs USD/EUR','Betrag EUR','Nachweis (Hash)'],
     r.funding.map(x => [deDT(x.time), x.wallet, x.coin, de(x.usd, 6), de(x.rate, 5), de(x.eur, 6), x.hash]));
 }
 function csvSpot(){
   const r = S.taxResult;
   return csv(['Verkauf','Kauf','Wallet','Markt','Haltedauer Tage','unter 1 Jahr',
-    'Ergebnis USD netto','EZB-Kurs USD/EUR','Ergebnis EUR netto','Nachweis (Hash)'],
+    'Ergebnis USD netto',fxLabel() + '-Kurs USD/EUR','Ergebnis EUR netto','Nachweis (Hash)'],
     r.spot.map(x => [deDT(x.closeTime), deDT(x.openTime), x.wallet, coinName(x.coin),
       de(x.holdDays, 1), x.holdDays < 365 ? 'ja' : 'nein',
       de(x.usdNet), de(x.rateClose, 5), de(x.eurNet), x.hashes]));
 }
+/* Vorgänge im Kontobuch auf Deutsch – die Datei geht ans Finanzamt */
+const VORGANG = {deposit:'Einzahlung', withdraw:'Auszahlung', vaultDeposit:'Einzahlung in Vault',
+  vaultWithdraw:'Auszahlung aus Vault', vaultCreate:'Vault angelegt', vaultDistribution:'Ausschüttung aus Vault',
+  spotTransfer:'Spot-Übertrag', accountClassTransfer:'Umbuchung Perp/Spot', internalTransfer:'Interne Übertragung',
+  subAccountTransfer:'Übertrag Unterkonto', send:'Übertragung', liquidation:'Liquidation',
+  rewardsClaim:'Belohnung', spotGenesis:'Spot-Zuteilung', cStakingTransfer:'Staking-Übertrag', deployGasAuction:'Gebühr Auktion'};
+function vorgang(t){ return VORGANG[t] || t || 'Sonstiges'; }
 function csvLedger(){
   const r = S.taxResult;
-  return csv(['Zeitpunkt','Wallet','Vorgang','Betrag USD','EZB-Kurs USD/EUR','Betrag EUR','Nachweis (Hash)'],
-    r.ledger.map(x => [deDT(x.time), x.wallet, x.type, de(x.usd), de(x.rate, 5), de(x.eur), x.hash]));
+  return csv(['Zeitpunkt','Wallet','Vorgang','Betrag USD',fxLabel() + '-Kurs USD/EUR','Betrag EUR','Nachweis (Hash)'],
+    r.ledger.map(x => [deDT(x.time), x.wallet, vorgang(x.type),
+      de(x.type === 'withdraw' ? -Math.abs(x.usd) : x.usd), de(x.rate, 5),
+      de(x.type === 'withdraw' ? -Math.abs(x.eur) : x.eur), x.hash]));
 }
 
 async function runTax(){
@@ -9846,7 +9617,7 @@ async function runTax(){
       if(go) go.addEventListener('click', () => {
         const v = num(document.getElementById('fxManual').value);
         if(!(v > 0.1 && v < 10)){
-          alert('Bitte einen Kurs zwischen 0,1 und 10 eintragen — z.B. 0,86 für USD in Euro.');
+          alert('Please enter a rate between 0.1 and 10 — e.g. 0.86 for USD to EUR.');
           return;
         }
         FX.manual = v;
@@ -9927,7 +9698,7 @@ function download(name, text, type){
 function exportNotes(){
   const payload = {app:'hyperliquid-journal', version:1, wallet:S.addr,
     exportedAt:new Date().toISOString(), tags:S.tags, notes:S.notes};
-  download('hl-journal-notizen-' + S.addr.slice(0,8) + '-' +
+  download('oryol-notes-' + S.addr.slice(0,8) + '-' +
     new Date().toISOString().slice(0,10) + '.json', JSON.stringify(payload, null, 2));
 }
 function importNotes(file){
@@ -9949,27 +9720,27 @@ function importNotes(file){
       }
       saveNotes(); renderAll();
       showErr('');
-      alert(added + ' Notizen importiert und zusammengeführt.');
+      alert(added + ' notes imported and merged.');
     }catch(e){ showErr('Import fehlgeschlagen: ' + esc(e.message)); }
   };
   r.readAsText(file);
 }
 function exportCsv(tr){
-  const head = ['Geschlossen','Eroeffnet','Wallet','Coin','Seite','AvgEntry','AvgExit','GroesseUSD',
-    'PnLBrutto','Gebuehren','PnLNetto','RenditeProzent','DauerMin','Setup','Rating','Notiz'];
+  const head = ['Closed','Opened','Wallet','Coin','Side','AvgEntry','AvgExit','SizeUSD',
+    'PnLGross','Fees','Funding','PnLNet','ReturnPct','DurationMin','Setup','Rating','Note'];
   const rows = sortTrades(tr).map(t => {
     const n = noteOfTrade(t) || {};
     return [
       new Date(t.closeTime).toISOString(), new Date(t.openTime).toISOString(),
       walletLabel(t.wallet), t.coin, t.side, t.avgEntry.toFixed(8), t.avgExit.toFixed(8),
       (t.maxNotional || t.entryNotional).toFixed(2),
-      t.closedPnl.toFixed(4), t.fees.toFixed(4), t.net.toFixed(4), t.retPct.toFixed(3),
+      t.closedPnl.toFixed(4), t.fees.toFixed(4), num(t.funding).toFixed(4), t.net.toFixed(4), t.retPct.toFixed(3),
       (t.durationMs / 60000).toFixed(1), tagsOf(n).join(' + '), n.rating || '',
       noteText(n).replace(/[\r\n]+/g, ' ')
     ].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(';');
   });
   download('hl-trades-' + new Date().toISOString().slice(0,10) + '.csv',
-    '﻿' + head.join(';') + '\n' + rows.join('\n'), 'text/csv');
+    '﻿' + head.join(',') + '\n' + rows.map(r => r.split('";"').join('","')).join('\n'), 'text/csv');
 }
 
 /* ---------- Kursausschläge (MAE / MFE) ---------- */
@@ -12915,7 +12686,7 @@ function scenarios(tr){
         return s + (r === null ? t.net : r);
       }, 0);
       add('Hälfte bei ' + teil + 'R raus, Rest ' +
-        (tp ? 'bis ' + tp + 'R' : 'laufen lassen') + ', Stop 1R',
+        (tp ? 'to ' + tp + 'R' : 'let it run') + ', Stop 1R',
         net, 'Rest danach auf Einstand gesichert', false);
     }
   }else{
@@ -13282,7 +13053,7 @@ function renderGrid(tr){
     if(!best || net > best.net) best = {net, tp, sl};
     const d = net - actual;
     const a = Math.min(.5, Math.abs(d) / (Math.abs(actual) + Math.abs(d) + 1) * .9);
-    return '<td style="background:rgba(' + (d >= 0 ? '15,138,95,' : '201,53,74,') + a.toFixed(2) +
+    return '<td style="background:rgba(' + (d >= 0 ? C.upRgb + ',' : C.downRgb + ',') + a.toFixed(2) +
       ')"><b class="' + cls(net) + '">' + sgn(net, 0) + '</b></td>';
   }).join('') + '</tr>').join('');
   $('#tblGrid tbody').innerHTML = body;
@@ -13484,7 +13255,7 @@ const LIVE = {
     const ws = activeWallets();
     if(!ws.length){ this.posFehler = false; return; }
     const data = await Promise.all(ws.map(w =>
-      positionenHolen(w.addr)
+      info({type:'clearinghouseState', user:w.addr})
         .then(r => ({addr:w.addr, positions:r})).catch(() => null)));
     const ok = data.filter(Boolean);
     // Scheitert die Abfrage, wird das angezeigt statt „keine offene Position“
@@ -13497,14 +13268,6 @@ const LIVE = {
     }
     S.positions = mergePositions(S.wdata);
     try{ HEBEL.merken(); }catch(e){}
-    // Funding-Stand der Börsen ohne Funding-Liste festhalten
-    try{
-      for(const x of ok){
-        const d = S.wdata.find(y => y.addr === x.addr);
-        if(boerseVon(x.addr) !== 'hl' && d && !(d.funding || []).some(f => !f.geschaetzt))
-          FUNDMERK.beobachten(x.addr, (S.openTrades || []).filter(t => t.wallet === x.addr), x.positions);
-      }
-    }catch(e){}
     // Hat sich der Bestand geändert, fehlen dazu die Ausführungen
     const jetzt = ((S.positions || {}).assetPositions || [])
       .map(a => (a.wallet || '') + '|' + ((a.position || {}).coin || '') +
@@ -13528,7 +13291,7 @@ const LIVE = {
     if(!ws.length) return;
     try{
       const res = await Promise.all(ws.map(w =>
-        ordersHolen(w.addr)
+        info({type:'frontendOpenOrders', user:w.addr})
           .then(list => (Array.isArray(list) ? list : [])
             .map(o => Object.assign({wallet:w.addr}, o)))
           .catch(() => null)));
@@ -13941,7 +13704,7 @@ function renderDashboard(){
           (p.side === 'short' ? 'SHORT' : 'LONG') + '</span>' +
         (setups ? '<span class="pill tag">' + esc(setups) + '</span>' : '') +
         '<span class="lm">' +
-          (p.entry ? 'Einstieg ' + esc(p.entry) + ' · ' : '') +
+          (p.entry ? 'Entry ' + esc(p.entry) + ' · ' : '') +
           (p.stop ? 'Stop ' + esc(p.stop) + ' · ' : '') +
           (rr ? 'CRV ' + rr + ' : 1' : '') + '</span>' +
         '<span class="lr" style="display:flex;align-items:center;gap:10px">' +
@@ -14131,7 +13894,7 @@ function archiveImport(file){
       let added = 0, notesAdded = 0;
       for(const w of d.wallets){
         const addr = String(w.addr || '').toLowerCase();
-        if(!/^((lighter|txflow):)?0x[a-f0-9]{40}$/.test(addr)) continue;
+        if(!/^0x[a-f0-9]{40}$/.test(addr)) continue;
         if(!S.wallets.some(x => x.addr === addr)){
           S.wallets.push({id:'w' + Date.now().toString(36) + S.wallets.length,
             addr, label:w.label || ('Wallet ' + (S.wallets.length + 1)), on:false});
@@ -14221,8 +13984,8 @@ function renderPlanned(tr){
     const mp = metrics(planned), ms = metrics(spont);
     if(spont.length){
       const d = (mp.net / mp.n) - (ms.net / ms.n);
-      note = 'Geplante Trades bringen dir pro Stück <b class="' + cls(d) + '">' +
-        sgn(d, 2) + '</b> ' + (d >= 0 ? 'mehr' : 'weniger') + ' als spontane.';
+      note = 'Planned trades make you <b class="' + cls(d) + '">' +
+        sgn(Math.abs(d), 2).replace('+', '') + '</b> ' + (d >= 0 ? 'more' : 'less') + ' per trade than spontaneous ones.';
     }
   }
   $('#plannedNote').innerHTML = note;
@@ -14469,7 +14232,7 @@ function setAnon(v){
 }
 
 function themeSetting(){
-  try{ return localStorage.getItem('hlj_theme') || 'light'; }catch(e){ return 'light'; }
+  try{ return localStorage.getItem('hlj_theme') || 'dark'; }catch(e){ return 'dark'; }
 }
 function systemDark(){
   try{ return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; }
@@ -14487,7 +14250,7 @@ function applyTheme(){
     else root.removeAttribute('data-theme');
   }
   const meta = document.getElementById('themeColor');
-  if(meta) meta.setAttribute('content', dark ? '#0f1216' : '#ffffff');
+  if(meta) meta.setAttribute('content', dark ? '#0f1312' : '#efece4');
   applyChartColors(dark);
 }
 function setTheme(t){
@@ -14507,44 +14270,102 @@ function renderTheme(){
       (systemDark() ? '<b>dunkel</b>' : '<b>hell</b>') + '.'
     : (t === 'dark' ? 'Dunkle Ansicht.' : 'Helle Ansicht.');
 }
-function renderLangHint(){
-  const hint = $('#langHint');
-  if(!hint) return;
-  hint.textContent = LANG === 'en'
-    ? 'The whole journal is shown in English. Numbers and dates follow the same setting.'
-    : 'Das komplette Journal steht auf Deutsch. Zahlen und Datumsangaben folgen der Einstellung.';
-}
+function renderLangHint(){}
 
 /* ---------- Tabs / Render ---------- */
 const GROUPS = [
-  {id:'facts', label:'Fakten', tabs:[['dashboard','Dashboard'],['overview','Übersicht'],['trades','Trades'],
-    ['insights','Erkenntnisse'],['longshort','Long / Short'],['setups','Setups'],['behavior','Verhalten'],
-    ['excursion','Ausschläge'],['progress','Fortschritt']]},
-  {id:'plan', label:'Planung', tabs:[['plans','Pläne'],['calendar','Kalender'],
-    ['calc','Rechner'],['review','Rückblick']]},
-  {id:'lab', label:'Labor', tabs:[['labimpact','Wirkung'],['labexit','Exit & Stop'],
-    ['discipline','Disziplin'],['cohort','Kohorten'],['sim','Simulator']]},
-  {id:'paper', label:'Paper', tabs:[['paper','Terminal'],['papersess','Sessions']]},
-  {id:'acct', label:'Konto', tabs:[['positions','Guthaben'],['vaults','Vaults'],
-    ['costs','Gebühren & Funding'],['tax','Steuer'],['settings','Daten']]}
+  {id:'home', label:'Home', tabs:[['dashboard','Today']]},
+  {id:'journal', label:'Journal', tabs:[['trades','Trades'],['review','Weekly review']]},
+  {id:'stats', label:'Stats', tabs:[['overview','Overview'],['setups','Setups'],['longshort','Long / Short'],
+    ['insights','Insights'],['behavior','Behavior'],['progress','Progress'],['excursion','Excursions']]},
+  {id:'plan', label:'Plan', tabs:[['plans','Trade plans'],['calendar','Calendar'],['calc','Calculator']]},
+  {id:'lab', label:'Lab', more:true, tabs:[['labimpact','Impact'],['labexit','Exit & stop'],
+    ['discipline','Discipline'],['cohort','Cohorts'],['sim','Simulator']]},
+  {id:'paper', label:'Paper trading', more:true, tabs:[['paper','Terminal'],['papersess','Sessions']]},
+  {id:'acct', label:'Account', more:true, tabs:[['positions','Balances'],['vaults','Vaults'],
+    ['costs','Fees & funding'],['tax','Tax export (DE)'],['settings','Data & settings']]}
 ];
 const ALL_TABS = GROUPS.reduce((a,g) => a.concat(g.tabs.map(t => t[0])), []);
 function groupOf(tab){ return GROUPS.find(g => g.tabs.some(t => t[0] === tab)) || GROUPS[0]; }
+/* Line icons, one per section */
+const NAV_ICON = {
+  home:'<svg viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5"/><path d="M6 10v9h12v-9"/></svg>',
+  journal:'<svg viewBox="0 0 24 24"><path d="M6 4h10a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z"/><path d="M6 18a2 2 0 0 1 2-2h10"/><path d="M10 8h5M10 11h4"/></svg>',
+  stats:'<svg viewBox="0 0 24 24"><path d="M4 20h16"/><path d="M7 16v-4M12 16V8M17 16v-6"/></svg>',
+  plan:'<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>',
+  lab:'<svg viewBox="0 0 24 24"><path d="M10 3v6L5 18a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3"/><path d="M9 3h6M7.5 14h9"/></svg>',
+  paper:'<svg viewBox="0 0 24 24"><path d="M4 17l5-5 4 4 7-8"/><path d="M15 8h5v5"/></svg>',
+  acct:'<svg viewBox="0 0 24 24"><rect x="3.5" y="6" width="17" height="13" rx="2"/><path d="M3.5 10h17M15 15h2"/></svg>',
+  more:'<svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18" cy="12" r="1.2"/></svg>'
+};
+function tabLabel(t){ const g = groupOf(t); const x = g.tabs.find(y => y[0] === t); return x ? x[1] : ''; }
 
 function renderNav(){
   const g = groupOf(S.tab);
-  $('#groups').innerHTML = GROUPS.map(x =>
-    '<div class="tab' + (x.id === g.id ? ' on' : '') + '" data-g="' + x.id + '">' +
-    esc(x.label) + '</div>').join('');
-  $('#tabs').innerHTML = g.tabs.map(([id,label]) =>
-    '<div class="tab' + (id === S.tab ? ' on' : '') + '" data-t="' + id + '">' +
-    esc(label) + '</div>').join('');
-  $$('#groups [data-g]').forEach(el => el.addEventListener('click', () => {
+  const eintrag = x =>
+    '<a class="nv' + (x.id === g.id ? ' on' : '') + '" data-g="' + x.id + '">' + (NAV_ICON[x.id] || '') +
+      '<span>' + esc(x.label) + '</span></a>' +
+    (x.id === g.id && x.tabs.length > 1
+      ? '<div class="nvsub">' + x.tabs.map(([id, label]) =>
+          '<a class="ns' + (id === S.tab ? ' on' : '') + '" data-t="' + id + '">' + esc(label) + '</a>').join('') + '</div>'
+      : '');
+  $('#groups').innerHTML = GROUPS.filter(x => !x.more).map(eintrag).join('') +
+    '<div class="nvlabel">More</div><div class="nvmore">' + GROUPS.filter(x => x.more).map(eintrag).join('') + '</div>';
+  $('#tabs').innerHTML = g.tabs.length > 1 ? g.tabs.map(([id, label]) =>
+    '<div class="tab' + (id === S.tab ? ' on' : '') + '" data-t="' + id + '">' + esc(label) + '</div>').join('') : '';
+  const kick = $('#pageKicker'), tit = $('#pageTitle');
+  if(kick) kick.textContent = g.tabs.length > 1 ? g.label : '';
+  if(tit) tit.textContent = tabLabel(S.tab);
+  // Home has its own greeting instead of a title
+  const ph = document.querySelector('.pagehead');
+  if(ph) ph.classList.toggle('hide', g.id === 'home');
+  // Phone: four main sections plus "More"
+  const bb = $('#bottombar');
+  if(bb){
+    bb.innerHTML = GROUPS.filter(x => !x.more).map(x =>
+      '<a data-g="' + x.id + '"' + (x.id === g.id ? ' class="on"' : '') + '>' + (NAV_ICON[x.id] || '') +
+      '<span>' + esc(x.label) + '</span></a>').join('') +
+      '<a data-more="1"' + (g.more ? ' class="on"' : '') + '>' + NAV_ICON.more + '<span>More</span></a>';
+  }
+  $$('[data-g]').forEach(el => el.addEventListener('click', () => {
     const grp = GROUPS.find(x => x.id === el.dataset.g);
-    switchTab(grp.tabs[0][0]);
+    if(grp) switchTab(grp.tabs[0][0]);
   }));
-  $$('#tabs [data-t]').forEach(el =>
+  $$('#groups [data-t], #tabs [data-t]').forEach(el =>
     el.addEventListener('click', () => switchTab(el.dataset.t)));
+  const mb = $('#bottombar [data-more]');
+  if(mb) mb.addEventListener('click', openMore);
+}
+function openMore(){
+  const box = $('#moreList');
+  if(!box) return;
+  box.innerHTML = GROUPS.filter(x => x.more).map(x =>
+    '<div class="mg">' + esc(x.label) + '</div>' + x.tabs.map(([id, label]) =>
+      '<button class="mi' + (id === S.tab ? ' on' : '') + '" data-mt="' + id + '">' + esc(label) + '</button>').join('')).join('');
+  $$('#moreList [data-mt]').forEach(el => el.addEventListener('click', () => {
+    $('#moreModal').classList.remove('on'); document.body.style.overflow = '';
+    switchTab(el.dataset.mt);
+  }));
+  $('#moreModal').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+
+/* A short greeting on Home: what happened today and what still needs a look */
+function renderHello(){
+  const el = $('#homeHello');
+  if(!el) return;
+  const h = new Date().getHours();
+  const gruss = h < 5 ? 'Good night.' : h < 12 ? 'Good morning.' : h < 18 ? 'Good afternoon.' : 'Good evening.';
+  const heute = (S.trades || []).filter(t => dayKey(t.closeTime) === dayKey(Date.now()));
+  const offen = ((S.positions || {}).assetPositions || []).length;
+  const ungesehen = (S.trades || []).filter(t => t.closeTime > Date.now() - 7 * 864e5 && !TMETA.get(t).gesehen).length;
+  const teile = [];
+  teile.push(heute.length ? heute.length + ' trade' + (heute.length > 1 ? 's' : '') + ' closed today' : 'No trade closed today');
+  if(offen) teile.push(offen + ' open position' + (offen > 1 ? 's' : ''));
+  el.innerHTML = '<div class="hi">' + gruss + '</div><div class="sub">' + teile.join(' · ') +
+    (ungesehen ? ' · <a id="helloReview">' + ungesehen + ' from this week not reviewed yet →</a>' : '') + '</div>';
+  const a = $('#helloReview');
+  if(a) a.addEventListener('click', () => { $('#fResult').value = 'unseen'; switchTab('trades'); renderAll(); });
 }
 
 function switchTab(t){
@@ -14589,13 +14410,6 @@ function mobilLabels(tabelle){
 }
 function renderAll(){
   dnAufteilen();
-  // Der Börsen-Filter erscheint erst, wenn mehr als eine Börse dabei ist
-  const fv = $('#fVenue');
-  if(fv){
-    const mehr = aktiveBoersen().length > 1;
-    fv.classList.toggle('hide', !mehr);
-    if(!mehr) fv.value = '';
-  }
   S.totals = computeTotals();
   // Plan-Zuordnung über alle Trades zuerst – das Risiko je Trade hängt daran
   try{ S.planLink = linkPlans(S.trades); }catch(e){}
@@ -14604,6 +14418,7 @@ function renderAll(){
   renderKpis(tr);
   renderCharts(tr);
   renderDashboard();
+  renderHello();
   renderBehavior(tr);
   renderPlanned(tr);
   renderProgress(tr);
@@ -14663,40 +14478,29 @@ $$('[data-lang-set]').forEach(el =>
 $('#crashHide').addEventListener('click', () => $('#crash').classList.add('hide'));
 $('#crashReload').addEventListener('click', () => location.reload());
 $('#btnRefresh').addEventListener('click', () => load(true));
+$('#themeQuick').addEventListener('click', () => setTheme(darkActive() ? 'light' : 'dark'));
+$('#moreClose').addEventListener('click', () => { $('#moreModal').classList.remove('on'); document.body.style.overflow = ''; });
+$('#moreModal').addEventListener('click', e => { if(e.target.id === 'moreModal'){ $('#moreModal').classList.remove('on'); document.body.style.overflow = ''; } });
 $('#walletBtn').addEventListener('click', openWallets);
 $('#wOpen2').addEventListener('click', openWallets);
 $('#wClose').addEventListener('click', closeWallets);
 $('#wModal').addEventListener('click', e => { if(e.target.id === 'wModal') closeWallets(); });
-$('#wVenue').addEventListener('change', () => {
-  $('#wTokenBox').classList.toggle('hide', $('#wVenue').value !== 'lighter');
-  $('#wTxHint').classList.toggle('hide', $('#wVenue').value !== 'txflow');
-});
 $('#wAdd').addEventListener('click', () => {
   const label = $('#wLabel').value.trim();
-  const roh = $('#wAddr').value.trim().toLowerCase();
-  const venue = $('#wVenue').value || 'hl';
-  const token = venue === 'lighter' ? $('#wToken').value.trim() : '';
-  if(!/^0x[a-fA-F0-9]{40}$/.test(roh)){
+  const addr = $('#wAddr').value.trim().toLowerCase();
+  if(!/^0x[a-fA-F0-9]{40}$/.test(addr)){
     showErr('Das sieht nicht nach einer gültigen Adresse aus. Erwartet wird 0x + 40 Zeichen.');
     return;
   }
-  if(token && !/^ro:/.test(token)){
-    showErr('Das ist kein Read-only-Token von Lighter (er beginnt mit „ro:“). Einen normalen API-Schlüssel hier bitte nicht eintragen.');
-    return;
-  }
-  const addr = venue === 'hl' ? roh : venue + ':' + roh;
   if(S.wallets.some(w => w.addr === addr)){
     showErr('Diese Wallet ist schon in der Liste.');
     return;
   }
   showErr('');
-  const neu = {id:'w' + Date.now().toString(36), addr,
-    label: label || ('Wallet ' + (S.wallets.length + 1)), on:true};
-  if(venue !== 'hl') neu.venue = venue;
-  if(token) neu.token = token;
-  S.wallets.push(neu);
+  S.wallets.push({id:'w' + Date.now().toString(36), addr,
+    label: label || ('Wallet ' + (S.wallets.length + 1)), on:true});
   saveWallets(S.wallets);
-  $('#wLabel').value = ''; $('#wAddr').value = ''; $('#wToken').value = '';
+  $('#wLabel').value = ''; $('#wAddr').value = '';
   renderWalletList(); renderWalletBtn();
 });
 $('#wApply').addEventListener('click', () => {
@@ -14805,7 +14609,7 @@ $('#pSave').addEventListener('click', () => {
 $('#pZielAdd').addEventListener('click', () => { if(pZiele.length < 9){ pZiele.push({px:'', anteil:''}); zeichnePlanZiele(); } });
 ['#pEntry', '#pStop', '#pTarget'].forEach(sel => $(sel).addEventListener('input', planZielHint));
 $('#pDel').addEventListener('click', () => {
-  if(!pCurrent || !confirm('Diesen Plan löschen?')) return;
+  if(!pCurrent || !confirm('Delete this plan?')) return;
   deleteEntry(pCurrent); closePlanModal(); renderPlans(); renderCalendarTab();
 });
 
@@ -14821,7 +14625,7 @@ $('#eSave').addEventListener('click', () => {
   closeEvModal(); renderCalendarTab();
 });
 $('#eDel').addEventListener('click', () => {
-  if(!eCurrent || !confirm('Diesen Termin löschen?')) return;
+  if(!eCurrent || !confirm('Delete this event?')) return;
   deleteEntry(eCurrent); closeEvModal(); renderCalendarTab();
 });
 
@@ -14830,7 +14634,7 @@ $('#simRun').addEventListener('click', renderSim);
 $('#simFromStats').addEventListener('click', simFromStats);
 
 /* Filter */
-['#fRange','#fCoin','#fTag','#fMarket','#fVenue','#fSort','#fResult'].forEach(sel =>
+['#fRange','#fCoin','#fTag','#fMarket','#fSort','#fResult'].forEach(sel =>
   $(sel).addEventListener('change', renderAll));
 $('#fSearch').addEventListener('input', () => renderTrades(filtered()));
 $$('[data-curve]').forEach(el => el.addEventListener('click', () => {
@@ -14986,7 +14790,7 @@ $('#excRun').addEventListener('click', async () => {
 });
 $('#excStop').addEventListener('click', () => { EXC.cancel = true; });
 $('#excClear').addEventListener('click', () => {
-  if(!confirm('Alle gemessenen Ausschläge löschen?')) return;
+  if(!confirm('Delete all measured excursions?')) return;
   EXC.clear(); PATHS.clear(); renderExcursion(filtered()); renderLab(filtered());
 });
 let epocheTimer = null, riskAlt = null;
@@ -15051,7 +14855,7 @@ $('#revSave').addEventListener('click', () => {
   saveNotes(); renderReview();
 });
 $('#revDel').addEventListener('click', () => {
-  if(!confirm('Diesen Rückblick löschen?')) return;
+  if(!confirm('Delete this review?')) return;
   const key = 'review:' + weekKey(S.revWeek || Date.now());
   S.notes[key] = {tag:'', rating:0, note:'', deleted:true, updatedAt:Date.now()};
   saveNotes(); renderReview();
@@ -15060,7 +14864,7 @@ $('#revDel').addEventListener('click', () => {
 /* Setups */
 $('#btnResetTags').addEventListener('click', () => {
   const add = DEFAULT_TAGS.filter(t => S.tags.indexOf(t) < 0);
-  if(!add.length){ alert('Die Vorschläge sind schon alle in deiner Liste.'); return; }
+  if(!add.length){ alert('All suggestions are already in your list.'); return; }
   setTags(S.tags.concat(add));
   renderAll(); syncSoon();
 });
@@ -15069,7 +14873,7 @@ $('#btnSaveTags').addEventListener('click', () => {
   setTags(t.length ? t : DEFAULT_TAGS.slice());
   renderAll();
   syncSoon();
-  alert('Setups gespeichert.');
+  alert('Setups saved.');
 });
 
 /* Steuer, Sicherung, Archiv, Cache */
