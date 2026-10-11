@@ -525,6 +525,19 @@ header{background:var(--side);border-color:var(--line);backdrop-filter:none}
 .morekpis .kpis{margin-top:10px}
 .morekpis .kpi .v{font-size:18px}
 #kpis > .kpi .v{font-size:26px}
+.cychart{position:relative;height:500px;touch-action:none;user-select:none}
+.cychart canvas{display:block;cursor:crosshair}
+@media (max-width:979px){ .cychart{height:380px} }
+.cyc-row{display:flex;gap:10px;align-items:flex-start;margin-top:8px}
+.cyc-row > .mut{font-size:12px;min-width:46px;padding-top:7px}
+.cyc-row .chips{gap:6px}
+.cyc-row .chip{padding:5px 11px;font-size:12.5px}
+.chip.cyc-lv i{display:inline-block;width:8px;height:8px;border-radius:2px;transform:rotate(45deg);background:var(--lc);margin-right:7px;vertical-align:1px}
+.chip.cyc-lv:not(.on){opacity:.55}
+.chip.cyc-lv.on{background:var(--panel2);color:var(--txt);border-color:var(--lc)}
+.cyc-dot{display:inline-block;width:9px;height:9px;transform:rotate(45deg);border-radius:2px;margin-right:8px}
+.cyc-big{font-family:var(--serif);font-size:18px;margin-bottom:6px}
+#cyEdit.on{background:var(--acc);color:var(--onAcc);border-color:var(--acc)}
 .morelist .mg{margin:14px 0 4px;font-size:12px;color:var(--muted)}
 .morelist .mi{display:block;width:100%;text-align:left;margin:4px 0;padding:11px 14px;background:var(--panel2)}
 .morelist .mi.on{border-color:var(--acc);color:var(--acc)}
@@ -632,6 +645,7 @@ header{background:var(--side);border-color:var(--line);backdrop-filter:none}
   <!-- DASHBOARD -->
   <section id="v-dashboard">
     <div class="hello" id="homeHello"></div>
+    <div class="panel hide" id="homeCycles"></div>
     <div class="kpis" id="dashTop"></div>
     <div class="panel" id="livePanel">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -1012,6 +1026,17 @@ header{background:var(--side);border-color:var(--line);backdrop-filter:none}
           <input type="number" id="zSchritte" value="52" step="1"></div>
         <div class="f"><label>Zielkapital ($)</label>
           <input type="number" id="zZiel" value="100000" step="100"></div>
+      </div>
+      <div class="filters" id="zDauerBox" style="margin:0 0 6px;align-items:flex-end">
+        <div class="f" style="margin:0"><label>Time span</label>
+          <input type="number" id="zDauer" value="1" step="1" min="0" style="width:120px"></div>
+        <select id="zDauerEinheit">
+          <option value="tag">days</option>
+          <option value="woche">weeks</option>
+          <option value="monat">months</option>
+          <option value="jahr" selected>years</option>
+        </select>
+        <span class="mut" id="zDauerHint" style="font-size:12.5px;padding-bottom:9px"></span>
       </div>
       <div class="filters" style="margin-top:4px">
         <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
@@ -1515,6 +1540,58 @@ header{background:var(--side);border-color:var(--line);backdrop-filter:none}
     <div id="psDetail"></div>
   </section>
 
+  <!-- CYCLES -->
+  <section id="v-cycles" class="hide">
+    <div class="panel">
+      <div class="filters" style="margin-bottom:10px">
+        <input type="text" id="cyCoin" list="cyCoins" class="mono" style="width:120px" spellcheck="false" autocomplete="off" placeholder="BTC">
+        <datalist id="cyCoins"></datalist>
+        <div class="filters" id="cyTf" style="margin:0;gap:5px"></div>
+        <span style="flex:1"></span>
+        <button id="cyEdit" class="tab">Edit troughs</button>
+        <button id="cyReset">Reset to proposal</button>
+        <button id="cyReload" title="Load fresh candles">↻</button>
+      </div>
+      <div class="cyc-row"><span class="mut">Show</span><div class="chips" id="cyLayers"></div></div>
+      <div class="cyc-row"><span class="mut">Cycles</span><div class="chips" id="cyLevels"></div></div>
+      <div class="cyc-row hide" id="cyEditBar"><span class="mut">Edit</span><div class="chips" id="cyEditLv"></div></div>
+    </div>
+    <div class="panel" style="padding:12px">
+      <div class="cychart" id="cyBox"><canvas id="cyCanvas"></canvas></div>
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:8px">
+        <div id="cyStatus" class="mut" style="font-size:12.5px"></div>
+        <button id="cyFit" style="padding:5px 11px;font-size:12px">Fit view</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Where the cycles stand</h2>
+      <div id="cySummary"></div>
+      <div class="scroll" style="margin-top:12px">
+        <table id="cyTable" class="karten">
+          <thead><tr><th>Cycle</th><th>Length</th><th>Last trough</th><th>In cycle</th><th>Next trough</th><th>Status</th><th>FLD</th><th>VTL</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <details class="panel">
+      <summary style="cursor:pointer;font-family:var(--serif);font-size:17px;font-weight:600">How Oryol finds the troughs</summary>
+      <div class="mut" style="font-size:13.5px;line-height:1.65;margin-top:10px">
+        <p><b>Nominal model.</b> Hurst's cycle lengths in calendar days (crypto trades around the clock):
+        20-day ≈ 17 d, 40-day ≈ 34 d, 80-day ≈ 68 d, 20-week ≈ 136 d, 40-week ≈ 273 d, 18-month ≈ 546 d, and shorter ones down to a few hours.
+        Each timeframe shows the cycles it can resolve.</p>
+        <p><b>Harmonicity and synchronicity.</b> Neighbouring cycles relate by about 2. Every trough of a longer cycle is also a trough of
+        all shorter ones, so the longest cycle is phased first and its troughs are fixed for the shorter ones.</p>
+        <p><b>Real lows only.</b> A trough must be the lowest point within about a quarter wave on each side, after taking out the longer
+        movement – so a 20-day trough on the slope of a falling 80-day wave still counts. Spacing that strays far from the wavelength is penalised.</p>
+        <p><b>Adapted lengths.</b> After a first pass the measured average spacing of each cycle replaces the nominal one (kept within 0.75–1.33 ×).</p>
+        <p><b>Tools.</b> FLD = median price shifted right by half a wave + 1 bar; a cross confirms a trough (up) or peak (down) and projects a target
+        of the same distance. VTLs join two consecutive troughs (or peaks), never cut through price, must point the right way, and a down VTL may not span a
+        longer-cycle trough; a break confirms the next longer cycle's peak or trough. The envelope is a centred average over one wave with a band of usual swing.</p>
+        <p><b>Your corrections win.</b> Added or removed troughs are kept per market and timeframe and travel with your synced notes.</p>
+      </div>
+    </details>
+  </section>
+
   <!-- VAULTS -->
   <section id="v-vaults" class="hide">
     <div class="kpis" id="vaultKpis"></div>
@@ -1655,7 +1732,7 @@ header{background:var(--side);border-color:var(--line);backdrop-filter:none}
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 10.10.2026, 11:58</span><br>
+    <span class="build">Fassung 11.10.2026, 15:36</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -3812,7 +3889,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '10.10.2026, 11:58';
+const BUILD = '11.10.2026, 15:36';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -3826,7 +3903,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 10.10.2026, 11:58';
+      ' · Fassung 11.10.2026, 15:36';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -4489,7 +4566,7 @@ function setTradeNote(t, n){
     S.notes[t.id] = {tag:'', note:'', rating:0, deleted:true, updatedAt:Date.now()};
   }
 }
-function isMeta(k){ k = String(k || ''); return k.indexOf('tm:') === 0 || k.indexOf('paper:') === 0 || k.indexOf('plan:') === 0 || k.indexOf('event:') === 0 ||
+function isMeta(k){ k = String(k || ''); return k.indexOf('tm:') === 0 || k.indexOf('hurst:') === 0 || k.indexOf('paper:') === 0 || k.indexOf('plan:') === 0 || k.indexOf('event:') === 0 ||
   k.indexOf('review:') === 0 || k.indexOf('__') === 0; }
 function liveNotes(){
   const out = {};
@@ -10575,6 +10652,13 @@ function renderZins(){
     if(el) el.disabled = (k === gesucht);
   });
   const e0 = ZINS_EINHEIT[$('#zEinheit').value] || ZINS_EINHEIT.trade;
+  // Time span: a period like "5 years" turns into the number of steps of the chosen return unit
+  const dBox = $('#zDauerBox');
+  if(dBox) dBox.classList.toggle('hide', !e0.proTag);
+  if(e0.proTag && S.zinsDauerQuelle === 'dauer'){
+    const tage = num($('#zDauer').value) * (ZINS_EINHEIT[$('#zDauerEinheit').value] || ZINS_EINHEIT.jahr).proTag;
+    $('#zSchritte').value = Math.round(tage / e0.proTag);
+  }
   // Die Einheiten stecken in zusammengesetzten Sätzen – deshalb hier schon übersetzen
   const e = {eins:t(e0.eins), viele:t(e0.viele), je:t(e0.je), proTag:e0.proTag};
   $('#zAnzahlLabel').textContent = t('Anzahl {0}').replace('{0}', e.viele);
@@ -10604,6 +10688,14 @@ function renderZins(){
   $(felder[gesucht]).value = (+r.wert.toFixed(rund));
 
   const ganz = Math.ceil(r.n - 1e-9);
+  // Show the step count also as a time span (and keep the field in step when it was not the input)
+  if(e0.proTag){
+    const de = ZINS_EINHEIT[$('#zDauerEinheit').value] || ZINS_EINHEIT.jahr;
+    const span = r.n * e0.proTag / de.proTag;
+    if(S.zinsDauerQuelle !== 'dauer' && document.activeElement !== $('#zDauer')) $('#zDauer').value = +span.toFixed(2);
+    const hint = $('#zDauerHint');
+    if(hint) hint.textContent = '= ' + dec(r.n, r.n % 1 ? 1 : 0) + ' ' + e.viele;
+  }
   const dauer = e.proTag ? ganz * e.proTag : 0;
   const gross = gesucht === 'rendite'
     ? pctn(r.wert, 2) + ' ' + e.je
@@ -14231,6 +14323,915 @@ function setAnon(v){
   try{ renderAll(); }catch(e){}
 }
 
+/* ---------- Hurst cycles: phasing engine ----------
+   Implements Hurst's principles as far as they can be made mechanical:
+   – Nominal model in calendar days (crypto trades 24/7, so calendar time is exact)
+   – Harmonicity: neighbouring cycles relate by ~2; spacing of troughs stays near
+     the wavelength (the DP penalises deviation, hard limits 0.55–1.5 ×)
+   – Synchronicity: every trough of a longer cycle is also a trough of all shorter
+     cycles (longer troughs are forced nodes for the shorter ones)
+   – A cycle trough must be the lowest low within roughly a quarter wave either side
+   – Lengths adapt per market: after a first pass the measured average spacing
+     replaces the nominal value (kept within 0.75–1.33 × nominal)
+   Tools: FLD (median displaced by half a wave + 1 bar), crossings with targets,
+   VTLs after Hurst's rules, envelopes, next-trough windows, underlying trend.
+   The result is a proposal – the user can add or remove troughs by hand.          */
+const HURST = {
+  NOMINAL: [
+    {id:'54M', d:1636.8, name:'54-month'}, {id:'18M', d:545.6, name:'18-month'},
+    {id:'40W', d:272.8, name:'40-week'},   {id:'20W', d:136.4, name:'20-week'},
+    {id:'80D', d:68.2, name:'80-day'},     {id:'40D', d:34.1, name:'40-day'},
+    {id:'20D', d:17.05, name:'20-day'},    {id:'10D', d:8.53, name:'10-day'},
+    {id:'5D', d:4.26, name:'5-day'},       {id:'51H', d:2.13, name:'≈51-hour'},
+    {id:'26H', d:1.066, name:'≈26-hour'},  {id:'13H', d:0.533, name:'≈13-hour'},
+    {id:'6H', d:0.266, name:'≈6-hour'}
+  ],
+  TF: {'15m':9e5, '1h':36e5, '4h':144e5, '1d':864e5},
+  MAX_LEVELS: 6,
+
+  /* Which cycles can be seen on this timeframe with this much data */
+  levelsFor(tfMs, n){
+    // The six shortest cycles that are still at least ~12 bars long and fit twice into the data
+    const out = [];
+    for(const x of this.NOMINAL){
+      const bars = x.d * 864e5 / tfMs;
+      if(bars >= 12 && bars * 2.2 <= n) out.push(Object.assign({nomBars:bars}, x));
+    }
+    return out.slice(Math.max(0, out.length - this.MAX_LEVELS));
+  },
+
+  /* Candidate troughs for a wavelength P (bars).
+     Shorter-cycle troughs often sit on the slope of a longer move and are no strict
+     price low. So the longer movement is taken out first (centred average over
+     ~1.4 waves); a candidate is the lowest point of what remains within ±w, placed
+     on the actual lowest low next to it.                                            */
+  kandidaten(D, P){
+    const n = D.l.length, w = Math.max(1, Math.round(P * 0.22));
+    const W = Math.max(3, Math.round(P * 1.4)), h = Math.floor(W / 2);
+    const lm = D.m.map(Math.log), pre = [0];
+    for(let i = 0; i < n; i++) pre.push(pre[i] + lm[i]);
+    const trend = new Array(n);
+    for(let i = 0; i < n; i++){
+      const r = Math.min(h, i, n - 1 - i);          // symmetric window, shrinks at the edges
+      const a = i - r, b = i + r;
+      trend[i] = r > 0 ? (pre[b + 1] - pre[a]) / (b - a + 1) : lm[i];
+      // At the right edge a shrinking window follows price too closely – lean on the last full value
+      if(r < Math.min(h, Math.floor(P / 3)) && i > h){
+        const j = n - 1 - h; const steig = j > h ? (trend[j] - trend[j - Math.min(h, j)]) / Math.min(h, j) : 0;
+        if(i > j) trend[i] = trend[j] + steig * (i - j);
+      }
+    }
+    const rl = D.l.map((x, i) => Math.log(x) - trend[i]);
+    const rh = D.h.map((x, i) => Math.log(x) - trend[i]);
+    const out = [];
+    for(let i = 0; i < n; i++){
+      const a = Math.max(0, i - w), b = Math.min(n - 1, i + w);
+      let ok = true;
+      for(let j = a; j <= b; j++){ if(rl[j] < rl[i] || (rl[j] === rl[i] && j < i)){ ok = false; break; } }
+      if(!ok) continue;
+      const rechts = b - i;
+      const vorl = rechts < w;
+      if(vorl && rechts < Math.max(1, Math.round(w / 3))) continue;
+      let hl = -Infinity, hr = -Infinity;
+      for(let j = a; j < i; j++) hl = Math.max(hl, rh[j]);
+      for(let j = i + 1; j <= b; j++) hr = Math.max(hr, rh[j]);
+      if(!isFinite(hl)) hl = rh[i];
+      if(!isFinite(hr)) hr = rh[i];
+      const tief = (Math.min(hl, hr) - rl[i]) + 0.5 * (Math.max(hl, hr) - rl[i]);
+      let q = Math.min(4, tief / (D.rng * Math.sqrt(w) + 1e-12));
+      // Place it on the real lowest low close by
+      let bi = i;
+      const snap = Math.max(2, Math.round(P * 0.06));
+      for(let j = Math.max(0, i - snap); j <= Math.min(n - 1, i + snap); j++) if(D.l[j] < D.l[bi]) bi = j;
+      // …and make sure it is a real swing low (not higher than the bar next to it), moving at most `snap` bars
+      for(let schritt = 0; schritt < snap; schritt++){
+        const links = bi > 0 && D.l[bi - 1] < D.l[bi], rechtsT = bi < n - 1 && D.l[bi + 1] < D.l[bi];
+        if(!links && !rechtsT) break;
+        bi = (links && (!rechtsT || D.l[bi - 1] <= D.l[bi + 1])) ? bi - 1 : bi + 1;
+      }
+      // A true price low counts a little more than a hidden one
+      let preisTief = true;
+      for(let j = Math.max(0, bi - w); j <= Math.min(n - 1, bi + w); j++) if(D.l[j] < D.l[bi]){ preisTief = false; break; }
+      if(!preisTief) q *= 0.85;
+      if(out.length && out[out.length - 1].i === bi) continue;
+      out.push({i:bi, q:vorl ? q * 0.7 : q, vorl});
+    }
+    return out;
+  },
+
+  /* Best sequence of troughs for one level (dynamic programming).
+     forced: indices that must be part of the sequence (longer-cycle troughs, manual).
+     verboten: indices that must not be used.                                     */
+  phase(D, P, forced, verboten){
+    const n = D.l.length;
+    const fset = new Set(forced);
+    const kand = this.kandidaten(D, P).filter(k => !fset.has(k.i) && !verboten.has(k.i));
+    const nodes = forced.map(i => ({i, q:0, fix:true})).concat(kand).sort((a, b) => a.i - b.i);
+    if(!nodes.length) return [];
+    // Next forced index after each node
+    const naechsterFix = new Array(nodes.length);
+    let nf = Infinity;
+    for(let k = nodes.length - 1; k >= 0; k--){ naechsterFix[k] = nf; if(nodes[k].fix) nf = nodes[k].i; }
+    const ersterFix = forced.length ? Math.min.apply(null, forced) : Infinity;
+    for(const [lo, hi, rand] of [[0.55, 1.5, 1.5], [0.45, 1.8, 1.8], [0.3, 2.6, 2.6]]){
+      const best = new Array(nodes.length).fill(-Infinity), prev = new Array(nodes.length).fill(-1);
+      for(let k = 0; k < nodes.length; k++){
+        const nd = nodes[k], wert = nd.fix ? 1000 : nd.q;
+        // Start: first trough within reach of the left edge, no forced node before it
+        if(nd.i <= rand * P && nd.i <= ersterFix) best[k] = wert - 0.5 * Math.max(0, nd.i / P - 1);
+        for(let j = k - 1; j >= 0; j--){
+          const gap = nd.i - nodes[j].i;
+          if(gap > hi * P) break;
+          if(gap < lo * P || best[j] === -Infinity) continue;
+          if(naechsterFix[j] < nd.i) continue;        // would skip a forced trough
+          const dev = (gap - P) / P;
+          const s = best[j] + wert - 10 * dev * dev;
+          if(s > best[k]){ best[k] = s; prev[k] = j; }
+        }
+      }
+      // End: last trough within reach of the right edge, nothing forced after it
+      let bk = -1, bs = -Infinity;
+      for(let k = 0; k < nodes.length; k++){
+        if(best[k] === -Infinity || naechsterFix[k] !== Infinity) continue;
+        const rest = (n - 1 - nodes[k].i) / P;
+        if(rest > rand) continue;
+        const s = best[k] - 2 * Math.max(0, rest - 1.15);
+        if(s > bs){ bs = s; bk = k; }
+      }
+      if(bk < 0) continue;
+      const seq = [];
+      for(let k = bk; k >= 0; k = prev[k]) seq.push(nodes[k]);
+      seq.reverse();
+      if(forced.every(f => seq.some(s => s.i === f))) return seq;
+    }
+    // No consistent sequence: at least keep the forced troughs
+    return forced.map(i => ({i, q:0, fix:true}));
+  },
+
+  daten(kerzen){
+    const D = {t:[], o:[], h:[], l:[], c:[], m:[]};
+    for(const k of kerzen){ D.t.push(k.t); D.o.push(k.o); D.h.push(k.h); D.l.push(k.l); D.c.push(k.c); D.m.push((k.h + k.l) / 2); }
+    // Typical bar range in log terms (median)
+    const r = D.h.map((h, i) => Math.log(h / D.l[i])).filter(x => x > 0).sort((a, b) => a - b);
+    D.rng = r.length ? r[Math.floor(r.length / 2)] : 0.01;
+    return D;
+  },
+
+  median(a){ if(!a.length) return null; const s = a.slice().sort((x, y) => x - y); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; },
+  naechsterIndex(D, t){
+    let best = 0, bd = Infinity;
+    for(let i = 0; i < D.t.length; i++){ const d = Math.abs(D.t[i] - t); if(d < bd){ bd = d; best = i; } }
+    return best;
+  },
+
+  /* Full analysis.
+     manual: {add:[{t, lvl}], del:[{t, lvl}]}                                       */
+  analyse(kerzen, tfMs, manual){
+    const D = this.daten(kerzen), n = D.l.length;
+    manual = manual || {add:[], del:[]};
+    const levels = this.levelsFor(tfMs, n);
+    if(!levels.length || n < 30) return {D, levels:[], tfMs, n};
+    const ids = levels.map(x => x.id);
+    const rang = id => ids.indexOf(id);
+    // Manual troughs snap to the lowest low within ±2 bars
+    const fang = t => { const i = this.naechsterIndex(D, t); let b = i; for(let j = Math.max(0, i - 2); j <= Math.min(n - 1, i + 2); j++) if(D.l[j] < D.l[b]) b = j; return b; };
+    const manAdd = (manual.add || []).map(a => ({i:fang(a.t), r:rang(a.lvl)})).filter(a => a.r >= 0);
+    const manDel = (manual.del || []).map(a => ({i:this.naechsterIndex(D, a.t), r:rang(a.lvl)})).filter(a => a.r >= 0);
+
+    const lauf = laengen => {
+      let forced = [];
+      const res = [];
+      levels.forEach((lv, k) => {
+        const P = laengen[k];
+        const f = new Set(forced);
+        manAdd.filter(a => a.r === k).forEach(a => f.add(a.i));
+        // A trough removed at a level may not be used there or by any longer cycle
+        // (every longer-cycle trough is also a trough of the shorter ones)
+        const verb = new Set();
+        manDel.filter(d => d.r >= k).forEach(d => { for(let j = d.i - 2; j <= d.i + 2; j++) verb.add(j); });
+        const fl = Array.from(f).filter(i => !verb.has(i) || manAdd.some(a => a.i === i && a.r === k)).sort((a, b) => a - b);
+        const seq = this.phase(D, P, fl, verb);
+        res.push(seq);
+        forced = seq.map(s => s.i);       // synchronicity: shorter cycles share these troughs
+      });
+      return res;
+    };
+    // Pass 1: nominal lengths
+    let laengen = levels.map(x => x.nomBars);
+    let seqs = lauf(laengen);
+    // Pass 2: measured lengths (harmonic, within 0.75–1.33 × nominal)
+    const gemessen = seqs.map(seq => {
+      const gaps = [];
+      for(let k = 1; k < seq.length; k++) if(!seq[k].vorl) gaps.push(seq[k].i - seq[k - 1].i);
+      return gaps.length >= 2 ? this.median(gaps) : null;
+    });
+    laengen = levels.map((x, k) => {
+      let P = gemessen[k] || x.nomBars;
+      P = Math.max(x.nomBars * 0.75, Math.min(x.nomBars * 1.33, P));
+      return P;
+    });
+    for(let k = 1; k < laengen.length; k++) laengen[k] = Math.min(laengen[k], laengen[k - 1] * 0.62);
+    seqs = lauf(laengen);
+
+    const out = levels.map((lv, k) => {
+      const P = laengen[k], seq = seqs[k];
+      const troughs = seq.map(s => ({i:s.i, t:D.t[s.i], price:D.l[s.i], vorl:!!s.vorl && s.i > n - 1 - Math.round(P * 0.22),
+        manual:manAdd.some(a => a.i === s.i && a.r === k)}));
+      const gaps = [];
+      for(let j = 1; j < troughs.length; j++) gaps.push(troughs[j].i - troughs[j - 1].i);
+      const peaks = [];
+      for(let j = 1; j < troughs.length; j++){
+        let b = troughs[j - 1].i;
+        for(let x = troughs[j - 1].i; x <= troughs[j].i; x++) if(D.h[x] > D.h[b]) b = x;
+        peaks.push({i:b, t:D.t[b], price:D.h[b]});
+      }
+      return {id:lv.id, name:lv.name, d:lv.d, nomBars:lv.nomBars, P, gemessen:gemessen[k], troughs, peaks, gaps};
+    });
+    out.forEach((L, k) => {
+      L.fld = this.fld(D, L);
+      L.vtl = this.vtl(D, L, out[k - 1]);
+      L.next = this.naechstes(D, L, tfMs);
+    });
+    const res = {D, levels:out, tfMs, n};
+    res.nest = this.nest(res);
+    return res;
+  },
+
+  /* FLD: median price displaced by floor(P/2)+1 bars. Last crossing gives a
+     confirmation and a price target equal to the distance trough→cross.          */
+  fld(D, L){
+    const n = D.m.length, s = Math.floor(L.P / 2) + 1;
+    const wert = i => (i - s >= 0 && i - s < n) ? D.m[i - s] : null;   // FLD value at bar index i (may be > n-1)
+    let cross = null;
+    for(let i = n - 1; i >= Math.max(1, s + 1); i--){
+      const a = D.m[i] - wert(i), b = D.m[i - 1] - wert(i - 1);
+      if((a > 0) !== (b > 0) && a !== 0){ cross = {i, up:a > 0, price:wert(i)}; break; }
+    }
+    if(cross){
+      if(cross.up){
+        const tr = L.troughs.filter(x => x.i <= cross.i).pop();
+        const low = tr ? tr.price : Math.min.apply(null, D.l.slice(Math.max(0, cross.i - Math.round(L.P)), cross.i + 1));
+        cross.ref = low; cross.target = cross.price + (cross.price - low);
+      }else{
+        let hi = -Infinity;
+        for(let j = Math.max(0, cross.i - Math.round(L.P)); j <= cross.i; j++) hi = Math.max(hi, D.h[j]);
+        cross.ref = hi; cross.target = cross.price - (hi - cross.price);
+      }
+      // Target reached since?
+      cross.erreicht = false;
+      for(let j = cross.i + 1; j < n; j++){
+        if(cross.up ? D.h[j] >= cross.target : D.l[j] <= cross.target){ cross.erreicht = true; break; }
+      }
+    }
+    return {shift:s, wert, cross, ueber:D.m[n - 1] > (wert(n - 1) == null ? -Infinity : wert(n - 1))};
+  },
+
+  /* VTLs after Hurst's rules:
+     – connect two consecutive troughs (up) / peaks (down) of the cycle
+     – must not cut through price in between (moved instead)
+     – up must point up, down must point down
+     – a down VTL may not span a trough of a longer cycle                          */
+  vtl(D, L, laenger){
+    const n = D.l.length, out = {up:null, down:null};
+    const tr = L.troughs;
+    for(let k = tr.length - 1; k >= 1 && !out.up; k--){
+      const a = tr[k - 1].i, b = tr[k].i;
+      let slope = Infinity, beruehrt = b;
+      for(let j = a + 1; j <= b; j++){
+        const s = (Math.log(D.l[j]) - Math.log(D.l[a])) / (j - a);
+        if(s < slope){ slope = s; beruehrt = j; }
+      }
+      if(slope > 0) out.up = this.linie(D, a, D.l[a], slope, beruehrt, true, L);
+      if(tr.length - k > 3) break;
+    }
+    const pk = L.peaks;
+    const laengereTiefs = laenger ? laenger.troughs.map(x => x.i) : [];
+    for(let k = pk.length - 1; k >= 1 && !out.down; k--){
+      const a = pk[k - 1].i, b = pk[k].i;
+      if(laengereTiefs.some(i => i > a && i < b)) continue;
+      let slope = -Infinity, beruehrt = b;
+      for(let j = a + 1; j <= b; j++){
+        const s = (Math.log(D.h[j]) - Math.log(D.h[a])) / (j - a);
+        if(s > slope){ slope = s; beruehrt = j; }
+      }
+      if(slope < 0) out.down = this.linie(D, a, D.h[a], slope, beruehrt, false, L);
+      if(pk.length - k > 3) break;
+    }
+    return out;
+  },
+  linie(D, a, pa, slope, b, up, L){
+    const n = D.m.length;
+    const wert = i => pa * Math.exp(slope * (i - a));
+    let cross = null;
+    for(let j = b + 1; j < n; j++){
+      if(up ? D.m[j] < wert(j) : D.m[j] > wert(j)){ cross = {i:j, price:wert(j)}; break; }
+    }
+    return {a, b, wert, cross, up};
+  },
+
+  /* When is the next trough due, and where in its wave are we? */
+  naechstes(D, L, tfMs){
+    const n = D.t.length;
+    const last = L.troughs[L.troughs.length - 1];
+    if(!last) return null;
+    const echt = L.gaps.filter(g => g > 0);
+    const lo = Math.max(0.78 * L.P, echt.length >= 3 ? Math.min.apply(null, echt) : 0.85 * L.P);
+    const hi = Math.min(1.3 * L.P, echt.length >= 3 ? Math.max.apply(null, echt) : 1.15 * L.P);
+    const seit = n - 1 - last.i;
+    const zeit = i => D.t[n - 1] + (i - (n - 1)) * tfMs;
+    const phase = seit / L.P;
+    return {seit, phase, due:zeit(last.i + L.P), von:zeit(last.i + lo), bis:zeit(last.i + Math.max(hi, lo + 1)),
+      dueI:last.i + L.P, vonI:last.i + lo, bisI:last.i + Math.max(hi, lo + 1),
+      offen:seit >= lo && seit <= hi, ueberfaellig:seit > hi, steigend:phase < 0.5};
+  },
+
+  /* The next "nest of lows": shortest cycle's next trough and all longer cycles
+     whose window contains it (synchronicity).                                       */
+  nest(res){
+    const L = res.levels.filter(x => x.next);
+    if(!L.length) return null;
+    const kurz = L[L.length - 1];
+    let ziel = kurz.next.dueI;
+    // If the shortest cycle is already overdue, its trough is "now"
+    if(kurz.next.ueberfaellig) ziel = res.n - 1;
+    const dabei = L.filter(x => (x.next.vonI - 0.1 * kurz.P) <= ziel && ziel <= (x.next.bisI + 0.1 * kurz.P) || x.next.ueberfaellig);
+    // Synchronicity: a longer cycle only counts if all shorter ones are in as well
+    const kette = [];
+    for(let k = L.length - 1; k >= 0; k--){ if(dabei.indexOf(L[k]) >= 0) kette.push(L[k]); else break; }
+    return {levels:kette.reverse(), um:kurz.next.due, von:kurz.next.von, bis:kurz.next.bis};
+  },
+
+  /* Hurst's (short) underlying trend for a trading cycle: the two longer cycles,
+     +1 when in their rising first half, −1 in their falling second half.            */
+  trend(res, id){
+    const k = res.levels.findIndex(x => x.id === id);
+    if(k < 0) return null;
+    const teile = res.levels.slice(Math.max(0, k - 2), k).filter(x => x.next);
+    return {wert:teile.reduce((s, x) => s + (x.next.steigend ? 1 : -1), 0), teile};
+  },
+
+  /* Envelope: centred average of the median over one wavelength, band = 85th
+     percentile of the distance. The last half wave is extrapolated (dashed).        */
+  envelope(D, L){
+    const n = D.m.length, h = Math.max(1, Math.floor(L.P / 2));
+    const mitte = new Array(n).fill(null);
+    let sum = 0;
+    for(let i = 0; i < n; i++){
+      sum += Math.log(D.m[i]);
+      if(i >= 2 * h + 1) sum -= Math.log(D.m[i - 2 * h - 1]);
+      if(i >= 2 * h) mitte[i - h] = Math.exp(sum / (2 * h + 1));
+    }
+    const abst = [];
+    for(let i = 0; i < n; i++) if(mitte[i]) abst.push(Math.abs(Math.log(D.m[i] / mitte[i])));
+    const s = abst.slice().sort((a, b) => a - b);
+    const breite = s.length ? s[Math.floor(s.length * 0.85)] : 0;
+    // Extrapolate the missing end from the slope of the last available half wave
+    const letzte = n - 1 - h;
+    let geschaetzt = 0;
+    if(letzte > h){
+      const steig = (Math.log(mitte[letzte]) - Math.log(mitte[Math.max(h, letzte - h)])) / Math.max(1, Math.min(h, letzte - h));
+      for(let i = letzte + 1; i < n; i++){ mitte[i] = mitte[letzte] * Math.exp(steig * (i - letzte)); geschaetzt++; }
+    }
+    return {mitte, breite, ab:n - geschaetzt};
+  }
+};
+
+
+
+/* ---------- Cycles page ---------- */
+const CYC = {
+  FARBE: {'54M':'#b07cd8', '18M':'#d16ba5', '40W':'#e0605a', '20W':'#e8904a', '80D':'#d9b44a', '40D':'#7dbb57',
+    '20D':'#3fb59a', '10D':'#4aa3d9', '5D':'#6f86e0', '51H':'#9b7be0', '26H':'#c07bd0', '13H':'#d48aa8', '6H':'#a0a0a0'},
+  TFS: [['15m', '15m'], ['1h', '1h'], ['4h', '4h'], ['1d', '1D']],
+  EBENEN: [['troughs', 'Troughs'], ['windows', 'Next windows'], ['fld', 'FLDs'], ['targets', 'FLD targets'],
+    ['vtl', 'VTLs'], ['env', 'Envelope']],
+  cache:{}, res:null, sicht:null, laeuft:false,
+
+  /* Settings that stay on this device */
+  einst(){
+    let e = {};
+    try{ e = JSON.parse(localStorage.getItem('hlj_cycles_view') || '{}') || {}; }catch(x){}
+    return Object.assign({coin:'BTC', tf:'1d', layers:{troughs:true, windows:true, fld:true, targets:true, vtl:false, env:false},
+      aus:{}, trade:null}, e);
+  },
+  merke(e){ try{ localStorage.setItem('hlj_cycles_view', JSON.stringify(e)); }catch(x){} },
+
+  /* Manual corrections travel with the notes (synced, encrypted) */
+  key(coin, tf){ return 'hurst:' + coin + ':' + tf; },
+  manuell(coin, tf){
+    const n = S.notes[this.key(coin, tf)];
+    if(!n || n.deleted) return {add:[], del:[]};
+    try{ const v = JSON.parse(n.note || '{}'); return {add:v.add || [], del:v.del || []}; }catch(x){ return {add:[], del:[]}; }
+  },
+  speichereManuell(coin, tf, m){
+    const leer = !m.add.length && !m.del.length;
+    S.notes[this.key(coin, tf)] = {tag:'', rating:0, note:JSON.stringify(m), deleted:leer, updatedAt:Date.now()};
+    saveNotes();
+  },
+
+  async kerzen(coin, tf, frisch){
+    const ms = HURST.TF[tf], k = coin + '|' + tf;
+    const c = this.cache[k];
+    if(c && !frisch && Date.now() - c.at < Math.max(60e3, ms / 3)) return c.kerzen;
+    const r = await info({type:'candleSnapshot', req:{coin, interval:tf, startTime:Date.now() - 5000 * ms, endTime:Date.now() + ms}});
+    const kz = (Array.isArray(r) ? r : []).map(x => ({t:num(x.t), o:num(x.o), h:num(x.h), l:num(x.l), c:num(x.c)}))
+      .filter(x => x.h > 0 && x.l > 0).sort((a, b) => a.t - b.t);
+    this.cache[k] = {at:Date.now(), kerzen:kz};
+    return kz;
+  },
+
+  async oeffnen(){
+    this.aufbau();
+    await this.laden();
+  },
+  async laden(frisch){
+    const e = this.einst();
+    const st = $('#cyStatus');
+    if(this.laeuft) return;
+    this.laeuft = true;
+    if(st) st.innerHTML = '<span class="spin"></span> Loading ' + esc(e.coin) + ' ' + esc(e.tf) + ' candles…';
+    try{
+      const kz = await this.kerzen(e.coin, e.tf, frisch);
+      if(kz.length < 60) throw new Error('Not enough price history for ' + e.coin + ' on ' + e.tf + '.');
+      this.kz = kz;
+      this.rechnen(true);
+      if(st) st.textContent = kz.length + ' candles · ' + new Date(kz[0].t).toLocaleDateString(loc()) + ' – now · updated ' +
+        new Date().toLocaleTimeString(loc(), {hour:'2-digit', minute:'2-digit'});
+    }catch(x){
+      if(st) st.innerHTML = '<span class="down">' + esc(x.message) + '</span>';
+      this.res = null; this.zeichnen(); this.tabelle();
+    }finally{ this.laeuft = false; }
+  },
+  rechnen(neueSicht){
+    const e = this.einst();
+    this.res = HURST.analyse(this.kz, HURST.TF[e.tf], this.manuell(e.coin, e.tf));
+    if(!e.trade || !this.res.levels.some(L => L.id === e.trade)){
+      const mitte = this.res.levels[Math.max(0, this.res.levels.length - 3)];
+      e.trade = mitte ? mitte.id : null; this.merke(e);
+    }
+    if(neueSicht || !this.sicht) this.standardSicht();
+    this.merkeKurz();
+    this.zeichnen();
+    this.tabelle();
+    this.chips();
+  },
+  standardSicht(){
+    const r = this.res;
+    if(!r || !r.levels.length){ this.sicht = null; return; }
+    const sichtbar = r.levels.filter(L => !this.einst().aus[L.id]);
+    const lang = (sichtbar[0] || r.levels[0]).P;
+    const breite = Math.min(r.n, Math.max(60, lang * 2.4));
+    this.sicht = {von:r.n - breite, bis:r.n - 1 + breite * 0.32};
+  },
+
+  /* Remember a short status for the hint on Home */
+  merkeKurz(){
+    const r = this.res, e = this.einst();
+    if(!r || !r.levels.length) return;
+    let liste = [];
+    try{ liste = JSON.parse(localStorage.getItem('hlj_cycles_recent') || '[]') || []; }catch(x){}
+    liste = liste.filter(x => !(x.coin === e.coin && x.tf === e.tf));
+    liste.unshift({coin:e.coin, tf:e.tf, at:Date.now(),
+      offen:r.levels.filter(L => L.next && L.next.offen).map(L => ({id:L.id, bis:L.next.bis})),
+      ueber:r.levels.filter(L => L.next && L.next.ueberfaellig).map(L => L.id),
+      nest:r.nest ? {ids:r.nest.levels.map(L => L.id), von:r.nest.von, bis:r.nest.bis} : null});
+    try{ localStorage.setItem('hlj_cycles_recent', JSON.stringify(liste.slice(0, 6))); }catch(x){}
+  },
+
+  /* ---------- Controls ---------- */
+  aufbau(){
+    if(this.gebaut){
+      const e0 = this.einst();
+      $('#cyCoin').value = e0.coin;
+      $$('[data-cytf]').forEach(y => y.classList.toggle('on', y.dataset.cytf === e0.tf));
+      this.chips(); return;
+    }
+    this.gebaut = true;
+    const e = this.einst();
+    $('#cyCoin').value = e.coin;
+    $('#cyTf').innerHTML = this.TFS.map(([id, l]) => '<button class="tab' + (id === e.tf ? ' on' : '') + '" data-cytf="' + id + '">' + l + '</button>').join('');
+    $$('[data-cytf]').forEach(b => b.addEventListener('click', () => {
+      const x = this.einst(); x.tf = b.dataset.cytf; this.merke(x);
+      $$('[data-cytf]').forEach(y => y.classList.toggle('on', y === b));
+      this.sicht = null; this.laden();
+    }));
+    const wechsel = () => {
+      const v = $('#cyCoin').value.trim();
+      if(!v) return;
+      const x = this.einst(); x.coin = v.indexOf(':') > 0 ? v : v.toUpperCase(); this.merke(x);
+      $('#cyCoin').value = x.coin;
+      this.sicht = null; this.laden();
+    };
+    $('#cyCoin').addEventListener('change', wechsel);
+    $('#cyCoin').addEventListener('keydown', ev => { if(ev.key === 'Enter') wechsel(); });
+    $('#cyCoin').addEventListener('focus', () => {
+      $('#cyCoins').innerHTML = (LIVE.universe || []).slice(0, 800).map(n => '<option value="' + esc(n) + '">').join('');
+    });
+    $('#cyEdit').addEventListener('click', () => {
+      this.edit = !this.edit;
+      $('#cyEdit').classList.toggle('on', this.edit);
+      $('#cyEditBar').classList.toggle('hide', !this.edit);
+      this.chips();
+    });
+    $('#cyReset').addEventListener('click', () => {
+      const x = this.einst();
+      const m = this.manuell(x.coin, x.tf);
+      if((m.add.length || m.del.length) && !confirm('Remove your ' + (m.add.length + m.del.length) +
+        ' correction(s) for ' + x.coin + ' ' + x.tf + ' and go back to the proposal?')) return;
+      this.speichereManuell(x.coin, x.tf, {add:[], del:[]});
+      if(this.kz) this.rechnen(false);
+    });
+    $('#cyReload').addEventListener('click', () => this.laden(true));
+    $('#cyFit').addEventListener('click', () => { this.standardSicht(); this.zeichnen(); });
+    this.interaktion();
+    window.addEventListener('resize', () => { if(S.tab === 'cycles') this.zeichnen(); });
+  },
+  chips(){
+    const e = this.einst(), r = this.res;
+    $('#cyLayers').innerHTML = this.EBENEN.map(([id, l]) =>
+      '<span class="chip' + (e.layers[id] ? ' on' : '') + '" data-cyl="' + id + '">' + l + '</span>').join('');
+    $$('[data-cyl]').forEach(c => c.addEventListener('click', () => {
+      const x = this.einst(); x.layers[c.dataset.cyl] = !x.layers[c.dataset.cyl]; this.merke(x); this.chips(); this.zeichnen();
+    }));
+    const lv = r ? r.levels : [];
+    $('#cyLevels').innerHTML = lv.map(L =>
+      '<span class="chip cyc-lv' + (e.aus[L.id] ? '' : ' on') + '" data-cyv="' + L.id + '" style="--lc:' + this.FARBE[L.id] + '">' +
+      '<i></i>' + esc(L.name) + '</span>').join('');
+    $$('[data-cyv]').forEach(c => c.addEventListener('click', () => {
+      const x = this.einst(); x.aus[c.dataset.cyv] = !x.aus[c.dataset.cyv]; this.merke(x); this.chips(); this.zeichnen(); this.tabelle();
+    }));
+    if(!this.editLvl || !lv.some(L => L.id === this.editLvl)) this.editLvl = lv.length ? lv[Math.max(0, lv.length - 3)].id : null;
+    $('#cyEditLv').innerHTML = lv.map(L =>
+      '<span class="chip cyc-lv' + (L.id === this.editLvl ? ' on' : '') + '" data-cye="' + L.id + '" style="--lc:' + this.FARBE[L.id] + '"><i></i>' + esc(L.name) + '</span>').join('');
+    $$('[data-cye]').forEach(c => c.addEventListener('click', () => { this.editLvl = c.dataset.cye; this.chips(); }));
+  },
+
+  /* ---------- Chart ---------- */
+  geo(){
+    const cv = $('#cyCanvas'), box = $('#cyBox');
+    if(!cv || !box || !box.getBoundingClientRect) return null;
+    const W = Math.max(280, box.clientWidth || 600), H = Math.max(260, box.clientHeight || 420);
+    const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+    if(cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)){
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    }
+    return {cv, W, H, dpr, L:8, R:W - 70, T:10, B:H - 72};
+  },
+  zeichnen(){
+    const g = this.geo();
+    if(!g) return;
+    const ctx = g.cv.getContext && g.cv.getContext('2d');
+    if(!ctx || !ctx.setTransform) return;
+    ctx.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
+    const cs = getComputedStyle(document.documentElement);
+    const farbe = n => (cs.getPropertyValue(n) || '').trim() || '#888';
+    const FG = farbe('--txt'), MUT = farbe('--muted'), LINE = farbe('--line'), BG = farbe('--panel');
+    ctx.fillStyle = BG; ctx.fillRect(0, 0, g.W, g.H);
+    const r = this.res;
+    if(!r || !r.levels.length || !this.sicht){
+      ctx.fillStyle = MUT; ctx.font = '13px ' + 'system-ui'; ctx.fillText(r ? 'Not enough data for a cycle analysis.' : '', 16, 30);
+      return;
+    }
+    const D = r.D, n = r.n, e = this.einst(), sv = this.sicht;
+    const lv = r.levels.filter(L => !e.aus[L.id]);
+    // FLDs and their targets: the trading cycle and the shorter ones – those are the ones Hurst trades with
+    const tk = Math.max(0, r.levels.findIndex(L => L.id === e.trade));
+    const fldLv = lv.filter(L => r.levels.indexOf(L) >= tk);
+    const x = i => g.L + (i - sv.von) / (sv.bis - sv.von) * (g.R - g.L);
+    const i0 = Math.max(0, Math.floor(sv.von)), i1 = Math.min(n - 1, Math.ceil(sv.bis));
+    // Price range: visible candles plus visible FLD/targets
+    let lo = Infinity, hi = -Infinity;
+    for(let i = i0; i <= i1; i++){ lo = Math.min(lo, D.l[i]); hi = Math.max(hi, D.h[i]); }
+    if(e.layers.targets) fldLv.forEach(L => { const c = L.fld.cross; if(c && !c.erreicht && x(c.i) <= g.R){ lo = Math.min(lo, c.target); hi = Math.max(hi, c.target); } });
+    if(!isFinite(lo)){ lo = D.l[n - 1] * 0.9; hi = D.h[n - 1] * 1.1; }
+    const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+    const notenRaum = Math.min(60, lv.length * 9 + 12);
+    const BOT = g.B - notenRaum;              // room under price for the diamonds
+    const y = p => g.T + (hi - p) / (hi - lo) * (BOT - g.T);
+    this.skala = {x, y, sv, g, lo, hi, BOT};
+
+    // Grid and price axis
+    ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.fillStyle = MUT; ctx.font = '11px system-ui'; ctx.textAlign = 'left';
+    for(let k = 0; k <= 4; k++){
+      const p = lo + (hi - lo) * k / 4, yy = Math.round(y(p)) + 0.5;
+      ctx.beginPath(); ctx.moveTo(g.L, yy); ctx.lineTo(g.R, yy); ctx.stroke();
+      ctx.fillText(price(p), g.R + 6, yy + 4);
+    }
+    // Time axis
+    const ms = r.tfMs, zeit = i => D.t[n - 1] + (i - (n - 1)) * ms;
+    const schritte = 6;
+    ctx.textAlign = 'center';
+    for(let k = 0; k <= schritte; k++){
+      const i = sv.von + (sv.bis - sv.von) * k / schritte, xx = x(i);
+      const d = new Date(zeit(i));
+      const lab = ms >= 864e5 ? d.toLocaleDateString(loc(), {day:'2-digit', month:'short', year:'2-digit'})
+        : d.toLocaleString(loc(), {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
+      ctx.fillText(lab, Math.min(g.R - 30, Math.max(g.L + 30, xx)), g.H - 8);
+    }
+    // "Now" line
+    const xn = x(n - 1);
+    if(xn > g.L && xn < g.R){
+      ctx.save(); ctx.setLineDash([3, 4]); ctx.strokeStyle = MUT; ctx.beginPath(); ctx.moveTo(xn + 0.5, g.T); ctx.lineTo(xn + 0.5, g.B); ctx.stroke(); ctx.restore();
+    }
+    // Envelope of the trading cycle
+    if(e.layers.env){
+      const L = r.levels.find(z => z.id === e.trade) || lv[lv.length - 1];
+      if(L){
+        const en = HURST.envelope(D, L), f = Math.exp(en.breite);
+        ctx.save(); ctx.globalAlpha = 0.12; ctx.fillStyle = this.FARBE[L.id];
+        ctx.beginPath();
+        let start = true;
+        for(let i = i0; i <= i1; i++){ if(!en.mitte[i]) continue; const yy = y(en.mitte[i] * f); if(start){ ctx.moveTo(x(i), yy); start = false; } else ctx.lineTo(x(i), yy); }
+        for(let i = i1; i >= i0; i--){ if(!en.mitte[i]) continue; ctx.lineTo(x(i), y(en.mitte[i] / f)); }
+        ctx.closePath(); ctx.fill(); ctx.restore();
+        ctx.save(); ctx.strokeStyle = this.FARBE[L.id]; ctx.globalAlpha = 0.55; ctx.lineWidth = 1;
+        for(const fak of [f, 1 / f]){
+          ctx.beginPath(); let st = true;
+          for(let i = i0; i <= i1; i++){
+            if(!en.mitte[i]) continue;
+            if(i === en.ab){ ctx.stroke(); ctx.setLineDash([4, 4]); ctx.beginPath(); st = true; }
+            const yy = y(en.mitte[i] * fak); if(st){ ctx.moveTo(x(i), yy); st = false; } else ctx.lineTo(x(i), yy);
+          }
+          ctx.stroke(); ctx.setLineDash([]);
+        }
+        ctx.restore();
+      }
+    }
+    // Candles
+    const bw = Math.max(1, (g.R - g.L) / (sv.bis - sv.von) * 0.66);
+    for(let i = i0; i <= i1; i++){
+      const xx = x(i);
+      if(xx < g.L - bw || xx > g.R + bw) continue;
+      const auf = D.c[i] >= D.o[i];
+      ctx.strokeStyle = ctx.fillStyle = auf ? C.up : C.down;
+      ctx.beginPath(); ctx.moveTo(Math.round(xx) + 0.5, y(D.h[i])); ctx.lineTo(Math.round(xx) + 0.5, y(D.l[i])); ctx.stroke();
+      const yo = y(D.o[i]), yc = y(D.c[i]);
+      if(bw >= 3) ctx.fillRect(xx - bw / 2, Math.min(yo, yc), bw, Math.max(1, Math.abs(yc - yo)));
+    }
+    ctx.save();
+    ctx.beginPath(); ctx.rect(g.L, g.T, g.R - g.L, BOT - g.T); ctx.clip();
+    // FLDs
+    if(e.layers.fld){
+      fldLv.forEach(L => {
+        const s = L.fld.shift;
+        ctx.strokeStyle = this.FARBE[L.id]; ctx.lineWidth = 1.4; ctx.globalAlpha = 0.9;
+        ctx.beginPath(); let st = true;
+        const von = Math.max(i0, s), bis = Math.min(Math.ceil(sv.bis), n - 1 + s);
+        for(let i = von; i <= bis; i++){
+          const v = L.fld.wert(i); if(v == null) continue;
+          if(i === n){ ctx.stroke(); ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(x(i - 1), y(L.fld.wert(i - 1))); }
+          if(st){ ctx.moveTo(x(i), y(v)); st = false; } else ctx.lineTo(x(i), y(v));
+        }
+        ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+      });
+    }
+    // FLD targets
+    if(e.layers.targets){
+      ctx.font = '11px system-ui'; ctx.textAlign = 'left';
+      // Labels must not sit on top of each other
+      const belegt = [];
+      const freiY = yy => { let v = yy; for(let k = 0; k < 20 && belegt.some(b => Math.abs(b - v) < 13); k++) v += 13; belegt.push(v); return v; };
+      fldLv.slice().sort((a, b) => ((a.fld.cross || {}).target || 0) - ((b.fld.cross || {}).target || 0)).reverse().forEach(L => {
+        const c = L.fld.cross; if(!c) return;
+        const xa = x(c.i), xb = x(c.i + L.P * 0.6), yy = y(c.target), ly = freiY(yy);
+        ctx.strokeStyle = this.FARBE[L.id]; ctx.setLineDash([2, 3]); ctx.globalAlpha = c.erreicht ? 0.45 : 1;
+        ctx.beginPath(); ctx.moveTo(xa, y(c.price)); ctx.lineTo(xb, yy); ctx.stroke();
+        ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(xb - 10, yy); ctx.lineTo(xb + 10, yy); ctx.stroke();
+        ctx.fillStyle = this.FARBE[L.id];
+        ctx.beginPath(); ctx.arc(xa, y(c.price), 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillText(L.id + (c.up ? ' ↑ ' : ' ↓ ') + price(c.target) + (c.erreicht ? ' ✓' : ''), xb + 12, ly + 4);
+        ctx.globalAlpha = 1;
+      });
+    }
+    // VTLs
+    if(e.layers.vtl){
+      lv.forEach(L => {
+        ['up', 'down'].forEach(art => {
+          const v = L.vtl[art]; if(!v) return;
+          const ende = v.cross ? v.cross.i : Math.min(Math.ceil(sv.bis), n - 1 + Math.round(L.P * 0.4));
+          ctx.strokeStyle = this.FARBE[L.id]; ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.moveTo(x(v.a), y(v.wert(v.a))); ctx.lineTo(x(v.b), y(v.wert(v.b))); ctx.stroke();
+          ctx.setLineDash([6, 3]); ctx.beginPath(); ctx.moveTo(x(v.b), y(v.wert(v.b))); ctx.lineTo(x(ende), y(v.wert(ende))); ctx.stroke(); ctx.setLineDash([]);
+          if(v.cross){ ctx.fillStyle = this.FARBE[L.id]; ctx.font = '12px system-ui'; ctx.fillText('✕', x(v.cross.i) - 4, y(v.cross.price) + 4); }
+        });
+      });
+    }
+    ctx.restore();
+    // Troughs in Hurst's diamond notation: shortest cycle closest to the low
+    if(e.layers.troughs){
+      const nach = {};
+      lv.forEach((L, rk) => L.troughs.forEach(t => { (nach[t.i] = nach[t.i] || []).push({L, t, rk}); }));
+      for(const i in nach){
+        const xx = x(+i); if(xx < g.L - 10 || xx > g.R + 10) continue;
+        const liste = nach[i].sort((a, b) => b.rk - a.rk);   // shortest first
+        let yy = y(D.l[+i]) + 7;
+        liste.forEach(({L, t}, k) => {
+          const rk = r.levels.indexOf(L), gr = 3 + (r.levels.length - rk) * 0.9;
+          yy += gr + 1.5;
+          ctx.fillStyle = this.FARBE[L.id];
+          ctx.strokeStyle = BG; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(xx, yy - gr); ctx.lineTo(xx + gr, yy); ctx.lineTo(xx, yy + gr); ctx.lineTo(xx - gr, yy); ctx.closePath();
+          if(t.vorl){ ctx.save(); ctx.globalAlpha = 0.5; ctx.fill(); ctx.restore(); ctx.strokeStyle = this.FARBE[L.id]; ctx.stroke(); }
+          else{ ctx.fill(); ctx.stroke(); }
+          if(t.manual){ ctx.strokeStyle = FG; ctx.lineWidth = 1.2; ctx.stroke(); }
+          yy += gr;
+        });
+      }
+    }
+    // Next trough windows: whisker from earliest to latest, circle at the expected date
+    if(e.layers.windows){
+      lv.forEach((L, k) => {
+        const nx = L.next; if(!nx) return;
+        const yy = g.B + 8 + k * Math.min(8, (g.H - g.B - 28) / Math.max(1, lv.length));
+        const xa = Math.max(g.L, x(nx.vonI)), xb = Math.min(g.R, x(nx.bisI)), xd = x(nx.dueI);
+        if(xb < g.L || xa > g.R) return;
+        ctx.strokeStyle = ctx.fillStyle = this.FARBE[L.id]; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(xa, yy); ctx.lineTo(xb, yy); ctx.stroke();
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(xa, yy - 3); ctx.lineTo(xa, yy + 3); ctx.moveTo(xb, yy - 3); ctx.lineTo(xb, yy + 3); ctx.stroke();
+        if(xd >= g.L && xd <= g.R){ ctx.beginPath(); ctx.arc(xd, yy, 3.4, 0, Math.PI * 2); nx.ueberfaellig ? ctx.stroke() : ctx.fill(); }
+        // Open window: a faint band across the chart
+        if(nx.offen || nx.ueberfaellig){
+          ctx.save(); ctx.globalAlpha = 0.05; ctx.fillRect(xa, g.T, Math.max(2, xb - xa), BOT - g.T); ctx.restore();
+        }
+      });
+    }
+    // Edit hint
+    if(this.edit){
+      ctx.fillStyle = this.FARBE[this.editLvl] || FG; ctx.font = '600 12px system-ui'; ctx.textAlign = 'left';
+      ctx.fillText('Editing ' + ((r.levels.find(L => L.id === this.editLvl) || {}).name || '') + ' troughs – tap a low to add, tap a diamond to remove', g.L + 6, g.T + 14);
+    }
+  },
+
+  /* Pan, zoom, tap */
+  interaktion(){
+    const cv = $('#cyCanvas');
+    if(!cv || !cv.addEventListener) return;
+    const zeiger = new Map();
+    let start = null, bewegt = false, pinch = null;
+    cv.addEventListener('pointerdown', ev => {
+      zeiger.set(ev.pointerId, {x:ev.clientX, y:ev.clientY});
+      if(cv.setPointerCapture) try{ cv.setPointerCapture(ev.pointerId); }catch(x){}
+      if(zeiger.size === 1){ start = {x:ev.clientX, sv:Object.assign({}, this.sicht)}; bewegt = false; }
+      if(zeiger.size === 2){ const p = Array.from(zeiger.values()); pinch = {d:Math.abs(p[0].x - p[1].x) || 1, sv:Object.assign({}, this.sicht)}; }
+    });
+    cv.addEventListener('pointermove', ev => {
+      if(!zeiger.has(ev.pointerId) || !this.skala) return;
+      zeiger.set(ev.pointerId, {x:ev.clientX, y:ev.clientY});
+      const g = this.skala.g, breite = this.sicht.bis - this.sicht.von;
+      if(zeiger.size === 2 && pinch){
+        const p = Array.from(zeiger.values()), d = Math.abs(p[0].x - p[1].x) || 1;
+        const f = pinch.d / d, mitte = (pinch.sv.von + pinch.sv.bis) / 2, b = (pinch.sv.bis - pinch.sv.von) * f;
+        this.setze(mitte - b / 2, mitte + b / 2); bewegt = true; return;
+      }
+      if(start){
+        const dx = ev.clientX - start.x;
+        if(Math.abs(dx) > 4) bewegt = true;
+        const di = -dx / (g.R - g.L) * (start.sv.bis - start.sv.von);
+        this.setze(start.sv.von + di, start.sv.bis + di);
+      }
+    });
+    const ende = ev => {
+      const war = zeiger.has(ev.pointerId);
+      zeiger.delete(ev.pointerId);
+      if(zeiger.size < 2) pinch = null;
+      if(war && !bewegt && zeiger.size === 0 && start) this.tippen(ev);
+      if(zeiger.size === 0) start = null;
+    };
+    cv.addEventListener('pointerup', ende);
+    cv.addEventListener('pointercancel', ev => { zeiger.delete(ev.pointerId); start = null; pinch = null; });
+    cv.addEventListener('wheel', ev => {
+      if(!this.skala) return;
+      ev.preventDefault();
+      const r = cv.getBoundingClientRect(), g = this.skala.g;
+      const sv = this.sicht, f = Math.exp(ev.deltaY * 0.0015);
+      const anker = sv.von + (ev.clientX - r.left - g.L) / (g.R - g.L) * (sv.bis - sv.von);
+      this.setze(anker - (anker - sv.von) * f, anker + (sv.bis - anker) * f);
+    }, {passive:false});
+  },
+  setze(von, bis){
+    const r = this.res; if(!r) return;
+    const b = Math.max(20, Math.min(r.n * 1.4, bis - von));
+    const mitte = (von + bis) / 2;
+    von = mitte - b / 2; bis = mitte + b / 2;
+    const maxBis = r.n - 1 + b * 0.6;
+    if(bis > maxBis){ von -= bis - maxBis; bis = maxBis; }
+    if(von < -b * 0.1){ bis += -b * 0.1 - von; von = -b * 0.1; }
+    this.sicht = {von, bis};
+    if(!this.malt){ this.malt = true; (window.requestAnimationFrame || setTimeout)(() => { this.malt = false; this.zeichnen(); }); }
+  },
+  tippen(ev){
+    const s = this.skala, r = this.res;
+    if(!s || !r) return;
+    const box = $('#cyCanvas').getBoundingClientRect();
+    const px = ev.clientX - box.left;
+    const i = Math.round(s.sv.von + (px - s.g.L) / (s.g.R - s.g.L) * (s.sv.bis - s.sv.von));
+    if(i < 0 || i > r.n - 1) return;
+    if(!this.edit){
+      // Show what is known about the nearest trough
+      let best = null;
+      r.levels.forEach(L => L.troughs.forEach(t => { if(Math.abs(t.i - i) <= 3 && (!best || r.levels.indexOf(L) < r.levels.indexOf(best.L))) best = {L, t}; }));
+      if(best) $('#cyStatus').innerHTML = '<b style="color:' + this.FARBE[best.L.id] + '">' + esc(best.L.name) + ' trough</b> · ' +
+        new Date(best.t.t).toLocaleString(loc()) + ' · ' + price(best.t.price) + (best.t.manual ? ' · set by you' : '') + (best.t.vorl ? ' · not confirmed yet' : '');
+      return;
+    }
+    const e = this.einst(), L = r.levels.find(z => z.id === this.editLvl);
+    if(!L) return;
+    const m = this.manuell(e.coin, e.tf);
+    const treffer = L.troughs.find(t => Math.abs(t.i - i) <= 2);
+    if(treffer){
+      const vorher = m.add.length;
+      m.add = m.add.filter(a => !(a.lvl === L.id && Math.abs(a.t - treffer.t) <= 2 * r.tfMs));
+      if(m.add.length === vorher) m.del.push({t:treffer.t, lvl:L.id});
+    }else{
+      m.del = m.del.filter(d => !(d.lvl === L.id && Math.abs(d.t - r.D.t[i]) <= 3 * r.tfMs));
+      m.add.push({t:r.D.t[i], lvl:L.id});
+    }
+    this.speichereManuell(e.coin, e.tf, m);
+    this.rechnen(false);
+  },
+
+  /* ---------- Table and summary ---------- */
+  tabelle(){
+    const r = this.res, e = this.einst();
+    const box = $('#cySummary'), tb = $('#cyTable tbody');
+    if(!box || !tb) return;
+    if(!r || !r.levels.length){ box.innerHTML = ''; tb.innerHTML = ''; return; }
+    const tage = bars => {
+      const d = bars * r.tfMs / 864e5;
+      return d >= 2 ? Math.round(d) + ' days' : Math.round(d * 24) + ' h';
+    };
+    const datum = ms => new Date(ms).toLocaleDateString(loc(), {day:'2-digit', month:'short'}) +
+      (r.tfMs < 864e5 ? ' ' + new Date(ms).toLocaleTimeString(loc(), {hour:'2-digit', minute:'2-digit'}) : '');
+    const lv = r.levels.filter(L => !e.aus[L.id]);
+    tb.innerHTML = lv.map(L => {
+      const nx = L.next, last = L.troughs[L.troughs.length - 1], c = L.fld.cross;
+      const stand = !nx ? '–' : nx.ueberfaellig ? '<span class="warn">overdue</span>'
+        : nx.offen ? '<span class="up">window open</span>'
+        : 'in ' + tage(Math.max(0, nx.vonI - (r.n - 1)));
+      const fld = c ? (c.up ? '↑ crossed up' : '↓ crossed down') + ' · target ' + price(c.target) + (c.erreicht ? ' <span class="mut">(reached)</span>' : '')
+        : '–';
+      const v = L.vtl, vtl = [v.up ? 'up ' + (v.up.cross ? '<span class="down">broken</span>' : price(v.up.wert(r.n - 1))) : '',
+        v.down ? 'down ' + (v.down.cross ? '<span class="up">broken</span>' : price(v.down.wert(r.n - 1))) : ''].filter(Boolean).join(' · ') || '–';
+      return '<tr>' +
+        '<td><span class="cyc-dot" style="background:' + this.FARBE[L.id] + '"></span><b>' + esc(L.name) + '</b></td>' +
+        '<td>' + tage(L.P) + ' <span class="mut">(nominal ' + tage(L.nomBars) + ')</span></td>' +
+        '<td>' + (last ? datum(last.t) + ' · ' + price(last.price) + (last.vorl ? ' <span class="mut">?</span>' : '') : '–') + '</td>' +
+        '<td>' + (nx ? Math.round(nx.phase * 100) + '% · ' + (nx.steigend ? 'first half' : 'second half') : '–') + '</td>' +
+        '<td>' + (nx ? datum(nx.von) + ' – ' + datum(nx.bis) : '–') + '</td>' +
+        '<td>' + stand + '</td>' +
+        '<td>' + fld + '</td>' +
+        '<td>' + vtl + '</td></tr>';
+    }).join('');
+    mobilLabels('#cyTable');
+    // Summary
+    const teile = [];
+    const ne = r.nest;
+    if(ne && ne.levels.length){
+      teile.push('<div class="cyc-big">Next low: <b>' + ne.levels.map(L => '<span style="color:' + this.FARBE[L.id] + '">' + esc(L.id) + '</span>').join(' + ') +
+        '</b> trough, expected ' + datum(ne.von) + ' – ' + datum(ne.bis) + '.</div>');
+    }
+    const offen = lv.filter(L => L.next && (L.next.offen || L.next.ueberfaellig));
+    if(offen.length) teile.push('<div>' + offen.map(L => esc(L.name) + (L.next.ueberfaellig ? ' is overdue' : ' window is open')).join(' · ') +
+      ' – watch for a cross above the shortest FLDs to confirm.</div>');
+    const tr = HURST.trend(r, e.trade);
+    teile.push('<div class="filters" style="margin:10px 0 0;align-items:center"><span class="mut">Trading cycle</span> <select id="cyTrade">' +
+      r.levels.map(L => '<option value="' + L.id + '"' + (L.id === e.trade ? ' selected' : '') + '>' + esc(L.name) + '</option>').join('') + '</select>' +
+      (tr && tr.teile.length ? '<span>Underlying trend <b class="' + (tr.wert > 0 ? 'up' : tr.wert < 0 ? 'down' : '') + '">' + (tr.wert > 0 ? '+' : '') + tr.wert + '</b> ' +
+        '<span class="mut">(' + tr.teile.map(L => L.id + ' ' + (L.next.steigend ? 'rising' : 'falling')).join(', ') + ') – ' +
+        (tr.wert > 0 ? 'favour longs' : tr.wert < 0 ? 'favour shorts' : 'no clear side') + '</span></span>' : '') + '</div>');
+    const m = this.manuell(e.coin, e.tf);
+    teile.push('<div class="mut" style="font-size:12.5px;margin-top:8px">Proposal following Hurst\'s rules (nominal model, measured lengths, synchronicity). ' +
+      (m.add.length || m.del.length ? 'Includes ' + (m.add.length + m.del.length) + ' correction(s) of yours. ' : '') +
+      'Phasing is never certain – correct troughs with “Edit troughs”.</div>');
+    box.innerHTML = teile.join('');
+    $('#cyTrade').addEventListener('change', ev => { const x = this.einst(); x.trade = ev.target.value; this.merke(x); this.tabelle(); this.zeichnen(); });
+  }
+};
+
+/* Short hint on Home when a cycle window is open somewhere you looked at */
+function renderCyclesHint(){
+  const el = $('#homeCycles');
+  if(!el) return;
+  let liste = [];
+  try{ liste = JSON.parse(localStorage.getItem('hlj_cycles_recent') || '[]') || []; }catch(x){}
+  const zeilen = liste.filter(x => (x.offen && x.offen.length) || (x.ueber && x.ueber.length)).slice(0, 4).map(x => {
+    const tf = x.tf === '1d' ? '1D' : x.tf;
+    const was = (x.offen || []).map(o => o.id).concat((x.ueber || []).map(id => id + ' overdue'));
+    return '<div class="dl cyc-hint" data-cyc="' + esc(x.coin) + '|' + esc(x.tf) + '" style="cursor:pointer"><span><b>' + esc(x.coin) + '</b> ' + tf +
+      '</span><span>' + esc(was.join(' · ')) + ' trough window ' + ((x.offen || []).length ? 'open' : '') + ' →</span></div>';
+  });
+  el.classList.toggle('hide', !zeilen.length);
+  el.innerHTML = zeilen.length ? '<h2>Cycles</h2>' + zeilen.join('') : '';
+  $$('#homeCycles [data-cyc]').forEach(z => z.addEventListener('click', () => {
+    const [coin, tf] = z.dataset.cyc.split('|');
+    const e = CYC.einst(); e.coin = coin; e.tf = tf; CYC.merke(e); CYC.sicht = null;
+    switchTab('cycles');
+  }));
+}
+
+
 function themeSetting(){
   try{ return localStorage.getItem('hlj_theme') || 'dark'; }catch(e){ return 'dark'; }
 }
@@ -14278,8 +15279,9 @@ const GROUPS = [
   {id:'journal', label:'Journal', tabs:[['trades','Trades'],['review','Weekly review']]},
   {id:'stats', label:'Stats', tabs:[['overview','Overview'],['setups','Setups'],['longshort','Long / Short'],
     ['insights','Insights'],['behavior','Behavior'],['progress','Progress'],['excursion','Excursions']]},
-  {id:'plan', label:'Plan', tabs:[['plans','Trade plans'],['calendar','Calendar'],['calc','Calculator']]},
-  {id:'lab', label:'Lab', more:true, tabs:[['labimpact','Impact'],['labexit','Exit & stop'],
+  {id:'plan', label:'Plan', tabs:[['plans','Trade plans'],['calendar','Calendar']]},
+  {id:'cycles', label:'Cycles', tabs:[['cycles','Hurst cycles']]},
+  {id:'lab', label:'Lab', more:true, tabs:[['calc','Compound calculator'],['labimpact','Impact'],['labexit','Exit & stop'],
     ['discipline','Discipline'],['cohort','Cohorts'],['sim','Simulator']]},
   {id:'paper', label:'Paper trading', more:true, tabs:[['paper','Terminal'],['papersess','Sessions']]},
   {id:'acct', label:'Account', more:true, tabs:[['positions','Balances'],['vaults','Vaults'],
@@ -14293,6 +15295,7 @@ const NAV_ICON = {
   journal:'<svg viewBox="0 0 24 24"><path d="M6 4h10a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z"/><path d="M6 18a2 2 0 0 1 2-2h10"/><path d="M10 8h5M10 11h4"/></svg>',
   stats:'<svg viewBox="0 0 24 24"><path d="M4 20h16"/><path d="M7 16v-4M12 16V8M17 16v-6"/></svg>',
   plan:'<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>',
+  cycles:'<svg viewBox="0 0 24 24"><path d="M2 12c2.5-6 5.5-6 8 0s5.5 6 8 0 3-4 4-3"/><path d="M6 19l1.2-1.6M14 19l1.2-1.6" /></svg>',
   lab:'<svg viewBox="0 0 24 24"><path d="M10 3v6L5 18a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3"/><path d="M9 3h6M7.5 14h9"/></svg>',
   paper:'<svg viewBox="0 0 24 24"><path d="M4 17l5-5 4 4 7-8"/><path d="M15 8h5v5"/></svg>',
   acct:'<svg viewBox="0 0 24 24"><rect x="3.5" y="6" width="17" height="13" rx="2"/><path d="M3.5 10h17M15 15h2"/></svg>',
@@ -14378,12 +15381,13 @@ function switchTab(t){
     if(el) el.classList.toggle('hide', v !== t);
   });
   $('#globalFilters').classList.toggle('hide',
-    ['settings','tax','positions','vaults','plans','calendar','sim','dashboard','paper','papersess'].indexOf(t) >= 0);
+    ['settings','tax','positions','vaults','plans','calendar','sim','dashboard','paper','papersess','cycles'].indexOf(t) >= 0);
   if(t === 'sim' && !S.simDone){ S.simDone = true; renderSim(); }
   if(t === 'labexit') renderGrid(filtered());
   if(t === 'cohort') renderKohorte();
   if(t === 'paper') paperOeffnen();
   if(t === 'papersess') renderPaperSessions();
+  if(t === 'cycles') CYC.oeffnen();
   window.scrollTo(0, 0);
 }
 
@@ -14419,6 +15423,7 @@ function renderAll(){
   renderCharts(tr);
   renderDashboard();
   renderHello();
+  try{ renderCyclesHint(); }catch(e){}
   renderBehavior(tr);
   renderPlanned(tr);
   renderProgress(tr);
@@ -14939,13 +15944,26 @@ document.addEventListener('keydown', ev => {
 /* Zinseszinsrechner: bei jeder Eingabe neu rechnen */
 $$('[data-zins]').forEach(el => el.addEventListener('click', () => {
   S.zinsZiel = el.dataset.zins;
+  if(S.zinsZiel === 'schritte') S.zinsDauerQuelle = 'anzahl';
   renderZins();
 }));
 ['#zStart','#zRendite','#zSchritte','#zZiel','#zZinseszins','#zEinheit'].forEach(sel => {
   const el = $(sel);
   if(!el) return;
-  el.addEventListener('input', renderZins);
-  el.addEventListener('change', renderZins);
+  el.addEventListener('input', () => { if(sel === '#zSchritte') S.zinsDauerQuelle = 'anzahl'; renderZins(); });
+  el.addEventListener('change', () => { if(sel === '#zSchritte') S.zinsDauerQuelle = 'anzahl'; renderZins(); });
+});
+/* Time span typed in: it decides the number of steps, and the result is the end capital */
+['#zDauer','#zDauerEinheit'].forEach(sel => {
+  const el = $(sel);
+  if(!el) return;
+  const neu = () => {
+    S.zinsDauerQuelle = 'dauer';
+    if((S.zinsZiel || 'schritte') === 'schritte') S.zinsZiel = 'ziel';
+    renderZins();
+  };
+  el.addEventListener('input', neu);
+  el.addEventListener('change', neu);
 });
 
 /* ---------- Start ---------- */
