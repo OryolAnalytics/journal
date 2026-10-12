@@ -1732,7 +1732,7 @@ header{background:var(--side);border-color:var(--line);backdrop-filter:none}
   </section>
 
   <div class="foot">
-    <span class="build">Fassung 11.10.2026, 15:36</span><br>
+    <span class="build">Fassung 12.10.2026, 20:32</span><br>
     Daten live von der öffentlichen Hyperliquid-API · keine Anmeldung, kein API-Key, keine Server<br>
     Nur Lesezugriff – dieses Journal kann nichts traden und braucht keine privaten Schlüssel.
   </div>
@@ -3889,7 +3889,7 @@ function setLang(l){
   location.reload();
 }
 
-const BUILD = '11.10.2026, 15:36';
+const BUILD = '12.10.2026, 20:32';
 const API = 'https://api.hyperliquid.xyz/info';
 
 /* Fehler nicht mehr stillschweigend verschlucken */
@@ -3903,7 +3903,7 @@ const API = 'https://api.hyperliquid.xyz/info';
     if(!bar || !msg) return;
     msg.textContent = String(what || 'Unbekannter Fehler') +
       (where ? ' (' + where + ')' : '') +
-      ' · Fassung 11.10.2026, 15:36';
+      ' · Fassung 12.10.2026, 20:32';
     bar.classList.remove('hide');
   }
   window.addEventListener('error', e => {
@@ -5264,6 +5264,67 @@ function renderWalletBtn(){
     ' <span class="chev">▾</span>';
 }
 
+
+/* ---------- HIP-3: builder-deployed perp dexes ----------
+   Every HIP-3 dex (xyz:, flx:, …) keeps positions, margin and open orders in its own
+   clearinghouse. Without the "dex" parameter Hyperliquid only answers for the main
+   dex – positions on HIP-3 markets were therefore missing. Fills and funding already
+   come for all dexes (the coin carries the dex prefix, e.g. "xyz:TSLA").
+   A full scan of all dexes runs on load and once a minute (so a newly opened HIP-3
+   position shows up within a minute); in between only the dexes where the wallet
+   actually has something are asked.                          */
+const DEXE = {
+  liste:null, aktiv:{}, scanAt:{},
+  async namen(){
+    if(this.liste) return this.liste;
+    try{
+      const l = await info({type:'perpDexs'});
+      this.liste = (Array.isArray(l) ? l : []).map(d => d && (typeof d === 'string' ? d : d.name)).filter(Boolean);
+    }catch(e){ return []; }
+    return this.liste;
+  },
+  async zustand(addr, voll){
+    const haupt = await info({type:'clearinghouseState', user:addr});
+    const key = String(addr).toLowerCase();
+    const namen = await this.namen();
+    const scan = voll || !this.scanAt[key] || Date.now() - this.scanAt[key] > 60e3;
+    const zuFragen = scan ? namen : (this.aktiv[key] || []);
+    const res = await Promise.all(zuFragen.map(dex =>
+      info({type:'clearinghouseState', user:addr, dex}).then(r => ({dex, r})).catch(() => ({dex, r:null, fehler:true}))));
+    const out = JSON.parse(JSON.stringify(haupt || {marginSummary:{}, crossMarginSummary:{}, assetPositions:[], withdrawable:'0'}));
+    out.assetPositions = out.assetPositions || [];
+    const summe = (ziel, quelle) => {
+      ziel = ziel || {};
+      ['accountValue', 'totalNtlPos', 'totalRawUsd', 'totalMarginUsed'].forEach(k => {
+        ziel[k] = String(num(ziel[k]) + num((quelle || {})[k]));
+      });
+      return ziel;
+    };
+    const aktiv = [];
+    for(const x of res){
+      if(x.fehler){ if((this.aktiv[key] || []).indexOf(x.dex) >= 0) aktiv.push(x.dex); continue; }
+      const r = x.r; if(!r) continue;
+      const pos = (r.assetPositions || []).filter(a => num((a.position || {}).szi));
+      const wert = num((r.marginSummary || {}).accountValue);
+      if(!pos.length && !(wert > 0)) continue;
+      aktiv.push(x.dex);
+      out.marginSummary = summe(out.marginSummary, r.marginSummary);
+      out.crossMarginSummary = summe(out.crossMarginSummary, r.crossMarginSummary);
+      out.withdrawable = String(num(out.withdrawable) + num(r.withdrawable));
+      pos.forEach(a => { const c = JSON.parse(JSON.stringify(a)); c.dex = x.dex; out.assetPositions.push(c); });
+    }
+    if(scan){ this.scanAt[key] = Date.now(); this.aktiv[key] = aktiv; }
+    out.dexe = aktiv;
+    return out;
+  },
+  async orders(addr){
+    const key = String(addr).toLowerCase();
+    const listen = await Promise.all([info({type:'frontendOpenOrders', user:addr})].concat(
+      (this.aktiv[key] || []).map(dex => info({type:'frontendOpenOrders', user:addr, dex}))));
+    return [].concat.apply([], listen.map(l => Array.isArray(l) ? l : []));
+  }
+};
+
 /* ---------- Laden (eine oder mehrere Wallets) ---------- */
 async function loadOne(addr, incremental){
   const cache = incremental ? await CACHE.get(addr) : null;
@@ -5311,8 +5372,8 @@ async function loadOne(addr, incremental){
   const fundFrom = seit(altFund, cache && cache.fundUntil);
   const ledFrom  = seit(altLed,  cache && cache.ledgerUntil);
 
-  const [pos, port, fundNeu, ledNeu, spot, vaults, stake, subs, fees, orders] = await Promise.all([
-    info({type:'clearinghouseState', user:addr}).catch(() => null),
+  const [pos, port, fundNeu, ledNeu, spot, vaults, stake, subs, fees] = await Promise.all([
+    DEXE.zustand(addr, true).catch(() => null),
     info({type:'portfolio', user:addr}).catch(() => null),
     fetchLedgerPages('userFunding', addr, fundFrom,
       n => setStatus('<span class="spin"></span> ' + walletLabel(addr) + ': ' + n + ' Funding…'))
@@ -5322,9 +5383,10 @@ async function loadOne(addr, incremental){
     info({type:'userVaultEquities', user:addr}).catch(() => []),
     info({type:'delegatorSummary', user:addr}).catch(() => null),
     info({type:'subAccounts', user:addr}).catch(() => null),
-    info({type:'userFees', user:addr}).catch(() => null),
-    info({type:'frontendOpenOrders', user:addr}).catch(() => [])
+    info({type:'userFees', user:addr}).catch(() => null)
   ]);
+  // Open orders after the dex scan, so orders on HIP-3 markets are included too
+  const orders = await DEXE.orders(addr).catch(() => []);
   const fund = mergeLedger(incremental ? altFund : [], fundNeu);
   const led  = mergeLedger(incremental ? altLed  : [], ledNeu);
   S.geholt = S.geholt || {};
@@ -13347,7 +13409,7 @@ const LIVE = {
     const ws = activeWallets();
     if(!ws.length){ this.posFehler = false; return; }
     const data = await Promise.all(ws.map(w =>
-      info({type:'clearinghouseState', user:w.addr})
+      DEXE.zustand(w.addr)
         .then(r => ({addr:w.addr, positions:r})).catch(() => null)));
     const ok = data.filter(Boolean);
     // Scheitert die Abfrage, wird das angezeigt statt „keine offene Position“
@@ -13383,7 +13445,7 @@ const LIVE = {
     if(!ws.length) return;
     try{
       const res = await Promise.all(ws.map(w =>
-        info({type:'frontendOpenOrders', user:w.addr})
+        DEXE.orders(w.addr)
           .then(list => (Array.isArray(list) ? list : [])
             .map(o => Object.assign({wallet:w.addr}, o)))
           .catch(() => null)));
